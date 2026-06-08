@@ -1,0 +1,282 @@
+﻿import Link from "next/link";
+import { requireUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { withTimeout } from "@/lib/async";
+import { hydrateListings, listingColumns } from "@/lib/listing-records";
+import { db, throwDbError } from "@/lib/supabase-db";
+import { NotificationPreferences } from "@/components/notification-preferences";
+import { DashboardListings } from "@/components/dashboard-listings";
+import { DashboardLeads } from "@/components/dashboard-leads";
+import { ProfileForm } from "@/components/profile-form";
+import { ServiceProfileActivityPanel } from "@/components/service-profile-activity-panel";
+import { ServiceProfileActions } from "@/components/service-profile-actions";
+import { LogoutButton } from "@/components/logout-button";
+import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } from "@/lib/response-metrics";
+import { defaultServiceCategories } from "@/lib/service-catalog";
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage({ searchParams }: { searchParams?: { meus?: string } }) {
+  const user = await requireUser().catch(() => null);
+  if (!user) redirect("/entrar");
+  const requestedListingFilter = ["DRAFT", "ACTIVE", "PENDING_REVIEW", "EXPIRING", "EXPIRED", "SOLD_RENTED"].includes(searchParams?.meus ?? "") ? searchParams?.meus ?? "ALL" : "ALL";
+  const supabase = getSupabaseAdmin();
+  const [listings, serviceProfileResult, leadsResult] = await Promise.all([
+    findDashboardListings(user.id),
+    supabase
+      .from("service_profiles")
+      .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,status,active,cidade,bairro,estado,last_active_at,activity_confirmation_due_at")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    withTimeout(findDashboardLeads(user.id), [[], [], []] as const, 1800)
+  ]);
+  const serviceProfile = serviceProfileResult.data;
+  const [receivedLeads, sentLeads, ownerLeadsForMetrics] = leadsResult;
+  const responseMetrics = calculateResponseMetrics(ownerLeadsForMetrics);
+  const responseScore = responseMetrics.score === null ? null : Math.round(responseMetrics.score / 10);
+  const metrics = [
+    { label: "Ativos", value: listings.filter((item) => item.status === "ACTIVE").length, href: "/dashboard?meus=ACTIVE#meus-anuncios" },
+    { label: "Pagamentos Pendentes", value: listings.filter((item) => item.status === "DRAFT").length, href: "/dashboard?meus=DRAFT#meus-anuncios" },
+    { label: "Em Análise", value: listings.filter((item) => item.status === "PENDING_REVIEW").length, href: "/dashboard?meus=PENDING_REVIEW#meus-anuncios" },
+    { label: "Expirando", value: listings.filter((item) => item.expiresAt <= new Date(Date.now() + 3 * 86400000)).length, href: "/dashboard?meus=EXPIRING#meus-anuncios" },
+    { label: "Expirados", value: listings.filter((item) => item.status === "EXPIRED").length, href: "/dashboard?meus=EXPIRED#meus-anuncios" },
+    { label: "Vendidos/Alugados", value: listings.filter((item) => item.status === "SOLD" || item.status === "RENTED").length, href: "/dashboard?meus=SOLD_RENTED#meus-anuncios" },
+    { label: "Serviços Publicados", value: serviceProfile && serviceProfile.status !== "CLOSED" ? 1 : 0, href: "/dashboard#meus-servicos" },
+    { label: "Visualizações", value: listings.reduce((sum, item) => sum + item.viewCount, 0), href: "/dashboard#meus-anuncios" },
+    { label: "Cliques", value: listings.reduce((sum, item) => sum + item.contactClickCount, 0), href: "/dashboard#meus-anuncios" },
+    { label: "Compartilhamentos", value: listings.reduce((sum, item) => sum + item.shareCount, 0), href: "/dashboard#meus-anuncios" },
+    { label: "Mensagens", value: receivedLeads.length, href: "/mensagens" },
+    { label: "Nota de Atendimento", value: responseScore ?? 0, href: "/dashboard#performance" },
+    { label: "Taxa de Resposta", value: `${responseMetrics.responseRate ?? 0}%`, href: "/dashboard#performance" },
+    { label: "Favoritos", value: listings.reduce((sum, item: any) => sum + (item._count?.favorites ?? 0), 0), href: "/favoritos" }
+  ];
+  const profileFields = [user.phone, user.whatsapp, user.cep, user.address, user.number, user.district, user.city, user.state];
+  const profileCompletion = Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100);
+  return (
+    <main className="mx-auto max-w-6xl px-4 py-8">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 text-2xl font-black sm:text-3xl">Minha Conta</h1>
+        <LogoutButton className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-white/10 px-2.5 text-xs font-black text-white hover:bg-white/10 disabled:opacity-60 sm:px-4 sm:text-sm" label="Sair / Trocar Login" />
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <Link href="/planos" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Novo Anúncio</Link>
+        <Link href="/dashboard?meus=ALL#meus-anuncios" className="inline-flex h-11 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">Meus Anúncios</Link>
+        <Link href="/mensagens" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Chat</Link>
+        <Link href="/favoritos" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Favoritos</Link>
+        <Link href="/servicos" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Buscar serviços</Link>
+        <Link href="/servicos/anunciar" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Sou prestador</Link>
+      </div>
+      <div id="performance" className="mt-6 grid scroll-mt-24 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {metrics.map((metric) => {
+          const content = (
+            <>
+              <p className="text-xs font-black text-neutral-500">{metric.label}</p>
+              <strong className="mt-1 block text-xl">{metric.value}</strong>
+            </>
+          );
+          const className = "rounded-md border border-black/10 bg-white p-2 text-left transition dark:border-white/10 dark:bg-neutral-900";
+          return metric.href ? (
+            <Link key={metric.label} href={metric.href as any} className={`${className} hover:border-yellow-300/50`}>
+              {content}
+            </Link>
+          ) : (
+            <div key={metric.label} className={className}>
+              {content}
+            </div>
+          );
+        })}
+      </div>
+      <section className={`mt-4 rounded-lg border p-4 ${responseMetrics.badgeClassName}`}>
+        <p className="text-xs font-black uppercase">Velocidade de Resposta</p>
+        <strong className="mt-1 block text-xl">{responseMetrics.label} - {formatAverageResponse(responseMetrics.averageResponseMinutes)}</strong>
+        <p className="mt-1 text-sm">
+          {responseTierLabel(responseMetrics.tier)} · Responde {responseMetrics.responseRate ?? 0}% · Nota {responseScore ?? "novo"}/10.
+          Responda as mensagens para melhorar.
+        </p>
+      </section>
+      <div id="perfil" className="scroll-mt-24">
+      <ProfileForm profileCompletion={profileCompletion} user={{
+        name: user.name,
+        username: user.username,
+        cpf: user.cpf,
+        phone: user.phone,
+        whatsapp: user.whatsapp,
+        cep: user.cep,
+        address: user.address,
+        number: user.number,
+        complement: user.complement,
+        district: user.district,
+        city: user.city,
+        state: user.state,
+        accountType: user.accountType,
+        cnpj: user.cnpj
+      }} />
+      </div>
+      <NotificationPreferences initialChannels={user.notificationChannels?.length ? user.notificationChannels : [user.notificationChannel ?? "IN_APP"]} />
+      {serviceProfile && serviceProfile.status !== "CLOSED" ? (
+        <ServiceProfileActivityPanel
+          initialStatus={serviceProfile.status}
+          initialLastActiveAt={serviceProfile.last_active_at}
+          initialDueAt={serviceProfile.activity_confirmation_due_at}
+        />
+      ) : null}
+      <section id="meus-servicos" className="mt-8 scroll-mt-24 rounded-lg border border-white/10 bg-neutral-900 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase text-yellow-300">Serviços</p>
+            <h2 className="mt-1 text-xl font-black">Meus Serviços</h2>
+            <p className="mt-1 text-sm text-neutral-400">
+              Aqui ficam seus serviços publicados.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/servicos" className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Ver Serviços</Link>
+            <Link href="/servicos/anunciar" className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm btn-gold">Publicar Serviço Grátis</Link>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {serviceProfile && serviceProfile.status !== "CLOSED" ? (
+            <article className="rounded-lg border border-white/10 bg-black/25 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-black">{serviceProfile.nome_fantasia ?? serviceProfile.name ?? serviceCategoryName(serviceProfile.categoria_servico)}</h3>
+                  <p className="mt-1 text-xs font-bold uppercase text-yellow-300">{serviceProfile.tipo_cadastro === "COMPANY" ? "Empresa Prestadora" : "Profissional Autônomo"}</p>
+                </div>
+                <span className={`rounded-full px-2 py-1 text-xs font-black ${serviceProfile.active ? "bg-emerald-400/15 text-emerald-200" : "bg-red-400/15 text-red-200"}`}>
+                  {serviceProfile.active ? "Ativo" : "Inativo"}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-neutral-300">{serviceProfile.cidade}/{serviceProfile.estado}{serviceProfile.bairro ? ` - ${serviceProfile.bairro}` : ""}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(serviceProfile.categorias_servico?.length ? serviceProfile.categorias_servico : [serviceProfile.categoria_servico]).map((item: string) => (
+                  <span key={item} className="rounded-full border border-white/10 px-2 py-1 text-xs text-neutral-200">{serviceCategoryName(item)}</span>
+                ))}
+              </div>
+              <ServiceProfileActions />
+            </article>
+          ) : null}
+          {!serviceProfile || serviceProfile.status === "CLOSED" ? (
+            <div className="rounded-lg border border-dashed border-white/15 bg-black/25 p-4 text-sm text-neutral-300 md:col-span-2">
+              Você ainda não publicou serviços. Ative a opção <strong className="text-yellow-300">Sou Prestador de Serviços</strong> para cadastrar até 5 especialidades.
+            </div>
+          ) : null}
+        </div>
+      </section>
+      <DashboardLeads
+        ownerName={user.name}
+        received={receivedLeads.map((lead) => ({
+          id: lead.id,
+          interestedUserId: lead.interestedUserId,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          question1: lead.question1,
+          question2: lead.question2,
+          question3: lead.question3,
+          status: lead.status,
+          createdAt: new Date(lead.createdAt).toISOString(),
+          listing: { title: lead.listing.title, slug: lead.listing.slug, category: lead.listing.category }
+        }))}
+        sent={sentLeads.map((lead) => ({
+          id: lead.id,
+          status: lead.status,
+          readAt: lead.readAt ? new Date(lead.readAt).toISOString() : null,
+          createdAt: new Date(lead.createdAt).toISOString(),
+          listing: { title: lead.listing.title, slug: lead.listing.slug, category: lead.listing.category }
+        }))}
+      />
+      <DashboardListings initialFilter={requestedListingFilter} accountType={user.accountType} cnpj={user.cnpj} listings={listings.map((listing) => ({
+        id: listing.id,
+        slug: listing.slug,
+        title: listing.title,
+        type: listing.type,
+        category: listing.category,
+        priceCents: listing.priceCents,
+        city: listing.city,
+        state: listing.state,
+        status: listing.status,
+        createdAt: new Date(listing.createdAt).toISOString(),
+        expiresAt: new Date(listing.expiresAt).toISOString(),
+        viewCount: listing.viewCount,
+        contactClickCount: listing.contactClickCount,
+        shareCount: listing.shareCount,
+        favoritesCount: listing._count.favorites,
+        leadsCount: listing._count.contactLeads,
+        plan: { code: listing.plan?.code ?? "FREE", name: listing.plan?.name ?? "Grátis" },
+        photos: listing.photos.map((photo) => ({ url: photo.url, alt: photo.alt }))
+      }))} />
+    </main>
+  );
+}
+
+async function findDashboardListings(ownerId: string) {
+  const { data, error } = await db()
+    .from("Listing")
+    .select(listingColumns())
+    .eq("ownerId", ownerId)
+    .order("createdAt", { ascending: false });
+  throwDbError(error);
+  const hydrated = await hydrateListings((data ?? []) as any[]);
+  const listingIds = hydrated.map((listing) => listing.id);
+  const [favoriteRows, leadRows] = await Promise.all([
+    listingIds.length ? db().from("Favorite").select("listingId").in("listingId", listingIds) : Promise.resolve({ data: [], error: null }),
+    listingIds.length ? db().from("ContactLead").select("listingId").in("listingId", listingIds) : Promise.resolve({ data: [], error: null })
+  ]);
+  throwDbError(favoriteRows.error);
+  throwDbError(leadRows.error);
+  const favorites = countByListing(favoriteRows.data ?? []);
+  const leads = countByListing(leadRows.data ?? []);
+  return hydrated.map((listing) => ({
+    ...listing,
+    photos: listing.photos.slice(0, 1),
+    _count: { favorites: favorites.get(listing.id) ?? 0, contactLeads: leads.get(listing.id) ?? 0 }
+  }));
+}
+
+async function findDashboardLeads(ownerId: string) {
+  const { data: listings, error } = await db().from("Listing").select("id,title,slug,category").eq("ownerId", ownerId);
+  throwDbError(error);
+  const listingRows = (listings ?? []) as Array<{ id: string; title: string; slug: string; category: string }>;
+  const listingById = new Map(listingRows.map((listing) => [listing.id, listing]));
+  const listingIds = [...listingById.keys()];
+  const [receivedResult, sentResult, metricsResult] = await Promise.all([
+    listingIds.length ? db().from("ContactLead").select("*").in("listingId", listingIds).order("createdAt", { ascending: false }).limit(30) : Promise.resolve({ data: [], error: null }),
+    db().from("ContactLead").select("*").eq("interestedUserId", ownerId).order("createdAt", { ascending: false }).limit(30),
+    listingIds.length ? db().from("ContactLead").select("createdAt,decidedAt,status,listingId").in("listingId", listingIds).order("createdAt", { ascending: false }).limit(200) : Promise.resolve({ data: [], error: null })
+  ]);
+  throwDbError(receivedResult.error);
+  throwDbError(sentResult.error);
+  throwDbError(metricsResult.error);
+  const sentListingIds = [...new Set(((sentResult.data ?? []) as Array<any>).map((lead) => lead.listingId).filter(Boolean))];
+  const { data: sentListings, error: sentListingsError } = sentListingIds.length
+    ? await db().from("Listing").select("id,title,slug,category").in("id", sentListingIds)
+    : { data: [], error: null };
+  throwDbError(sentListingsError);
+  const sentListingById = new Map([...(sentListings ?? []), ...listingRows].map((listing: any) => [listing.id, listing]));
+  const received = ((receivedResult.data ?? []) as Array<any>).map((lead) => ({ ...lead, listing: listingById.get(lead.listingId) })).filter((lead) => lead.listing);
+  const sent = ((sentResult.data ?? []) as Array<any>).map((lead) => ({ ...lead, listing: sentListingById.get(lead.listingId) })).filter((lead) => lead.listing);
+  const metrics = ((metricsResult.data ?? []) as Array<any>).map((lead) => ({ createdAt: lead.createdAt, decidedAt: lead.decidedAt, status: lead.status }));
+  return [received, sent, metrics] as const;
+}
+
+function countByListing(rows: Array<{ listingId?: string | null }>) {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.listingId) continue;
+    counts.set(row.listingId, (counts.get(row.listingId) ?? 0) + 1);
+  }
+  return counts;
+}
+function serviceCategoryName(slug: string) {
+  return defaultServiceCategories.find((item) => item.slug === slug)?.name ?? slug;
+}
+
+
+
+
+
+
+
+
+

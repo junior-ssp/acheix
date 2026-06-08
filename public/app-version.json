@@ -1,0 +1,12 @@
+{
+  "appName": "Achei X",
+  "platform": "android",
+  "apkUrl": "/downloads/achei-x-2.3.apk",
+  "latestApkUrl": "/downloads/achei-x-2.3.apk",
+  "fileName": "achei-x-2.3.apk",
+  "sourceFile": "android/app/build/outputs/apk/release/app-release.apk",
+  "sizeBytes": 25846982,
+  "publishedAt": "2026-06-07T22:59:57.871Z",
+  "versionCode": 14,
+  "versionName": "2.3"
+}

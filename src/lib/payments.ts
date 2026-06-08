@@ -1,0 +1,144 @@
+import { addDays } from "@/lib/expiration-policy";
+import { db, isUniqueViolation, newDbId, throwDbError } from "@/lib/supabase-db";
+
+type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+type PaidPlanCode = "BRONZE" | "SILVER" | "GOLD" | "X6" | "X12";
+type PaymentForConfirmation = {
+  id: string;
+  userId: string;
+  amountCents: number;
+  status: PaymentStatus | string;
+  provider: string | null;
+  providerRef: string | null;
+  updatedAt: string | null;
+};
+
+const paidStatuses: PaymentStatus[] = ["PAID"];
+const paidEffectGraceMs = 30_000;
+
+export function parseRenewProviderRef(providerRef: string | null | undefined) {
+  const [kind, listingId, planCode] = String(providerRef ?? "").split(":");
+  if (kind !== "renew" || !listingId || !isPaidPlanCode(planCode)) return null;
+  return { listingId, planCode };
+}
+
+export function parsePublishProviderRef(providerRef: string | null | undefined) {
+  const [kind, listingId, planCode] = String(providerRef ?? "").split(":");
+  if (kind !== "publish" || !listingId || !isPaidPlanCode(planCode)) return null;
+  return { listingId, planCode };
+}
+
+export async function findPaymentForConfirmation(paymentId: string) {
+  const { data, error } = await db()
+    .from("Payment")
+    .select("id,userId,amountCents,status,provider,providerRef,updatedAt")
+    .eq("id", paymentId)
+    .maybeSingle();
+  throwDbError(error);
+  return data as PaymentForConfirmation | null;
+}
+
+export async function confirmRenewalPayment(paymentId: string) {
+  const supabase = db();
+  const payment = await findPaymentForConfirmation(paymentId);
+  if (!payment) throw new Error("Pagamento não encontrado.");
+
+  const renew = parseRenewProviderRef(payment.providerRef);
+  const publish = parsePublishProviderRef(payment.providerRef);
+  const reference = renew ?? publish;
+  if (!reference) throw new Error("Pagamento não possui referência de anúncio válida.");
+
+  const [listingResult, planResult] = await Promise.all([
+    supabase.from("Listing").select("id").eq("id", reference.listingId).maybeSingle(),
+    supabase.from("Plan").select("id,code,durationDays").eq("code", reference.planCode).maybeSingle()
+  ]);
+  throwDbError(listingResult.error);
+  throwDbError(planResult.error);
+  if (!listingResult.data) throw new Error("Anúncio não encontrado para confirmação de pagamento.");
+  if (!planResult.data) throw new Error("Plano não encontrado para confirmação de pagamento.");
+
+  const existingSubscription = await findPaymentSubscription(payment.id);
+  if (paidStatuses.includes(payment.status as PaymentStatus) && existingSubscription) return payment;
+  if (paidStatuses.includes(payment.status as PaymentStatus) && !isOldEnoughForReconciliation(payment.updatedAt)) return payment;
+
+  const now = new Date();
+  let paidPayment = payment;
+  let paidAt = now;
+
+  if (!paidStatuses.includes(payment.status as PaymentStatus)) {
+    const { data: updatedPayment, error: updatePaymentError } = await supabase
+      .from("Payment")
+      .update({ status: "PAID", updatedAt: now.toISOString() })
+      .eq("id", payment.id)
+      .eq("status", "PENDING")
+      .select("id,userId,amountCents,status,provider,providerRef,updatedAt")
+      .maybeSingle();
+    throwDbError(updatePaymentError);
+
+    if (!updatedPayment) {
+      const currentPayment = await findPaymentForConfirmation(payment.id);
+      if (!currentPayment) throw new Error("Pagamento não encontrado após confirmação.");
+      return currentPayment;
+    }
+    paidPayment = updatedPayment as PaymentForConfirmation;
+  } else {
+    const updatedAt = payment.updatedAt ? new Date(payment.updatedAt) : now;
+    paidAt = Number.isFinite(updatedAt.getTime()) ? updatedAt : now;
+  }
+
+  const expiresAt = addDays(paidAt, planResult.data.durationDays);
+  const { error: updateListingError } = await supabase
+    .from("Listing")
+    .update({
+      planId: planResult.data.id,
+      status: "ACTIVE",
+      expiresAt: expiresAt.toISOString(),
+      expiredNotifiedAt: null,
+      updatedAt: paidAt.toISOString()
+    })
+    .eq("id", listingResult.data.id);
+  throwDbError(updateListingError);
+
+  const subscriptionAfterUpdate = await findPaymentSubscription(payment.id);
+  if (!subscriptionAfterUpdate) {
+    const { error: subscriptionError } = await supabase.from("Subscription").insert({
+      id: newDbId(),
+      listingId: listingResult.data.id,
+      planId: planResult.data.id,
+      paymentId: payment.id,
+      startsAt: paidAt.toISOString(),
+      endsAt: expiresAt.toISOString()
+    });
+    if (!isUniqueViolation(subscriptionError)) throwDbError(subscriptionError);
+  }
+
+  const { error: auditError } = await supabase.from("AuditLog").insert({
+    id: newDbId(),
+    userId: paidPayment.userId,
+    action: renew ? "payment.renewal_confirmed" : "payment.publish_confirmed",
+    metadata: { paymentId: paidPayment.id, listingId: listingResult.data.id, planCode: planResult.data.code, expiresAt: expiresAt.toISOString() }
+  });
+  throwDbError(auditError);
+
+  return paidPayment;
+}
+
+async function findPaymentSubscription(paymentId: string) {
+  const { data, error } = await db()
+    .from("Subscription")
+    .select("id")
+    .eq("paymentId", paymentId)
+    .limit(1)
+    .maybeSingle();
+  throwDbError(error);
+  return data;
+}
+
+function isOldEnoughForReconciliation(updatedAt: string | null | undefined) {
+  const time = updatedAt ? new Date(updatedAt).getTime() : 0;
+  return Number.isFinite(time) && Date.now() - time > paidEffectGraceMs;
+}
+
+function isPaidPlanCode(value: string | undefined): value is PaidPlanCode {
+  return value === "BRONZE" || value === "SILVER" || value === "GOLD" || value === "X6" || value === "X12";
+}
