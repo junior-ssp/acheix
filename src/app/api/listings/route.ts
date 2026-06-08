@@ -119,6 +119,7 @@ export async function POST(request: Request) {
       searchText,
       expiresAt: expiresAt.toISOString(),
       termsAcceptedAt: now.toISOString(),
+      updatedAt: now.toISOString(),
       ownerId: user.id,
       planId: plan.id
     });
