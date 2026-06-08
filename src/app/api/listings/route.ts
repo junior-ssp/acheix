@@ -2,6 +2,7 @@
 import { completeLocationFromUserAndDdd } from "@/lib/ddd-autocomplete";
 import { addDays, freeListingCooldownDays, getListingDurationDays, recoveryDays } from "@/lib/expiration-policy";
 import { errorResponse, json } from "@/lib/http";
+import { assertListingPhotosApproved } from "@/lib/image-moderation";
 import { buildSearchText, slugify } from "@/lib/listings";
 import { findActiveListings } from "@/lib/listing-search";
 import { findListingBySlug } from "@/lib/listing-records";
@@ -54,6 +55,8 @@ export async function POST(request: Request) {
       return json({ error: "Plano X Profissional é exclusivo para conta com CNPJ." }, 403);
     }
     if (data.photos.length > plan.photoLimit) return json({ error: `Limite de ${plan.photoLimit} fotos para o plano ${plan.name}` }, 422);
+    const photoApproval = assertListingPhotosApproved(user.id, data.photos);
+    if (!photoApproval.ok) return json({ error: photoApproval.error }, 422);
 
     const now = new Date();
     if (plan.code === "FREE") {

@@ -1,6 +1,7 @@
-﻿import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
 import { errorResponse, json } from "@/lib/http";
+import { blockedImageMessage, createImageModerationToken, finalizeApprovedImageModeration, moderateListingImage } from "@/lib/image-moderation";
 
 export const dynamic = "force-dynamic";
 
@@ -19,16 +20,29 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const file = formData.get("file");
-    if (!(file instanceof File)) return json({ error: "Arquivo invalido." }, 422);
+    if (!(file instanceof File)) return json({ error: "Arquivo inválido." }, 422);
     if (!file.type.startsWith("image/")) return json({ error: "Envie apenas imagens." }, 422);
     if (file.size > maxFileSize) return json({ error: "Imagem maior que 10 MB." }, 422);
+
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const moderation = await moderateListingImage({
+      user,
+      fileName: file.name,
+      mimeType: file.type,
+      bytes,
+      request
+    });
+
+    if (moderation.status !== "APPROVED") {
+      return json({ error: blockedImageMessage }, 422);
+    }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false }
     });
     const cleanName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
     const path = `listings/${user.id}/${Date.now()}-${crypto.randomUUID()}-${cleanName}`;
-    const { error } = await supabase.storage.from(bucket).upload(path, file, {
+    const { error } = await supabase.storage.from(bucket).upload(path, bytes, {
       cacheControl: "31536000",
       contentType: file.type,
       upsert: false
@@ -37,9 +51,13 @@ export async function POST(request: Request) {
     if (error) return json({ error: error.message }, 400);
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return json({ url: data.publicUrl });
+    await finalizeApprovedImageModeration({ userId: user.id, moderationId: moderation.moderationId, url: data.publicUrl, storagePath: path, hash: moderation.hash });
+
+    return json({
+      url: data.publicUrl,
+      moderationToken: createImageModerationToken({ userId: user.id, url: data.publicUrl, hash: moderation.hash, moderationId: moderation.moderationId })
+    });
   } catch (error) {
     return errorResponse(error);
   }
 }
-

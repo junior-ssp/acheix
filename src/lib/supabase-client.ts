@@ -16,12 +16,12 @@ export async function uploadListingPhoto(file: File) {
     body: formData
   });
   const data = await response.json().catch(() => null);
-  if (!response.ok || !data?.url) {
+  if (!response.ok || !data?.url || !data?.moderationToken) {
     if (response.status === 401) {
       throw new Error("Entre ou crie uma conta para enviar fotos.");
     }
     throw new Error(data?.error ?? "Não foi possível enviar a foto.");
   }
-  return data.url as string;
+  return { url: data.url as string, moderationToken: data.moderationToken as string };
 }
 

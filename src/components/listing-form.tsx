@@ -17,6 +17,7 @@ import { hasPublicContactInText, publicContactDescriptionMessage } from "@/lib/p
 type ListingCategory = "VEHICLE" | "REAL_ESTATE";
 type CreatedListing = { slug: string; title: string };
 type PlanOption = (typeof planCatalog)[number];
+type UploadedPhoto = { url: string; moderationToken?: string };
 const listingDraftTtlMs = 15 * 60 * 1000;
 
 export function ListingForm({
@@ -46,7 +47,7 @@ export function ListingForm({
   const [messageType, setMessageType] = useState<"error" | "info">("error");
   const [createdListing, setCreatedListing] = useState<CreatedListing | null>(null);
   const [publishing, setPublishing] = useState(false);
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<UploadedPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -77,7 +78,7 @@ export function ListingForm({
         setPlanCode(draft.planCode as (typeof planCatalog)[number]["code"]);
       }
       if (typeof draft.listingType === "string" && draft.listingType) setListingType(draft.listingType);
-      if (Array.isArray(draft.photoUrls)) setPhotoUrls(draft.photoUrls.filter((url): url is string => typeof url === "string"));
+      if (Array.isArray(draft.photoUrls)) setPhotoUrls(normalizeDraftPhotos(draft.photoUrls));
       if (typeof draft.privacyAccepted === "boolean") setPrivacyAccepted(draft.privacyAccepted);
       if (typeof draft.termsAccepted === "boolean") setTermsAccepted(draft.termsAccepted);
       window.setTimeout(() => restoreFormValues(formRef.current, draft.fields), 0);
@@ -128,7 +129,7 @@ export function ListingForm({
       showWhatsapp: false,
       planCode,
       acceptTerms: raw.acceptTerms === "on",
-      photos: photoUrls.map((url) => ({ url, alt: raw.title }))
+      photos: photoUrls.map((photo) => ({ url: photo.url, alt: raw.title, moderationToken: photo.moderationToken }))
     };
 
     if (hasPublicContactInText(payload.description)) {
@@ -208,8 +209,8 @@ export function ListingForm({
     }
     setUploading(true);
     try {
-      const urls = await Promise.all(selectedFiles.map(uploadListingPhoto));
-      setPhotoUrls((current) => [...current, ...urls]);
+      const uploadedPhotos = await Promise.all(selectedFiles.map(uploadListingPhoto));
+      setPhotoUrls((current) => [...current, ...uploadedPhotos]);
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Não foi possível enviar fotos. Confira a configuração do Supabase Storage.");
@@ -374,13 +375,13 @@ export function ListingForm({
           </div>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
             {Array.from({ length: photoLimit }).map((_, index) => {
-              const url = photoUrls[index];
-              const isFirstEmptySlot = !url && index === photoUrls.length;
+              const photo = photoUrls[index];
+              const isFirstEmptySlot = !photo && index === photoUrls.length;
               return (
                 <div key={index} className="relative aspect-square overflow-hidden rounded-xl border border-dashed border-yellow-300/45 bg-black/30">
-                  {url ? (
+                  {photo ? (
                     <>
-                      <img src={url} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" />
+                      <img src={photo.url} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" />
                       <button
                         type="button"
                         onClick={() => removePhoto(index)}
@@ -485,7 +486,7 @@ type ListingDraft = {
   category: ListingCategory;
   planCode: string;
   listingType: string;
-  photoUrls: string[];
+  photoUrls: Array<string | UploadedPhoto>;
   privacyAccepted: boolean;
   termsAccepted: boolean;
   fields: Record<string, FormDataEntryValue>;
@@ -510,6 +511,12 @@ function loadListingDraft(category: ListingCategory): ListingDraft | null {
     clearListingDraft(category);
     return null;
   }
+}
+
+function normalizeDraftPhotos(values: Array<string | UploadedPhoto>) {
+  return values
+    .map((item) => typeof item === "string" ? { url: item } : item)
+    .filter((item): item is UploadedPhoto => Boolean(item?.url));
 }
 
 function writeListingDraft(category: ListingCategory, draft: Omit<ListingDraft, "expiresAt">) {

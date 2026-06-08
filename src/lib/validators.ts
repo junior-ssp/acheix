@@ -191,7 +191,7 @@ export const listingSchema = z.object({
   showWhatsapp: z.boolean().default(false),
   planCode: z.enum(["FREE", "BRONZE", "SILVER", "GOLD", "X6", "X12"]),
   acceptTerms: z.boolean().refine(Boolean, "Aceite os termos antes de publicar"),
-  photos: z.array(z.object({ url: z.string().url(), alt: z.string().optional() })).default([]),
+  photos: z.array(z.object({ url: z.string().url(), alt: z.string().optional(), moderationToken: z.string().optional() })).default([]),
   vehicle: z.object({
     brand: z.string().min(1),
     model: z.string().min(1),
