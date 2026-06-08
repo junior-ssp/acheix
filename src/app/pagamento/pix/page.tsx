@@ -8,7 +8,7 @@ import { db, throwDbError } from "@/lib/supabase-db";
 
 export const dynamic = "force-dynamic";
 
-export default async function PixPaymentPage({ searchParams }: { searchParams: { paymentId?: string } }) {
+export default async function PixPaymentPage({ searchParams }: { searchParams: { paymentId?: string; novo?: string } }) {
   const user = await requireUser().catch(() => null);
   const payment = user && searchParams.paymentId
     ? await findPayment(searchParams.paymentId, user.id)
@@ -19,6 +19,7 @@ export default async function PixPaymentPage({ searchParams }: { searchParams: {
         paymentId: payment.id,
         amountCents: payment.amountCents,
         description: `Achei X - ${payment.providerRef ?? "Pagamento de plano"}`,
+        forceNew: searchParams.novo === "1",
         customer: {
           name: user.name,
           email: user.email,
@@ -68,6 +69,11 @@ export default async function PixPaymentPage({ searchParams }: { searchParams: {
         )}
         <div className="mt-6 flex flex-wrap gap-2">
           <Link href="/dashboard" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Voltar ao Painel</Link>
+          {payment?.status === "PENDING" ? (
+            <Link href={`/pagamento/pix?paymentId=${payment.id}&novo=1`} className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">
+              Gerar novo PIX
+            </Link>
+          ) : null}
         </div>
       </section>
     </main>

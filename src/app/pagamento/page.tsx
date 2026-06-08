@@ -33,7 +33,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: { pa
         <div className="mt-6 flex flex-wrap gap-2">
           <Link href="/dashboard" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Voltar ao Painel</Link>
           {payment && payment.status === "PENDING" ? (
-            <Link href={`/pagamento/pix?paymentId=${payment.id}`} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">
+            <Link href={`/pagamento/pix?paymentId=${payment.id}&novo=1`} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">
               <QrCode size={18} />
               GERAR PIX
             </Link>

@@ -2,6 +2,7 @@
 .env*.local
 .vercel
 .next
+.tmp
 node_modules
 logs
 *.log

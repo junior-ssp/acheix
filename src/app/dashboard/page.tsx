@@ -256,7 +256,7 @@ function DashboardPayments({ payments }: { payments: DashboardPayment[] }) {
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {payment.status === "PENDING" ? (
-                <Link href={`/pagamento/pix?paymentId=${payment.id}`} className="inline-flex h-10 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">
+                <Link href={`/pagamento/pix?paymentId=${payment.id}&novo=1`} className="inline-flex h-10 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">
                   Pagar PIX
                 </Link>
               ) : null}
