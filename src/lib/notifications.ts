@@ -97,14 +97,14 @@ export async function queuePush(userId: string, title: string, message: string, 
     return { sent: 0, failed: tokens.length, unreadCount };
   }
 
-  const url = options.primaryActionUrl || options.linkUrl || "/mensagens";
+  const url = options.primaryActionUrl || options.linkUrl || "/dashboard#interesses";
   const results = await Promise.allSettled(tokens.map(async ({ id, token }) => {
     try {
       await messaging.send({
         token,
         notification: { title, body: message },
         data: { type: "ACHEIX_NOTIFICATION", url, unreadCount: String(unreadCount), contactLeadId: options.contactLeadId ?? "", linkLabel: options.linkLabel ?? "" },
-        android: { priority: "high", notification: { channelId: "inbox-messages", sound: "default", notificationCount: unreadCount, clickAction: "OPEN_INBOX" } },
+        android: { priority: "high", notification: { channelId: "interest-updates", sound: "default", notificationCount: unreadCount, clickAction: "OPEN_INTERESTS" } },
         webpush: { fcmOptions: { link: url }, notification: { icon: "/icon.svg", badge: "/icon.svg" } },
         apns: { payload: { aps: { sound: "default", badge: unreadCount } } }
       });

@@ -4,7 +4,7 @@ import { LockKeyhole, UserPlus } from "lucide-react";
 export function PublishLoginPrompt({
   nextPath,
   title = "Cadastre-se para publicar",
-  description = "Para anunciar no Achei X, primeiro crie sua conta. Assim seus anúncios, pagamentos, mensagens e renovações ficam protegidos no seu painel."
+  description = "Para anunciar no Achei X, primeiro crie sua conta. Assim seus anúncios, pagamentos, interessados e renovações ficam protegidos no seu painel."
 }: {
   nextPath: string;
   title?: string;

@@ -308,7 +308,7 @@ export default async function AdminPage({
                         <input type="hidden" name="action" value="delete_service_user" />
                         <input type="hidden" name="profileId" value={service.id} />
                         <p className="font-black text-red-200">Deseja excluir também o usuário?</p>
-                        <p className="text-xs text-neutral-300">Atenção: isso apaga a conta principal e tudo ligado a ela, incluindo anúncios, favoritos, mensagens e perfil de serviço.</p>
+                        <p className="text-xs text-neutral-300">Atenção: isso apaga a conta principal e tudo ligado a ela, incluindo anúncios, favoritos, interesses e perfil de serviço.</p>
                         <label className="flex gap-2 text-xs text-neutral-300">
                           <input type="checkbox" name="confirmDelete" value="SIM" required />
                           Confirmo que entendi a Regra de Ouro.

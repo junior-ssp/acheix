@@ -37,7 +37,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const adminShell = headers().get("x-acheix-admin-shell") === "1";
   const user = adminShell ? null : await getCurrentUser().catch(() => null);
-  const userInitial = user?.name?.trim()?.charAt(0)?.toUpperCase() || "U";
+  const userInitials = initialsFromName(user?.name);
 
   return (
     <html lang="pt-BR" className="dark" suppressHydrationWarning>
@@ -83,7 +83,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 aria-label={user ? `Conta logada: ${user.name}` : "Entrar na conta"}
                 title={user ? `Logado como ${user.name}` : "Entrar"}
               >
-                {user ? <span className="text-sm font-black">{userInitial}</span> : <User size={19} strokeWidth={2.4} />}
+                {user ? <span className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-emerald-300 via-yellow-200 to-emerald-500 text-sm font-black text-black">{userInitials}</span> : <User size={19} strokeWidth={2.4} />}
                 {user ? <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-black bg-emerald-300" aria-hidden="true" /> : null}
               </Link>
               <AccountMenu />
@@ -120,6 +120,13 @@ function AndroidLogo() {
       <path d="M7.2 8.6h9.6c.5 0 .9.4.9.9v6.7c0 .5-.4.9-.9.9h-.7v2.1c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1v-2.1h-3.8v2.1c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1v-2.1h-.7c-.5 0-.9-.4-.9-.9V9.5c0-.5.4-.9.9-.9Zm-2.4.4c.6 0 1.1.5 1.1 1.1v4.8c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1v-4.8c0-.6.5-1.1 1.1-1.1Zm14.4 0c.6 0 1.1.5 1.1 1.1v4.8c0 .6-.5 1.1-1.1 1.1s-1.1-.5-1.1-1.1v-4.8c0-.6.5-1.1 1.1-1.1ZM8.1 3.7 6.8 2.4c-.2-.2-.2-.5 0-.7s.5-.2.7 0l1.5 1.5c.9-.4 1.9-.6 3-.6s2.1.2 3 .6l1.5-1.5c.2-.2.5-.2.7 0s.2.5 0 .7l-1.3 1.3c1.1.8 1.8 2 1.8 3.3H6.3c0-1.3.7-2.5 1.8-3.3Zm1.3 1.8a.7.7 0 1 0 0 1.4.7.7 0 0 0 0-1.4Zm5.2 0a.7.7 0 1 0 0 1.4.7.7 0 0 0 0-1.4Z" />
     </svg>
   );
+}
+
+function initialsFromName(name?: string | null) {
+  const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
+  if (!parts.length) return "AX";
+  const initials = parts.length === 1 ? parts[0].slice(0, 2) : `${parts[0][0]}${parts[parts.length - 1][0]}`;
+  return initials.toUpperCase();
 }
 
 

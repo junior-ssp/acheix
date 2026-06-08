@@ -34,7 +34,7 @@ export default function TermsPage() {
           </ul>
           <p>Ao término do prazo contratado, o anúncio será automaticamente desativado e deixará de ser exibido em pesquisas, listagens e demais áreas públicas da plataforma.</p>
           <p>O anunciante poderá renovar ou republicar o anúncio durante o período de recuperação de até 7 dias após sua expiração.</p>
-          <p>Após esse período, o anúncio, suas imagens, vídeos, descrições, mensagens associadas e demais conteúdos relacionados poderão ser excluídos permanentemente do sistema, sem possibilidade de recuperação.</p>
+          <p>Após esse período, o anúncio, suas imagens, vídeos, descrições, interesses associados e demais conteúdos relacionados poderão ser excluídos permanentemente do sistema, sem possibilidade de recuperação.</p>
           <p>A plataforma não possui obrigação de armazenar ou manter cópias de segurança de anúncios expirados após o período de recuperação.</p>
           <p>Ao utilizar a plataforma, o usuário declara estar ciente e concordar com a política de expiração, renovação e exclusão automática de anúncios.</p>
         </Block>

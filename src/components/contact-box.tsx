@@ -19,7 +19,8 @@ export function ContactBox({
     event.preventDefault();
     setLoading(true);
     setMessage("");
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const response = await fetch(`/api/listings/${slug}/contact`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -31,15 +32,15 @@ export function ContactBox({
       setMessage(data?.error ?? "Não deu para enviar agora.");
       return;
     }
-    setMessage("Mensagem enviada. Agora é só aguardar.");
-    event.currentTarget.reset();
+    setMessage("Interesse enviado. Agora é só aguardar.");
+    form.reset();
   }
 
   if (!authenticated) {
     return (
       <div className="mt-3 grid gap-3 rounded-md border border-white/10 bg-black/30 p-3 text-sm">
         <p className="flex items-center gap-2 text-neutral-300">
-          <LogIn size={16} /> Entre ou crie sua conta para mandar mensagem.
+          <LogIn size={16} /> Entre ou crie sua conta para enviar interesse.
         </p>
         <a href={`/cadastro?next=${encodeURIComponent(nextPath)}`} className="inline-flex h-11 items-center justify-center rounded-md btn-gold">Criar Conta</a>
       </div>
@@ -48,12 +49,12 @@ export function ContactBox({
 
   return (
     <form onSubmit={submit} className="mt-3 grid gap-3">
-      <textarea name="question1" required maxLength={280} rows={3} placeholder="Escreva sua mensagem" className="input" />
+      <textarea name="question1" required maxLength={280} rows={3} placeholder="Escreva seu interesse" className="input" />
       <input name="question2" maxLength={160} placeholder="Melhor horário? (opcional)" className="input" />
       <input name="question3" maxLength={160} placeholder="Sua proposta? (opcional)" className="input" />
       {message && <p className="text-sm text-coral">{message}</p>}
       <button disabled={loading} className="h-11 rounded-md bg-brand font-bold text-white disabled:opacity-60">
-        {loading ? "Enviando..." : "Enviar"}
+        {loading ? "Enviando..." : "Enviar interesse"}
       </button>
     </form>
   );

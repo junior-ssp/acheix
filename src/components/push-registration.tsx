@@ -96,7 +96,7 @@ async function registerNativePush(interactive: boolean): Promise<"ok" | "permiss
       else await refreshBadgeFromServer();
     });
     await PushNotifications.addListener("pushNotificationActionPerformed", (event) => {
-      const url = String(event.notification.data?.url || "/mensagens");
+      const url = String(event.notification.data?.url || "/dashboard#interesses");
       window.location.href = url;
     });
     await PushNotifications.register();

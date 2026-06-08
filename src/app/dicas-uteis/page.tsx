@@ -159,7 +159,7 @@ const articleGroups: Record<string, Omit<Article, "category">[]> = {
     {
       title: "Quando baixar o preço do anúncio",
       readTime: "2 min",
-      summary: "Se há muitas visualizações e poucas mensagens, o problema pode ser preço, fotos ou descrição. Ajuste uma coisa por vez.",
+      summary: "Se há muitas visualizações e poucos interessados, o problema pode ser preço, fotos ou descrição. Ajuste uma coisa por vez.",
       tips: ["Revise título e primeiras fotos.", "Compare anúncios ativos semanalmente.", "Baixe aos poucos, não no impulso."],
       sourceLabel: "Instacarro",
       sourceUrl: "https://www.instacarro.com/blog/manual-do-vendedor/como-vender-carro",
@@ -216,7 +216,7 @@ const articleGroups: Record<string, Omit<Article, "category">[]> = {
       title: "Como proteger seus dados pessoais",
       readTime: "2 min",
       summary: "CPF, endereço completo, documento e fotos com QR Code podem ser usados em engenharia social. Compartilhe só quando necessário.",
-      tips: ["Cubra dados sensíveis em fotos.", "Use o chat no início.", "Desconfie de insistência por documento."],
+      tips: ["Cubra dados sensíveis em fotos.", "Use o contato inicial pelo Achei X.", "Desconfie de insistência por documento."],
       sourceLabel: "Serasa",
       sourceUrl: "https://www.serasa.com.br/premium/blog/golpe-na-olx-como-identificar-o-falso-anuncio-de-venda-de-carros/",
       videoUrl: "https://www.youtube.com/watch?v=Z5C8E2RTbR0"
@@ -490,7 +490,7 @@ const articles: Article[] = Object.entries(articleGroups).flatMap(([category, it
   },
   {
     category: "Vender carro rápido",
-    title: "Descrição boa responde dúvidas antes do chat",
+    title: "Descrição boa responde dúvidas antes do primeiro contato",
     readTime: "2 min",
     summary: "Informe ano, versão, quilometragem, revisões, pneus, opcionais, motivo da venda e cidade. Texto direto reduz perguntas repetidas.",
     tips: ["Diga se aceita vistoria cautelar.", "Liste itens de conforto e segurança.", "Evite frases vagas como 'carro de garagem' sem provas."],
@@ -553,7 +553,7 @@ const articles: Article[] = Object.entries(articleGroups).flatMap(([category, it
     title: "Dados pessoais: mostre só o necessário",
     readTime: "2 min",
     summary: "Documento, endereço e telefone podem ser usados em engenharia social. Envie dados completos apenas quando a negociação estiver madura.",
-    tips: ["Cubra QR codes e números sensíveis em fotos.", "Use chat da plataforma no início.", "Denuncie perfis insistentes ou incoerentes."],
+    tips: ["Cubra QR codes e números sensíveis em fotos.", "Use o contato inicial pelo Achei X.", "Denuncie perfis insistentes ou incoerentes."],
     sourceLabel: "Serasa",
     sourceUrl: "https://www.serasa.com.br/premium/blog/golpe-na-olx-como-identificar-o-falso-anuncio-de-venda-de-carros/",
     videoUrl: "https://www.youtube.com/results?search_query=seguranca+dados+pessoais+classificados+online"

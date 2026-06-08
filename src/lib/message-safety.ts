@@ -22,7 +22,7 @@ export const defaultBlockedMessageTerms = [
 ];
 
 export const captationBlockedMessage =
-  "Para proteger nossos anunciantes, o Achei X não permite mensagens de captação, prospecção comercial, oferta de divulgação em outras plataformas ou links externos. Use este canal apenas para interesse real no anúncio ou serviço.";
+  "Para proteger nossos anunciantes, o Achei X não permite contatos de captação, prospecção comercial, oferta de divulgação em outras plataformas ou links externos. Use este canal apenas para interesse real no anúncio ou serviço.";
 
 type SafetyUser = {
   id: string;
@@ -87,23 +87,25 @@ export async function validateContactMessageSafety(input: MessageSafetyInput): P
 
   if (input.sender?.accountBlockedAt) {
     await insertSafetyAudit(input.sender.id, "message_safety.blocked_account", baseMetadata);
-    return { allowed: false, status: 403, reason: "blocked_account", message: "Sua conta está temporariamente impedida de enviar mensagens. Entre em contato com o suporte do Achei X." };
+    return { allowed: false, status: 403, reason: "blocked_account", message: "Sua conta está temporariamente impedida de enviar interesses. Entre em contato com o suporte do Achei X." };
   }
 
   if (input.sender && await isUserBlockedByTarget(input.targetUserId, input.sender.id)) {
     await insertSafetyAudit(input.sender.id, "message_safety.blocked_by_target", baseMetadata);
-    return { allowed: false, status: 403, reason: "blocked_by_target", message: "Este anunciante não está recebendo novas mensagens da sua conta." };
+    return { allowed: false, status: 403, reason: "blocked_by_target", message: "Este anunciante não está recebendo novos interesses da sua conta." };
   }
 
   const externalLinks = findExternalLinks(input.message);
   if (externalLinks.length) {
     await insertSafetyAudit(input.sender?.id ?? null, "message_safety.external_link_blocked", { ...baseMetadata, externalLinks });
+    await createMessageSafetyTrustCase(input, "external_link", { externalLinks });
     return { allowed: false, status: 403, reason: "external_link", message: captationBlockedMessage };
   }
 
   const matchedTerms = matchBlockedTerms(input.message, await getBlockedMessageTerms());
   if (matchedTerms.length) {
     await insertSafetyAudit(input.sender?.id ?? null, "message_safety.keyword_blocked", { ...baseMetadata, matchedTerms });
+    await createMessageSafetyTrustCase(input, "keyword", { matchedTerms });
     return { allowed: false, status: 403, reason: "keyword", message: captationBlockedMessage };
   }
 
@@ -185,7 +187,7 @@ async function checkSenderLimits(senderUserId: string, context: MessageSafetyInp
     if ((sameListingCount ?? 0) >= 1) {
       return {
         allowed: false,
-        message: "Você já enviou uma mensagem para este anúncio nas últimas 24 horas. Aguarde o anunciante responder.",
+        message: "Você já enviou um interesse para este anúncio nas últimas 24 horas. Aguarde o anunciante responder.",
         metadata: { sameListingCount }
       };
     }
@@ -210,7 +212,7 @@ async function checkSenderLimits(senderUserId: string, context: MessageSafetyInp
   if (dailyCount >= 10) {
     return {
       allowed: false,
-      message: "Por segurança, sua conta atingiu o limite diário de mensagens. Tente novamente amanhã.",
+      message: "Por segurança, sua conta atingiu o limite diário de interesses. Tente novamente amanhã.",
       metadata: { dailyCount }
     };
   }
@@ -231,4 +233,28 @@ function contextMetadata(context: MessageSafetyInput["context"]) {
 async function insertSafetyAudit(userId: string | null, action: string, metadata: Record<string, unknown>) {
   const { error } = await db().from("AuditLog").insert({ id: newDbId(), userId, action, metadata });
   throwDbError(error);
+}
+
+async function createMessageSafetyTrustCase(input: MessageSafetyInput, reason: string, metadata: Record<string, unknown>) {
+  const now = new Date().toISOString();
+  const values = {
+    id: newDbId(),
+    targetType: input.context.type,
+    listingId: input.context.type === "LISTING" ? input.context.listingId : null,
+    serviceId: input.context.type === "SERVICE" ? input.context.profileId : null,
+    targetUserId: input.targetUserId,
+    riskScore: 85,
+    riskLevel: "CRITICAL",
+    status: "NEEDS_REVIEW",
+    requiresHumanReview: true,
+    preventiveAction: "Contato bloqueado por risco alto. Revisar usuário remetente e padrão de envio.",
+    updatedAt: now
+  };
+
+  const { error } = await db().from("TrustCase").insert(values);
+  if (error) {
+    await insertSafetyAudit(input.sender?.id ?? null, "message_safety.trust_case_failed", { reason, ...metadata, error: error.message });
+    return;
+  }
+  await insertSafetyAudit(input.sender?.id ?? null, "message_safety.trust_case_created", { reason, ...metadata });
 }

@@ -1,6 +1,6 @@
 ﻿import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { Clock, Heart, MessageCircle, ShieldCheck, Star } from "lucide-react";
+import { Clock, Heart, Send, ShieldCheck, Star } from "lucide-react";
 import { ContactBox } from "@/components/contact-box";
 import { ListingPhotoGallery } from "@/components/listing-photo-gallery";
 import { money } from "@/components/listing-card";
@@ -101,7 +101,7 @@ export default async function ListingPage({ params }: { params: { slug: string }
           <div className="absolute right-3 top-1/2 grid -translate-y-1/2 gap-3">
             <button title="Favoritar" className="grid h-12 w-12 place-items-center rounded-full bg-black/45 backdrop-blur"><Heart /></button>
             <ShareMenu slug={listing.slug} title={listing.title} />
-            <button title="Contato" className="grid h-12 w-12 place-items-center rounded-full bg-black/45 backdrop-blur"><MessageCircle /></button>
+            <button title="Enviar interesse" className="grid h-12 w-12 place-items-center rounded-full bg-black/45 backdrop-blur"><Send /></button>
           </div>
         </div>
 
@@ -155,7 +155,7 @@ export default async function ListingPage({ params }: { params: { slug: string }
                 • Histórico: {publicHistory}
               </span>
               <span className={`inline-flex items-center gap-2 rounded-md border px-2 py-1 ${responseMetrics.badgeClassName}`}>
-                <MessageCircle size={16} />
+                <Send size={16} />
                 {responseMetrics.label} - {formatAverageResponse(responseMetrics.averageResponseMinutes)}
               </span>
               <span className="inline-flex items-center gap-2">

@@ -68,7 +68,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   try {
     const supabase = getSupabaseAdmin();
     const user = await getCurrentUser();
-    if (user?.accountBlockedAt) return json({ error: "Sua conta está temporariamente impedida de enviar mensagens. Entre em contato com o suporte do Achei X." }, 403);
+    if (user?.accountBlockedAt) return json({ error: "Sua conta está temporariamente impedida de enviar interesses. Entre em contato com o suporte do Achei X." }, 403);
     const data = contactSchema.parse(await request.json());
 
     const { data: profile, error: profileError } = await supabase
@@ -80,7 +80,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     if (profile) {
       if (user?.id === profile.user_id) return json({ error: "Você não pode fazer contato no próprio serviço." }, 422);
-      if (!user && (!data.name || !data.phone)) return json({ error: "Informe nome e telefone/WhatsApp para enviar a mensagem." }, 422);
+      if (!user && (!data.name || !data.phone)) return json({ error: "Informe nome e telefone/WhatsApp para enviar seu interesse." }, 422);
 
       const { data: provider, error: providerError } = await supabase
         .from("User")
@@ -130,17 +130,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
       const title = profile.nome_fantasia ?? profile.name ?? "Serviço";
       const appUrl = getAppBaseUrl(request);
-      const responseUrl = `${appUrl}/mensagens?serviceContact=${created.id}`;
-      const notificationMessage = `${created.name ?? "Um usuário"} quer falar sobre ${title}. Responda pelo Chat.`;
-      await deliverUserNotice(provider as any, "Nova mensagem de serviço", notificationMessage, {
+      const responseUrl = `${appUrl}/dashboard?serviceContact=${created.id}#interesses`;
+      const notificationMessage = `${created.name ?? "Um usuário"} quer falar sobre ${title}.`;
+      await deliverUserNotice(provider as any, "Novo interessado em serviço", notificationMessage, {
         linkLabel: title,
         linkUrl: responseUrl,
-        primaryActionLabel: "Responder no Chat",
+        primaryActionLabel: "Ver interessado",
         primaryActionUrl: responseUrl,
         contactLeadId: created.id
       });
 
-      return json({ ok: true, message: "Contato enviado. O Prestador de Serviços recebeu sua mensagem e em breve lhe dará um retorno. Desejamos uma boa negociação entre vocês !!!" });
+      return json({ ok: true, message: "Interesse enviado. O prestador recebeu seu contato e em breve poderá retornar." });
     }
 
     return json({ error: "Serviço não encontrado." }, 404);

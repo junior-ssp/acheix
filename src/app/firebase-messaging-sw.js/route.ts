@@ -23,13 +23,13 @@ messaging.onBackgroundMessage((payload) => {
     body: notification.body || "Você recebeu uma nova mensagem.",
     icon: "/icon.svg",
     badge: "/icon.svg",
-    data: { url: data.url || "/mensagens" }
+    data: { url: data.url || "/dashboard#interesses" }
   });
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/mensagens";
+  const url = event.notification.data?.url || "/dashboard#interesses";
   event.waitUntil(clients.openWindow(url));
 });
 `;

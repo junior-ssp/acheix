@@ -12,10 +12,6 @@ export const integrations = {
     name: "Supabase Storage",
     status: "requires_env"
   },
-  chat: {
-    name: "Cloud Firestore",
-    status: "requires_env"
-  },
   push: {
     name: "Firebase Cloud Messaging",
     status: "requires_env"

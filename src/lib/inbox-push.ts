@@ -61,7 +61,7 @@ export async function sendInboxPushNotification(userId: string, payload: InboxPu
           },
           android: {
             priority: "high",
-            notification: { channelId: "inbox-messages", sound: "default", notificationCount: unreadCount, clickAction: "OPEN_INBOX" }
+            notification: { channelId: "interest-updates", sound: "default", notificationCount: unreadCount, clickAction: "OPEN_INTERESTS" }
           },
           apns: { payload: { aps: { sound: "default", badge: unreadCount } } }
         });

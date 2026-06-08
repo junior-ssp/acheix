@@ -193,10 +193,10 @@ async function checkMessages(checkedAt: string): Promise<ServiceCheck> {
   const start = Date.now();
   try {
     await countRows("ContactLead");
-    return service("Sistema de Mensagens", "operational", checkedAt, Date.now() - start, "Mensagens acessíveis");
+    return service("Sistema de Interesses", "operational", checkedAt, Date.now() - start, "Interesses acessíveis");
   } catch (error) {
     await logMonitorError("messages", error);
-    return service("Sistema de Mensagens", "offline", checkedAt, Date.now() - start, "Falha no módulo de mensagens");
+    return service("Sistema de Interesses", "offline", checkedAt, Date.now() - start, "Falha no módulo de interesses");
   }
 }
 

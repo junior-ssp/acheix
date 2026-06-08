@@ -49,7 +49,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
     { label: "Visualizações", value: listings.reduce((sum, item) => sum + item.viewCount, 0), href: "/dashboard#meus-anuncios" },
     { label: "Cliques", value: listings.reduce((sum, item) => sum + item.contactClickCount, 0), href: "/dashboard#meus-anuncios" },
     { label: "Compartilhamentos", value: listings.reduce((sum, item) => sum + item.shareCount, 0), href: "/dashboard#meus-anuncios" },
-    { label: "Mensagens", value: receivedLeads.length, href: "/mensagens" },
+    { label: "Interesses", value: receivedLeads.length, href: "/dashboard#interesses" },
     { label: "Nota de Atendimento", value: responseScore ?? 0, href: "/dashboard#performance" },
     { label: "Taxa de Resposta", value: `${responseMetrics.responseRate ?? 0}%`, href: "/dashboard#performance" },
     { label: "Favoritos", value: listings.reduce((sum, item: any) => sum + (item._count?.favorites ?? 0), 0), href: "/favoritos" }
@@ -65,7 +65,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
       <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <Link href="/planos" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Novo Anúncio</Link>
         <Link href="/dashboard?meus=ALL#meus-anuncios" className="inline-flex h-11 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">Meus Anúncios</Link>
-        <Link href="/mensagens" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Chat</Link>
+        <Link href="/dashboard#interesses" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Interesses</Link>
         <Link href="/favoritos" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Favoritos</Link>
         <Link href="/servicos" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Buscar serviços</Link>
         <Link href="/servicos/anunciar" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Sou prestador</Link>
@@ -95,7 +95,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
         <strong className="mt-1 block text-xl">{responseMetrics.label} - {formatAverageResponse(responseMetrics.averageResponseMinutes)}</strong>
         <p className="mt-1 text-sm">
           {responseTierLabel(responseMetrics.tier)} · Responde {responseMetrics.responseRate ?? 0}% · Nota {responseScore ?? "novo"}/10.
-          Responda as mensagens para melhorar.
+          Responda os interessados para melhorar.
         </p>
       </section>
       <div id="perfil" className="scroll-mt-24">
@@ -179,14 +179,14 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
           question3: lead.question3,
           status: lead.status,
           createdAt: new Date(lead.createdAt).toISOString(),
-          listing: { title: lead.listing.title, slug: lead.listing.slug, category: lead.listing.category }
+          listing: { title: lead.listing.title, slug: lead.listing.slug, category: lead.listing.category, type: lead.listing.type }
         }))}
         sent={sentLeads.map((lead) => ({
           id: lead.id,
           status: lead.status,
           readAt: lead.readAt ? new Date(lead.readAt).toISOString() : null,
           createdAt: new Date(lead.createdAt).toISOString(),
-          listing: { title: lead.listing.title, slug: lead.listing.slug, category: lead.listing.category }
+          listing: { title: lead.listing.title, slug: lead.listing.slug, category: lead.listing.category, type: lead.listing.type }
         }))}
       />
       <DashboardPayments payments={payments} />
@@ -346,9 +346,9 @@ async function findDashboardPayments(userId: string): Promise<DashboardPayment[]
 }
 
 async function findDashboardLeads(ownerId: string) {
-  const { data: listings, error } = await db().from("Listing").select("id,title,slug,category").eq("ownerId", ownerId);
+  const { data: listings, error } = await db().from("Listing").select("id,title,slug,category,type").eq("ownerId", ownerId);
   throwDbError(error);
-  const listingRows = (listings ?? []) as Array<{ id: string; title: string; slug: string; category: string }>;
+  const listingRows = (listings ?? []) as Array<{ id: string; title: string; slug: string; category: string; type: string }>;
   const listingById = new Map(listingRows.map((listing) => [listing.id, listing]));
   const listingIds = [...listingById.keys()];
   const [receivedResult, sentResult, metricsResult] = await Promise.all([
@@ -361,7 +361,7 @@ async function findDashboardLeads(ownerId: string) {
   throwDbError(metricsResult.error);
   const sentListingIds = [...new Set(((sentResult.data ?? []) as Array<any>).map((lead) => lead.listingId).filter(Boolean))];
   const { data: sentListings, error: sentListingsError } = sentListingIds.length
-    ? await db().from("Listing").select("id,title,slug,category").in("id", sentListingIds)
+    ? await db().from("Listing").select("id,title,slug,category,type").in("id", sentListingIds)
     : { data: [], error: null };
   throwDbError(sentListingsError);
   const sentListingById = new Map([...(sentListings ?? []), ...listingRows].map((listing: any) => [listing.id, listing]));

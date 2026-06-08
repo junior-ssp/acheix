@@ -17,7 +17,7 @@ const interestSchema = z.object({
 export async function POST(request: Request, { params }: { params: { slug: string } }) {
   try {
     const user = await requireUser();
-    if (user.accountBlockedAt) return json({ error: "Sua conta está temporariamente impedida de enviar mensagens. Entre em contato com o suporte do Achei X." }, 403);
+    if (user.accountBlockedAt) return json({ error: "Sua conta está temporariamente impedida de enviar interesses. Entre em contato com o suporte do Achei X." }, 403);
     const { data: listing, error: listingError } = await db()
       .from("Listing")
       .select("id,slug,title,ownerId,contactClickCount")
@@ -70,7 +70,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
 
     const appUrl = getAppBaseUrl(request);
     const listingUrl = `${appUrl}/anuncios/${listing.slug}`;
-    const responseUrl = `${appUrl}/mensagens?lead=${leadId}`;
+    const responseUrl = `${appUrl}/dashboard?lead=${leadId}#interesses`;
     await deliverUserNotice(
       owner as any,
       "Novo interessado no seu anúncio",
@@ -78,15 +78,15 @@ export async function POST(request: Request, { params }: { params: { slug: strin
       {
         linkLabel: listing.title,
         linkUrl: listingUrl,
-        primaryActionLabel: "Responder agora",
+        primaryActionLabel: "Ver interessado",
         primaryActionUrl: responseUrl,
         contactLeadId: leadId
       }
     );
 
     await sendInboxPushNotification(listing.ownerId, {
-      title: "Nova mensagem",
-      body: `Você recebeu uma mensagem sobre ${listing.title}.`,
+      title: "Novo interessado",
+      body: `Você recebeu um novo interesse sobre ${listing.title}.`,
       url: responseUrl,
       leadId: leadId,
       listingTitle: listing.title

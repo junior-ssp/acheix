@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, MessageCircle, PlusCircle, Search, User } from "lucide-react";
+import { Home, PlusCircle, Search, User } from "lucide-react";
 
 type BottomNavigationItem = {
   href: Route;
@@ -18,7 +18,6 @@ const items: BottomNavigationItem[] = [
   { href: "/", label: "Início", icon: Home, match: (pathname) => pathname === "/" },
   { href: "/buscar", label: "Buscar", icon: Search, match: (pathname) => ["/buscar", "/veiculos", "/imoveis"].some((path) => pathname === path || pathname.startsWith(`${path}/`)) },
   { href: "/anunciar", label: "Anunciar", icon: PlusCircle, featured: true, match: (pathname) => pathname === "/anunciar" || pathname.startsWith("/anunciar/") },
-  { href: "/mensagens", label: "Chat", icon: MessageCircle, match: (pathname) => pathname === "/mensagens" || pathname.startsWith("/mensagens/") },
   { href: "/dashboard", label: "Conta", icon: User, match: (pathname) => ["/dashboard", "/entrar", "/cadastro"].some((path) => pathname === path || pathname.startsWith(`${path}/`)) }
 ];
 

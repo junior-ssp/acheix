@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
-import { Eye, MessageCircle, Phone } from "lucide-react";
+import { Eye, Phone, Send } from "lucide-react";
 import { formatPhone } from "@/lib/formatters";
 
 type PublicContact = {
@@ -46,7 +46,7 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
     const data = await response.json().catch(() => null);
     setLeadBusy(false);
     if (response.ok) {
-      setMessage(data?.message ?? "Contato enviado. O Prestador de Serviços recebeu sua mensagem e em breve lhe dará um retorno. Desejamos uma boa negociação entre vocês !!!");
+      setMessage(data?.message ?? "Interesse enviado. O prestador recebeu seu contato e em breve poderá retornar.");
       setLeadOpen(false);
       return;
     }
@@ -57,7 +57,7 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
     <div className="mt-3">
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => setLeadOpen((value) => !value)} className="inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm btn-gold">
-          <MessageCircle size={16} />
+          <Send size={16} />
           Tenho Interesse
         </button>
         {contactPublicEnabled ? (
@@ -79,7 +79,7 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
           <p className="text-xs text-neutral-300">Envie seus dados para {serviceTitle} avaliar e retornar.</p>
           {!authenticated ? <input name="name" required placeholder="Nome" className="input" /> : null}
           <input name="phone" required={!authenticated} inputMode="numeric" maxLength={15} placeholder={authenticated ? "Telefone ou WhatsApp para retorno" : "Telefone ou WhatsApp"} onChange={(event) => { event.currentTarget.value = formatPhone(event.currentTarget.value); }} className="input" />
-          <textarea name="message" rows={3} maxLength={280} placeholder="Mensagem opcional" className="input" />
+          <textarea name="message" rows={3} maxLength={280} placeholder="Observação opcional" className="input" />
           <button disabled={leadBusy} className="h-10 rounded-md btn-gold disabled:opacity-60">{leadBusy ? "Enviando..." : "Enviar interesse"}</button>
         </form>
       ) : null}
@@ -105,4 +105,3 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
     </div>
   );
 }
-

@@ -30,7 +30,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const user = await requireUser();
     const data = decisionSchema.parse(await request.json());
     const contact = await findOwnedContact(params.id, user.id);
-    if (!contact) return json({ error: "Mensagem não encontrada" }, 404);
+    if (!contact) return json({ error: "Contato não encontrado" }, 404);
 
     const { data: updated, error } = await supabase
       .from("ServiceContact")
@@ -51,7 +51,7 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
     const supabase = getSupabaseAdmin();
     const user = await requireUser();
     const contact = await findOwnedContact(params.id, user.id);
-    if (!contact) return json({ error: "Mensagem não encontrada" }, 404);
+    if (!contact) return json({ error: "Contato não encontrado" }, 404);
 
     const { error } = await supabase.from("ServiceContact").delete().eq("id", contact.id);
     if (error) throw error;
