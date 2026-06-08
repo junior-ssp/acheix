@@ -14,6 +14,8 @@ import { LogoutButton } from "@/components/logout-button";
 import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } from "@/lib/response-metrics";
 import { defaultServiceCategories } from "@/lib/service-catalog";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { formatCurrencyBRL } from "@/lib/formatters";
+import { parsePublishProviderRef, parseRenewProviderRef } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +24,9 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
   if (!user) redirect("/entrar");
   const requestedListingFilter = ["DRAFT", "ACTIVE", "PENDING_REVIEW", "EXPIRING", "EXPIRED", "SOLD_RENTED"].includes(searchParams?.meus ?? "") ? searchParams?.meus ?? "ALL" : "ALL";
   const supabase = getSupabaseAdmin();
-  const [listings, serviceProfileResult, leadsResult] = await Promise.all([
+  const [listings, payments, serviceProfileResult, leadsResult] = await Promise.all([
     findDashboardListings(user.id),
+    findDashboardPayments(user.id),
     supabase
       .from("service_profiles")
       .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,status,active,cidade,bairro,estado,last_active_at,activity_confirmation_due_at")
@@ -186,6 +189,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
           listing: { title: lead.listing.title, slug: lead.listing.slug, category: lead.listing.category }
         }))}
       />
+      <DashboardPayments payments={payments} />
       <DashboardListings initialFilter={requestedListingFilter} accountType={user.accountType} cnpj={user.cnpj} listings={listings.map((listing) => ({
         id: listing.id,
         slug: listing.slug,
@@ -210,6 +214,70 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
   );
 }
 
+type DashboardPayment = {
+  id: string;
+  amountCents: number;
+  status: string;
+  providerRef: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  listing: { title: string; slug: string } | null;
+  kind: "publish" | "renew" | "payment";
+  planCode: string | null;
+};
+
+function DashboardPayments({ payments }: { payments: DashboardPayment[] }) {
+  return (
+    <section id="meus-pagamentos" className="mt-8 scroll-mt-24 rounded-lg border border-white/10 bg-neutral-900 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase text-yellow-300">Financeiro</p>
+          <h2 className="mt-1 text-xl font-black">Meus Pagamentos</h2>
+          <p className="mt-1 text-sm text-neutral-400">Acompanhe PIX pendente, pagamentos feitos e compras de planos.</p>
+        </div>
+        <Link href="/planos" className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm btn-gold">Comprar Plano</Link>
+      </div>
+      <div className="mt-4 grid gap-3">
+        {payments.map((payment) => (
+          <article key={payment.id} className="rounded-lg border border-white/10 bg-black/25 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="font-black">{payment.listing?.title ?? paymentTitle(payment)}</h3>
+                <p className="mt-1 text-xs font-bold uppercase text-neutral-400">
+                  {payment.kind === "renew" ? "Renovação" : payment.kind === "publish" ? "Publicação" : "Pagamento"} · {payment.planCode ?? "Plano"}
+                </p>
+              </div>
+              <span className={`rounded-full px-2 py-1 text-xs font-black ${paymentStatusClass(payment.status)}`}>
+                {paymentStatusLabel(payment.status)}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-neutral-300">
+              {formatCurrencyBRL(payment.amountCents)} · Criado em {new Date(payment.createdAt).toLocaleDateString("pt-BR")}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {payment.status === "PENDING" ? (
+                <Link href={`/pagamento/pix?paymentId=${payment.id}`} className="inline-flex h-10 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">
+                  Pagar PIX
+                </Link>
+              ) : null}
+              {payment.listing?.slug ? (
+                <Link href={`/anuncios/${payment.listing.slug}`} className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">
+                  Ver anúncio
+                </Link>
+              ) : null}
+            </div>
+          </article>
+        ))}
+        {!payments.length ? (
+          <div className="rounded-lg border border-dashed border-white/15 bg-black/25 p-4 text-sm text-neutral-300">
+            Você ainda não tem pagamentos registrados.
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 async function findDashboardListings(ownerId: string) {
   const { data, error } = await db()
     .from("Listing")
@@ -231,6 +299,49 @@ async function findDashboardListings(ownerId: string) {
     ...listing,
     photos: listing.photos.slice(0, 1),
     _count: { favorites: favorites.get(listing.id) ?? 0, contactLeads: leads.get(listing.id) ?? 0 }
+  }));
+}
+
+async function findDashboardPayments(userId: string): Promise<DashboardPayment[]> {
+  const { data, error } = await db()
+    .from("Payment")
+    .select("id,amountCents,status,providerRef,createdAt,updatedAt")
+    .eq("userId", userId)
+    .order("createdAt", { ascending: false })
+    .limit(20);
+  throwDbError(error);
+
+  const rows = (data ?? []) as Array<{
+    id: string;
+    amountCents: number;
+    status: string;
+    providerRef: string | null;
+    createdAt: string;
+    updatedAt: string | null;
+  }>;
+  const parsed = rows.map((payment) => {
+    const publish = parsePublishProviderRef(payment.providerRef);
+    const renew = parseRenewProviderRef(payment.providerRef);
+    const reference = publish ?? renew;
+    return {
+      payment,
+      listingId: reference?.listingId ?? null,
+      planCode: reference?.planCode ?? null,
+      kind: publish ? "publish" as const : renew ? "renew" as const : "payment" as const
+    };
+  });
+  const listingIds = [...new Set(parsed.map((item) => item.listingId).filter((id): id is string => Boolean(id)))];
+  const { data: listings, error: listingsError } = listingIds.length
+    ? await db().from("Listing").select("id,title,slug").in("id", listingIds)
+    : { data: [], error: null };
+  throwDbError(listingsError);
+  const listingById = new Map((listings ?? []).map((listing: any) => [listing.id, { title: listing.title, slug: listing.slug }]));
+
+  return parsed.map(({ payment, listingId, planCode, kind }) => ({
+    ...payment,
+    listing: listingId ? listingById.get(listingId) ?? null : null,
+    kind,
+    planCode
   }));
 }
 
@@ -268,6 +379,30 @@ function countByListing(rows: Array<{ listingId?: string | null }>) {
   }
   return counts;
 }
+
+function paymentTitle(payment: DashboardPayment) {
+  if (payment.kind === "renew") return "Renovação de anúncio";
+  if (payment.kind === "publish") return "Publicação de anúncio";
+  return "Pagamento";
+}
+
+function paymentStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    PENDING: "Pendente",
+    PAID: "Pago",
+    FAILED: "Falhou",
+    REFUNDED: "Reembolsado"
+  };
+  return labels[status] ?? status;
+}
+
+function paymentStatusClass(status: string) {
+  if (status === "PAID") return "bg-emerald-400/15 text-emerald-200";
+  if (status === "PENDING") return "bg-yellow-300/15 text-yellow-100";
+  if (status === "FAILED") return "bg-red-400/15 text-red-200";
+  return "bg-white/10 text-neutral-200";
+}
+
 function serviceCategoryName(slug: string) {
   return defaultServiceCategories.find((item) => item.slug === slug)?.name ?? slug;
 }

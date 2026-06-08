@@ -1,4 +1,5 @@
 import { addDays } from "@/lib/expiration-policy";
+import { createNotification } from "@/lib/notifications";
 import { db, isUniqueViolation, newDbId, throwDbError } from "@/lib/supabase-db";
 
 type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
@@ -49,7 +50,7 @@ export async function confirmRenewalPayment(paymentId: string) {
   if (!reference) throw new Error("Pagamento não possui referência de anúncio válida.");
 
   const [listingResult, planResult] = await Promise.all([
-    supabase.from("Listing").select("id").eq("id", reference.listingId).maybeSingle(),
+    supabase.from("Listing").select("id,slug,title").eq("id", reference.listingId).maybeSingle(),
     supabase.from("Plan").select("id,code,durationDays").eq("code", reference.planCode).maybeSingle()
   ]);
   throwDbError(listingResult.error);
@@ -119,6 +120,16 @@ export async function confirmRenewalPayment(paymentId: string) {
     metadata: { paymentId: paidPayment.id, listingId: listingResult.data.id, planCode: planResult.data.code, expiresAt: expiresAt.toISOString() }
   });
   throwDbError(auditError);
+
+  await createNotification(
+    paidPayment.userId,
+    "Pagamento confirmado",
+    `Seu anúncio "${listingResult.data.title ?? "Anúncio"}" foi ativado com sucesso.`,
+    {
+      primaryActionLabel: "Ver anúncio",
+      primaryActionUrl: listingResult.data.slug ? `/anuncios/${listingResult.data.slug}` : "/dashboard?meus=ACTIVE#meus-anuncios"
+    }
+  );
 
   return paidPayment;
 }

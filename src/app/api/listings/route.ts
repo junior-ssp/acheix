@@ -158,11 +158,6 @@ export async function POST(request: Request) {
       if (!payment) return json({ error: "Não foi possível iniciar o pagamento." }, 500);
 
       const listing = await findListingBySlug(slug);
-      await deliverUserNotice(
-        user,
-        "Pagamento pendente",
-        `Seu anúncio "${data.title}" foi criado. O plano ${plan.name} será ativado automaticamente quando o PIX for confirmado.`
-      );
 
       return json({ listing, payment, checkoutUrl: `/pagamento?paymentId=${payment.id}` }, 201);
     }

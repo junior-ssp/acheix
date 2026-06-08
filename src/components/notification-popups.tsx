@@ -33,8 +33,9 @@ export function NotificationPopups() {
     const data = await response.json().catch(() => null);
     if (!Array.isArray(data?.notifications)) return;
 
-    setItems(data.notifications);
-    const nextUnreadCount = Number.isFinite(data?.unreadCount) ? Number(data.unreadCount) : data.notifications.length;
+    const visibleNotifications = data.notifications.filter((item: NotificationItem) => item.title !== "Pagamento pendente");
+    setItems(visibleNotifications);
+    const nextUnreadCount = Number.isFinite(data?.unreadCount) ? Math.min(Number(data.unreadCount), visibleNotifications.length) : visibleNotifications.length;
     setUnreadCount(nextUnreadCount);
     setAppBadgeCount(nextUnreadCount);
   }, []);
@@ -85,6 +86,7 @@ export function NotificationPopups() {
 
   useEffect(() => {
     if (!current || !enabled) return;
+    const actionUrl = current.primaryActionUrl || current.linkUrl;
     const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=");
     audio.play().catch(() => undefined);
     if ("Notification" in window && Notification.permission === "granted") {
@@ -92,11 +94,11 @@ export function NotificationPopups() {
         body: current.linkLabel ? `${current.linkLabel}\n${current.message}` : current.message,
         badge: "/icon.svg",
         icon: "/icon.svg",
-        data: { url: current.primaryActionUrl || current.linkUrl || "/mensagens" }
+        data: { url: actionUrl || "" }
       });
       push.onclick = () => {
         window.focus();
-        window.location.href = current.primaryActionUrl || current.linkUrl || "/mensagens";
+        if (actionUrl) window.location.href = actionUrl;
       };
     }
     setAppBadgeCount(unreadCount);
@@ -146,9 +148,11 @@ export function NotificationPopups() {
           ) : null}
           <p className="mt-1 text-sm text-neutral-200">{current.message}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <a href={current.primaryActionUrl || "/mensagens"} className="rounded-md px-3 py-2 text-xs btn-gold">
-              {current.primaryActionLabel || "Responder agora"}
-            </a>
+            {current.primaryActionUrl ? (
+              <a href={current.primaryActionUrl} className="rounded-md px-3 py-2 text-xs btn-gold">
+                {current.primaryActionLabel || "Abrir"}
+              </a>
+            ) : null}
             {current.contactLeadId ? (
               <button type="button" onClick={deleteCurrent} className="rounded-md border border-red-400/30 px-3 py-2 text-xs font-bold text-red-200">Excluir</button>
             ) : null}
