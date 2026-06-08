@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Eye, Plus, PlusCircle, X } from "lucide-react";
 import { categories, planCatalog } from "@/lib/constants";
 import { LocationFields } from "@/components/location-fields";
@@ -17,6 +17,7 @@ import { hasPublicContactInText, publicContactDescriptionMessage } from "@/lib/p
 type ListingCategory = "VEHICLE" | "REAL_ESTATE";
 type CreatedListing = { slug: string; title: string };
 type PlanOption = (typeof planCatalog)[number];
+const listingDraftTtlMs = 15 * 60 * 1000;
 
 export function ListingForm({
   initialCategory = "VEHICLE",
@@ -35,6 +36,7 @@ export function ListingForm({
   initialCity?: string | null;
   plans?: readonly PlanOption[];
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
   const category = initialCategory;
   const [planOptions, setPlanOptions] = useState<readonly PlanOption[]>(plans);
   const allowedPlans = planOptions.filter((plan) => !isProfessionalPlanCode(plan.code) || isCnpjAccount({ accountType, cnpj }));
@@ -48,6 +50,7 @@ export function ListingForm({
   const [uploading, setUploading] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
   const selectedPlan = allowedPlans.find((plan) => plan.code === planCode) ?? allowedPlans[0] ?? planCatalog[0];
   const photoLimit = selectedPlan.photoLimit;
   const canSubmit = privacyAccepted && termsAccepted && !uploading && !publishing;
@@ -66,6 +69,28 @@ export function ListingForm({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const draft = loadListingDraft(category);
+    if (draft?.category === category) {
+      if (typeof draft.planCode === "string" && planCatalog.some((plan) => plan.code === draft.planCode)) {
+        setPlanCode(draft.planCode as (typeof planCatalog)[number]["code"]);
+      }
+      if (typeof draft.listingType === "string" && draft.listingType) setListingType(draft.listingType);
+      if (Array.isArray(draft.photoUrls)) setPhotoUrls(draft.photoUrls.filter((url): url is string => typeof url === "string"));
+      if (typeof draft.privacyAccepted === "boolean") setPrivacyAccepted(draft.privacyAccepted);
+      if (typeof draft.termsAccepted === "boolean") setTermsAccepted(draft.termsAccepted);
+      window.setTimeout(() => restoreFormValues(formRef.current, draft.fields), 0);
+      setMessageType("info");
+      setMessage("Rascunho recuperado. Ele fica salvo por 15 minutos enquanto você publica.");
+    }
+    setDraftReady(true);
+  }, [category]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    saveListingDraft();
+  }, [draftReady, category, planCode, listingType, photoUrls, privacyAccepted, termsAccepted]);
 
   useEffect(() => {
     setPhotoUrls((current) => current.slice(0, photoLimit));
@@ -145,10 +170,12 @@ export function ListingForm({
       });
       const data = await response.json().catch(() => null);
       if (response.ok && data?.checkoutUrl) {
+        clearListingDraft(category);
         window.location.href = data.checkoutUrl;
         return;
       }
       if (response.ok && data?.listing?.slug) {
+        clearListingDraft(category);
         setCreatedListing({ slug: data.listing.slug, title: data.listing.title ?? String(raw.title ?? "Anúncio") });
         setMessage("");
         window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
@@ -195,6 +222,20 @@ export function ListingForm({
     setPhotoUrls((current) => current.filter((_, currentIndex) => currentIndex !== index));
   }
 
+  function saveListingDraft() {
+    const form = formRef.current;
+    if (!form) return;
+    writeListingDraft(category, {
+      category,
+      planCode,
+      listingType,
+      photoUrls,
+      privacyAccepted,
+      termsAccepted,
+      fields: Object.fromEntries(new FormData(form).entries())
+    });
+  }
+
   if (createdListing) {
     return (
       <section className="rounded-2xl border border-emerald-300/40 bg-emerald-500/15 p-5 text-white shadow-2xl shadow-emerald-950/20">
@@ -225,7 +266,7 @@ export function ListingForm({
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4">
+    <form ref={formRef} onSubmit={submit} onInput={saveListingDraft} onChange={saveListingDraft} className="grid gap-4">
       <section className="grid gap-3">
         <p className="text-sm text-neutral-400">Escolha o plano. O pagamento fica para o final.</p>
         <input type="hidden" name="planCode" value={planCode} />
@@ -438,5 +479,69 @@ function agreementAlertClassName(accepted: boolean) {
       ? "border-emerald-300/50 bg-emerald-500/20 text-emerald-50 shadow-emerald-950/25"
       : "border-red-300/60 bg-red-600/25 text-red-50 shadow-red-950/30 ring-1 ring-red-400/20"
   ].join(" ");
+}
+
+type ListingDraft = {
+  category: ListingCategory;
+  planCode: string;
+  listingType: string;
+  photoUrls: string[];
+  privacyAccepted: boolean;
+  termsAccepted: boolean;
+  fields: Record<string, FormDataEntryValue>;
+  expiresAt: number;
+};
+
+function listingDraftKey(category: ListingCategory) {
+  return `acheix-listing-draft-${category}`;
+}
+
+function loadListingDraft(category: ListingCategory): ListingDraft | null {
+  try {
+    const raw = window.localStorage.getItem(listingDraftKey(category));
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as ListingDraft;
+    if (!draft.expiresAt || draft.expiresAt <= Date.now()) {
+      clearListingDraft(category);
+      return null;
+    }
+    return draft;
+  } catch {
+    clearListingDraft(category);
+    return null;
+  }
+}
+
+function writeListingDraft(category: ListingCategory, draft: Omit<ListingDraft, "expiresAt">) {
+  try {
+    window.localStorage.setItem(listingDraftKey(category), JSON.stringify({ ...draft, expiresAt: Date.now() + listingDraftTtlMs }));
+  } catch {
+    // Alguns WebViews podem bloquear localStorage.
+  }
+}
+
+function clearListingDraft(category: ListingCategory) {
+  try {
+    window.localStorage.removeItem(listingDraftKey(category));
+  } catch {
+    // Alguns WebViews podem bloquear localStorage.
+  }
+}
+
+function restoreFormValues(form: HTMLFormElement | null, fields: ListingDraft["fields"] | undefined) {
+  if (!form || !fields) return;
+  for (const [name, value] of Object.entries(fields)) {
+    const elements = form.elements.namedItem(name);
+    if (!elements) continue;
+    const targets = elements instanceof RadioNodeList ? Array.from(elements) : [elements];
+    for (const target of targets) {
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) continue;
+      if (target.type === "checkbox" && target instanceof HTMLInputElement) {
+        target.checked = value === "on";
+      } else if (target.type !== "file") {
+        target.value = String(value ?? "");
+      }
+    }
+  }
 }
 
