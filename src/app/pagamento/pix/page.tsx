@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { QrCode } from "lucide-react";
+import { PaymentStatusPoller } from "@/components/payment-status-poller";
 import { PixCopyBox } from "@/components/pix-copy-box";
 import { requireUser } from "@/lib/auth";
 import { ensureAsaasPixCharge, isAsaasConfigured } from "@/lib/asaas";
@@ -44,6 +45,7 @@ export default async function PixPaymentPage({ searchParams }: { searchParams: {
           <div className="mt-4 grid gap-4 text-sm text-neutral-200">
             <p><strong className="text-yellow-300">Valor:</strong> {formatCurrencyBRL(payment.amountCents)}</p>
             <p><strong className="text-yellow-300">Status:</strong> {translatePaymentStatus(payment.status)}</p>
+            <PaymentStatusPoller paymentId={payment.id} initialStatus={payment.status} />
             <div className="grid place-items-center rounded-3xl border border-white/10 bg-white p-6 text-black">
               {pix?.pixQrCodeBase64 ? (
                 <img src={`data:image/png;base64,${pix.pixQrCodeBase64}`} alt="QR Code PIX" className="h-52 w-52" />
