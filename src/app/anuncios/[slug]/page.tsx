@@ -1,4 +1,5 @@
 ﻿import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { Clock, Heart, MessageCircle, ShieldCheck, Star } from "lucide-react";
 import { ContactBox } from "@/components/contact-box";
 import { ListingPhotoGallery } from "@/components/listing-photo-gallery";
@@ -14,6 +15,48 @@ import { db, throwDbError } from "@/lib/supabase-db";
 import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } from "@/lib/response-metrics";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const listing = await findListingBySlug(params.slug).catch(() => null);
+  if (!listing) {
+    return {
+      title: "Anúncio não encontrado",
+      description: "Este anúncio não está disponível no Achei X."
+    };
+  }
+
+  const title = `${listing.title} - ${money(listing.priceCents)}`;
+  const description = compactText(`${listing.type} em ${listing.city}, ${listing.state}. ${listing.description || "Confira este anúncio no Achei X."}`, 155);
+  const imageUrl = absoluteUrl(listing.photos[0]?.url || "/achei-x-logo.png");
+  const url = absoluteUrl(`/anuncios/${listing.slug}`);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "Achei X",
+      type: "article",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: listing.photos[0]?.alt || listing.title
+        }
+      ]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl]
+    }
+  };
+}
 
 export default async function ListingPage({ params }: { params: { slug: string } }) {
   const user = await getCurrentUser();
@@ -211,5 +254,16 @@ function Info({ label, value }: { label: string; value: string | number }) {
       <dd className="font-bold">{value}</dd>
     </div>
   );
+}
+
+function absoluteUrl(value: string) {
+  if (/^https?:\/\//i.test(value)) return value;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://acheix.com.br";
+  return `${baseUrl.replace(/\/$/, "")}/${value.replace(/^\//, "")}`;
+}
+
+function compactText(value: string, maxLength: number) {
+  const text = value.replace(/\s+/g, " ").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1).trim()}...` : text;
 }
 
