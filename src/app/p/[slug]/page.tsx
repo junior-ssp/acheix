@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const title = `${listing.title} - ${money(listing.priceCents)} - Achei X`;
   const description = compactText(`${listing.type} em ${listing.city}, ${listing.state}. ${listing.description || "Confira este anúncio no Achei X."}`, 155);
   const imageUrl = absoluteUrl(`/og/anuncios/${listing.slug}/image.png`);
-  const shareUrl = absoluteUrl(`/s/${listing.slug}`);
+  const shareUrl = absoluteUrl(`/p/${listing.slug}`);
   const listingUrl = absoluteUrl(`/anuncios/${listing.slug}`);
 
   return {

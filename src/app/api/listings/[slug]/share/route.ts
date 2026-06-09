@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     ]);
     throwDbError(shareError);
     throwDbError(updateError);
-    return json({ url: `${getPublicAppBaseUrl(request)}/s/${params.slug}` });
+    return json({ url: `${getPublicAppBaseUrl(request)}/p/${params.slug}` });
   } catch (error) {
     return errorResponse(error);
   }

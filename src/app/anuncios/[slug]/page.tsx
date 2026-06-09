@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   const title = `${listing.title} - ${money(listing.priceCents)} - Achei X`;
   const description = compactText(`${listing.type} em ${listing.city}, ${listing.state}. ${listing.description || "Confira este anúncio no Achei X."}`, 155);
-  const imageUrl = absoluteUrl(`/api/listings/${listing.slug}/cover`);
+  const imageUrl = absoluteUrl(`/og/anuncios/${listing.slug}/image.png`);
   const url = absoluteUrl(`/anuncios/${listing.slug}`);
 
   return {
@@ -44,6 +44,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       images: [
         {
           url: imageUrl,
+          secureUrl: imageUrl,
+          type: "image/png",
           width: 1200,
           height: 630,
           alt: listing.photos[0]?.alt || listing.title
