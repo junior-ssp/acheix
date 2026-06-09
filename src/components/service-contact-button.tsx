@@ -10,7 +10,7 @@ type PublicContact = {
   email: string | null;
 };
 
-const whatsappIntroMessage = "Como vai, tudo bem ? Peguei seu contato nos *Classificados Achei X*, podemos conversar ?\nwww.acheix.com.br";
+const whatsappIntroMessage = "Como vai, tudo bem ? Peguei seu contato nos *Classificados Achei X*, podemos conversar ?";
 
 export function ServiceContactButton({ serviceId, serviceTitle, authenticated, contactPublicEnabled }: { serviceId: string; serviceTitle: string; authenticated: boolean; contactPublicEnabled?: boolean }) {
   const [contactOpen, setContactOpen] = useState(false);
