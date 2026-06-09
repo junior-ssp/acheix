@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Sparkles, Trash2 } from "lucide-react";
 
 export function ServiceProfileActions() {
   const [busy, setBusy] = useState(false);
@@ -33,6 +33,10 @@ export function ServiceProfileActions() {
       <Link href="/servicos/anunciar" className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm btn-gold">
         <Pencil size={16} />
         Editar Serviço
+      </Link>
+      <Link href="/servicos/planos" className="inline-flex h-10 items-center gap-2 rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">
+        <Sparkles size={16} />
+        Alterar Plano
       </Link>
       <button
         type="button"

@@ -68,9 +68,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
       <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <Link href="/planos" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Novo Anúncio</Link>
         <Link href="/dashboard?meus=ALL#meus-anuncios" className="inline-flex h-11 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">Meus Anúncios</Link>
-        <Link href="/dashboard#interesses" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Interesses</Link>
-        <Link href="/favoritos" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Favoritos</Link>
-        <Link href="/servicos" className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Buscar serviços</Link>
+        <Link href="/dashboard#meus-servicos" className="inline-flex h-11 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-400/10 px-4 text-sm font-black text-emerald-100 hover:bg-emerald-400/20">Meu Cartão de Visitas</Link>
         <Link href="/servicos/anunciar" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Sou prestador</Link>
       </div>
       <div id="performance" className="mt-6 grid scroll-mt-24 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -137,7 +135,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase text-yellow-300">Serviços</p>
-            <h2 className="mt-1 text-xl font-black">Meus Serviços</h2>
+            <h2 className="mt-1 text-xl font-black">Meu Cartão de Visitas</h2>
             <p className="mt-1 text-sm text-neutral-400">
               Aqui ficam seus serviços publicados.
             </p>
@@ -167,7 +165,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 {(serviceProfile.categorias_servico?.length ? serviceProfile.categorias_servico : [serviceProfile.categoria_servico]).map((item: string) => (
-                  <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-xs font-black uppercase text-neutral-100">
+                  <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/10 px-2 py-1 text-xs font-black uppercase text-emerald-100">
                     <ServiceCategoryIcon value={item} size={13} />
                     {serviceCategoryName(item)}
                   </span>
