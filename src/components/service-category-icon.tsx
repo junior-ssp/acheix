@@ -95,9 +95,9 @@ const serviceIconMap: Record<string, LucideIcon> = {
   zap: Zap
 };
 
-export function ServiceCategoryIcon({ value, size = 14, className }: { value: string; size?: number; className?: string }) {
+export function ServiceCategoryIcon({ value, size = 14, className, strokeWidth }: { value: string; size?: number; className?: string; strokeWidth?: number }) {
   const Icon = serviceIconMap[iconForService(value)] ?? BriefcaseBusiness;
-  return <Icon size={size} className={className} aria-hidden="true" />;
+  return <Icon size={size} strokeWidth={strokeWidth} className={className} aria-hidden="true" />;
 }
 
 export function serviceCategoryIconComponent(value: string) {

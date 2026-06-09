@@ -11,6 +11,7 @@ import { ProfileForm } from "@/components/profile-form";
 import { ServiceProfileActivityPanel } from "@/components/service-profile-activity-panel";
 import { ServiceProfileActions } from "@/components/service-profile-actions";
 import { ServiceCategoryIcon } from "@/components/service-category-icon";
+import { PublicShareButton } from "@/components/public-share-button";
 import { LogoutButton } from "@/components/logout-button";
 import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } from "@/lib/response-metrics";
 import { defaultServiceCategories } from "@/lib/service-catalog";
@@ -147,15 +148,18 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {serviceProfile && serviceProfile.status !== "CLOSED" ? (
-            <article className="rounded-lg border border-white/10 bg-black/25 p-3">
+            <article className="overflow-visible rounded-xl border border-emerald-300/20 bg-[linear-gradient(145deg,#090909_0%,#101713_58%,#071f12_100%)] p-4 shadow-2xl shadow-emerald-950/30">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-black">{serviceProfile.nome_fantasia ?? serviceProfile.name ?? serviceCategoryName(serviceProfile.categoria_servico)}</h3>
-                  <p className="mt-1 text-xs font-bold uppercase text-yellow-300">{serviceProfile.tipo_cadastro === "COMPANY" ? "Empresa Prestadora" : "Profissional Autônomo"}</p>
+                <div className="min-w-0">
+                  <h3 className="break-words text-2xl font-black">{serviceProfile.nome_fantasia ?? serviceProfile.name ?? serviceCategoryName(serviceProfile.categoria_servico)}</h3>
+                  <p className="mt-1 text-xs font-black uppercase text-yellow-300">{serviceProfile.tipo_cadastro === "COMPANY" ? "Empresa Prestadora" : "Profissional Autônomo"}</p>
                 </div>
-                <span className={`rounded-full px-2 py-1 text-xs font-black ${serviceProfile.active ? "bg-emerald-400/15 text-emerald-200" : "bg-red-400/15 text-red-200"}`}>
-                  {serviceProfile.active ? "Ativo" : "Inativo"}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <PublicShareButton title={`Achei este profissional: ${serviceProfile.nome_fantasia ?? serviceProfile.name ?? serviceCategoryName(serviceProfile.categoria_servico)}`} path={`/servicos/${serviceProfile.id}`} compact />
+                  <span className={`rounded-full px-3 py-1.5 text-xs font-black ${serviceProfile.active ? "bg-emerald-400/20 text-emerald-100" : "bg-red-400/15 text-red-200"}`}>
+                    {serviceProfile.active ? "Ativo" : "Inativo"}
+                  </span>
+                </div>
               </div>
               <p className="mt-2 text-sm text-neutral-300">{serviceProfile.cidade}/{serviceProfile.estado}{serviceProfile.bairro ? ` - ${serviceProfile.bairro}` : ""}</p>
               {serviceBilling ? (
@@ -163,11 +167,13 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
                   {serviceBilling.billing.status === "TRIALING" ? "Grátis até" : "Plano PRO até"} {new Date(serviceBilling.billing.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - R$ {(serviceBilling.billing.renewalPriceCents / 100).toFixed(2).replace(".", ",")} por 12 meses - tolerância até {new Date(serviceBilling.billing.graceEndsAt).toLocaleDateString("pt-BR")}.
                 </p>
               ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {(serviceProfile.categorias_servico?.length ? serviceProfile.categorias_servico : [serviceProfile.categoria_servico]).map((item: string) => (
-                  <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/10 px-2 py-1 text-xs font-black uppercase text-emerald-100">
-                    <ServiceCategoryIcon value={item} size={13} />
-                    {serviceCategoryName(item)}
+                  <span key={item} className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border border-emerald-300/30 bg-emerald-400/15 px-2 py-3 text-center text-[11px] font-black uppercase leading-tight text-emerald-50 shadow-[0_0_20px_rgba(34,197,94,0.12)]">
+                    <span className="grid h-11 w-11 place-items-center rounded-lg bg-[#22C55E] text-black shadow-[0_0_18px_rgba(34,197,94,0.35)]">
+                      <ServiceCategoryIcon value={item} size={28} strokeWidth={2.8} />
+                    </span>
+                    <span>{serviceCategoryName(item)}</span>
                   </span>
                 ))}
               </div>
