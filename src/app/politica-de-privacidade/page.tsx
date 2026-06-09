@@ -1,4 +1,5 @@
 import { BackButton } from "@/components/back-button";
+import { NoCopyPolicyGuard } from "@/components/no-copy-policy-guard";
 
 export default function PrivacyPage() {
   return (
@@ -7,7 +8,8 @@ export default function PrivacyPage() {
         <h1 className="text-3xl font-black">Política de Privacidade</h1>
         <BackButton label="Voltar" />
       </div>
-      <section className="mt-6 space-y-7 rounded-lg border border-white/10 bg-neutral-900 p-6 text-neutral-200">
+      <NoCopyPolicyGuard />
+      <section data-no-copy-policy className="mt-6 select-none space-y-7 rounded-lg border border-white/10 bg-neutral-900 p-6 text-neutral-200">
         <Block title="Dados Tratados">
           <p>O Achei X poderá tratar dados cadastrais, dados de contato, localização informada, anúncios, imagens, vídeos, textos, interesses enviados, pagamentos, preferências, dados técnicos do dispositivo, IP, logs, evidências de segurança e registros de uso da plataforma.</p>
           <p>Ao enviar imagens, o usuário declara possuir autorização e responsabilidade sobre o conteúdo enviado, incluindo pessoas, placas, objetos, documentos, imóveis, bens e qualquer informação visível.</p>

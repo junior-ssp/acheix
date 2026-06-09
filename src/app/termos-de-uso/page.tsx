@@ -1,4 +1,5 @@
 import { BackButton } from "@/components/back-button";
+import { NoCopyPolicyGuard } from "@/components/no-copy-policy-guard";
 
 export default function TermsPage() {
   return (
@@ -7,7 +8,8 @@ export default function TermsPage() {
         <h1 className="text-3xl font-black">Termos de Uso</h1>
         <BackButton label="Voltar" />
       </div>
-      <section className="mt-6 space-y-7 rounded-lg border border-white/10 bg-neutral-900 p-6 text-neutral-200">
+      <NoCopyPolicyGuard />
+      <section data-no-copy-policy className="mt-6 select-none space-y-7 rounded-lg border border-white/10 bg-neutral-900 p-6 text-neutral-200">
         <Block title="Responsabilidade dos Anunciantes">
           <p>O anunciante é o único responsável pela veracidade, legalidade, autenticidade, procedência e atualização das informações, imagens, vídeos, textos, preços, documentos e contatos que informar ou tentar publicar.</p>
           <p>É proibida a publicação, tentativa de publicação, envio ou divulgação de anúncios, imagens, textos, links ou contatos:</p>
