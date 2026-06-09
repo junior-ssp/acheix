@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     if (user.accountBlockedAt) return json({ error: "Sua conta está temporariamente impedida de ver contatos. Entre em contato com o suporte do Achei X." }, 403);
     const { data: profile, error } = await supabase
       .from("service_profiles")
-      .select("id,user_id,telefone_privado,whatsapp_privado,complemento,active,status")
+      .select("id,user_id,telefone_privado,whatsapp_privado,email_privado,complemento,active,status")
       .eq("id", params.id)
       .maybeSingle();
 
@@ -56,6 +56,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         viewerName: user.name,
         viewerEmail: user.email,
         viewerPhone: user.phone ?? user.whatsapp ?? null,
+        revealedEmail: profile.email_privado ?? null,
         ip: requestIp(request),
         userAgent: request.headers.get("user-agent") ?? "unknown"
       }
@@ -66,7 +67,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return json({
       contact: {
         phone: preference === "PHONE" || preference === "BOTH" ? profile.telefone_privado ? onlyDigits(profile.telefone_privado) : null : null,
-        whatsapp: preference === "WHATSAPP" || preference === "BOTH" ? profile.whatsapp_privado ? onlyDigits(profile.whatsapp_privado) : null : null
+        whatsapp: preference === "WHATSAPP" || preference === "BOTH" ? profile.whatsapp_privado ? onlyDigits(profile.whatsapp_privado) : null : null,
+        email: profile.email_privado ?? null
       }
     });
   } catch (error) {

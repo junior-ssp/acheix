@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Phone, Send } from "lucide-react";
+import { Eye, Mail, Phone, Send } from "lucide-react";
 import { formatPhone } from "@/lib/formatters";
 
 type PublicContact = {
   phone: string | null;
   whatsapp: string | null;
+  email: string | null;
 };
+
+const whatsappIntroMessage = "Como vai, tudo bem ? Peguei seu contato nos Classificados Achei X, podemos conversar ?";
 
 export function ServiceContactButton({ serviceId, serviceTitle, authenticated, contactPublicEnabled }: { serviceId: string; serviceTitle: string; authenticated: boolean; contactPublicEnabled?: boolean }) {
   const [contactOpen, setContactOpen] = useState(false);
@@ -92,7 +95,7 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
       {contactOpen ? (
         <div className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-neutral-100">
           {contact?.whatsapp ? (
-            <a href={`https://wa.me/55${contact.whatsapp}`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#22C55E] px-3 font-black text-black">
+            <a href={`https://wa.me/55${contact.whatsapp}?text=${encodeURIComponent(whatsappIntroMessage)}`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#22C55E] px-3 font-black text-black">
               <Phone size={16} />
               WhatsApp {formatPhone(contact.whatsapp)}
             </a>
@@ -103,7 +106,13 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
               Telefone {formatPhone(contact.phone)}
             </a>
           ) : null}
-          {!contact?.phone && !contact?.whatsapp ? <p className="text-xs text-neutral-400">Nenhum contato público disponível.</p> : null}
+          {contact?.email ? (
+            <a href={`mailto:${contact.email}`} className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/10 px-3 font-black text-white">
+              <Mail size={16} />
+              Email {contact.email}
+            </a>
+          ) : null}
+          {!contact?.phone && !contact?.whatsapp && !contact?.email ? <p className="text-xs text-neutral-400">Nenhum contato público disponível.</p> : null}
         </div>
       ) : null}
       {message ? <p className="mt-2 text-xs text-yellow-300">{message}</p> : null}
