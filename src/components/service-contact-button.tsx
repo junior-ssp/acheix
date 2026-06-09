@@ -18,6 +18,11 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
   const [leadBusy, setLeadBusy] = useState(false);
 
   async function revealContact() {
+    if (!authenticated) {
+      const next = `${window.location.pathname}${window.location.search}`;
+      window.location.href = `/entrar?next=${encodeURIComponent(next)}`;
+      return;
+    }
     if (contact) {
       setContactOpen((value) => !value);
       return;

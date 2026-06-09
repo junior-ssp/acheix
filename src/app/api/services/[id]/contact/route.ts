@@ -25,6 +25,9 @@ function requestIp(request: Request) {
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     const supabase = getSupabaseAdmin();
+    const user = await getCurrentUser();
+    if (!user) return json({ error: "Entre ou crie sua conta para ver o contato deste profissional." }, 401);
+    if (user.accountBlockedAt) return json({ error: "Sua conta está temporariamente impedida de ver contatos. Entre em contato com o suporte do Achei X." }, 403);
     const { data: profile, error } = await supabase
       .from("service_profiles")
       .select("id,user_id,telefone_privado,whatsapp_privado,complemento,active,status")
@@ -38,14 +41,21 @@ export async function GET(request: Request, { params }: { params: { id: string }
     if (!isServicePublicContactEnabled(profile.complemento)) {
       return json({ error: "Contato público não autorizado pelo prestador." }, 403);
     }
+    if (user.id === profile.user_id) {
+      return json({ error: "Você não precisa ver contato do próprio serviço." }, 422);
+    }
 
     const { error: auditError } = await supabase.from("AuditLog").insert({
       id: randomUUID(),
-      userId: null,
+      userId: user.id,
       action: "service.public_contact.viewed",
       metadata: {
         profileId: profile.id,
         targetUserId: profile.user_id,
+        viewerUserId: user.id,
+        viewerName: user.name,
+        viewerEmail: user.email,
+        viewerPhone: user.phone ?? user.whatsapp ?? null,
         ip: requestIp(request),
         userAgent: request.headers.get("user-agent") ?? "unknown"
       }
