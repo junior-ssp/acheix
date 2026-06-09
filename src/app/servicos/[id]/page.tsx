@@ -61,7 +61,7 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
 
         <div className="mt-4 flex flex-wrap gap-2">
           {service.categories.map((item) => (
-            <span key={item} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-200">
+            <span key={item} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-xs font-black uppercase text-neutral-100">
               <ServiceCategoryIcon value={item} size={14} />
               {item}
             </span>

@@ -167,7 +167,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 {(serviceProfile.categorias_servico?.length ? serviceProfile.categorias_servico : [serviceProfile.categoria_servico]).map((item: string) => (
-                  <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-xs text-neutral-200">
+                  <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-xs font-black uppercase text-neutral-100">
                     <ServiceCategoryIcon value={item} size={13} />
                     {serviceCategoryName(item)}
                   </span>

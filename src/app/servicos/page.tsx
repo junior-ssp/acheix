@@ -158,7 +158,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Ser
             <p className="mt-3 line-clamp-4 text-sm text-neutral-300">{service.description}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {service.categories.map((item) => (
-                <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-xs text-neutral-200">
+                <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-xs font-black uppercase text-neutral-100">
                   <ServiceCategoryIcon value={item} size={13} />
                   {item}
                 </span>
