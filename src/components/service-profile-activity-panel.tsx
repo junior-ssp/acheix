@@ -67,7 +67,7 @@ export function ServiceProfileActivityPanel({ initialStatus, initialLastActiveAt
           </p>
           {billingSummary ? (
             <p className="mt-1 text-sm text-neutral-300">
-              Plano: {billingSummary.status === "TRIALING" ? "gratis por 6 meses" : "servicos"} - renovacao R$ {(billingSummary.renewalPriceCents / 100).toFixed(2).replace(".", ",")} a cada 6 meses - vence em {new Date(billingSummary.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - tolerancia ate {new Date(billingSummary.graceEndsAt).toLocaleDateString("pt-BR")}.
+              Plano: {billingSummary.status === "TRIALING" ? "grátis por 6 meses" : "Plano PRO"} - renovação R$ {(billingSummary.renewalPriceCents / 100).toFixed(2).replace(".", ",")} por 12 meses - vence em {new Date(billingSummary.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - tolerância até {new Date(billingSummary.graceEndsAt).toLocaleDateString("pt-BR")}.
             </p>
           ) : null}
         </div>

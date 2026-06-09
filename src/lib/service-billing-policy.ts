@@ -1,7 +1,7 @@
 export const serviceBillingPolicy = {
-  planCode: "SERVICE_BASIC_6M",
+  planCode: "SERVICE_FREE",
   launchFreeMonths: 6,
-  renewalCycleMonths: 6,
+  renewalCycleMonths: 12,
   renewalPriceCents: 990,
   graceDays: 15,
   alertBeforeDays: 3,
@@ -64,6 +64,25 @@ export function refreshServiceBillingStatus(billing: ServiceBillingInfo, now = n
   };
 }
 
+export function activateServiceProBilling(existing: unknown, paidAt = new Date()): ServiceBillingInfo {
+  const startsAt = paidAt.toISOString();
+  const endsAt = addMonths(paidAt, serviceBillingPolicy.renewalCycleMonths).toISOString();
+  return {
+    ...ensureServiceBilling(existing, paidAt),
+    planCode: "SERVICE_PRO",
+    launchOffer: false,
+    renewalPriceCents: serviceBillingPolicy.renewalPriceCents,
+    cycleMonths: serviceBillingPolicy.renewalCycleMonths,
+    currentPeriodStartedAt: startsAt,
+    currentPeriodEndsAt: endsAt,
+    graceEndsAt: addDays(new Date(endsAt), serviceBillingPolicy.graceDays).toISOString(),
+    status: "ACTIVE",
+    alertsSent: {},
+    hiddenAt: null,
+    lastPaymentAt: startsAt
+  };
+}
+
 export function isServiceVisibleByBilling(complement: string | null | undefined, now = new Date()) {
   const billing = serviceBillingFromComplement(complement, now);
   return billing.status !== "HIDDEN";
@@ -108,13 +127,13 @@ export function serviceBillingAlertText(key: ServiceBillingAlertKey, billing: Se
   if (key === "before_due") {
     return {
       title: "Renovação do seu serviço Achei X",
-      message: `Seu perfil de serviços vence em 3 dias, em ${dueDate}. A renovação será ${price} por 6 meses, com tolerância até ${graceDate}.`
+      message: `Seu perfil de serviços vence em 3 dias, em ${dueDate}. A renovação será ${price} no Plano PRO por 12 meses, com tolerância até ${graceDate}.`
     };
   }
   if (key === "due") {
     return {
       title: "Seu serviço vence hoje",
-      message: `Seu perfil de serviços vence hoje (${dueDate}). Renove por ${price} para manter a exibição por mais 6 meses. Tolerância até ${graceDate}.`
+      message: `Seu perfil de serviços vence hoje (${dueDate}). Renove pelo Plano PRO por ${price} para manter a exibição por mais 12 meses. Tolerância até ${graceDate}.`
     };
   }
   return {

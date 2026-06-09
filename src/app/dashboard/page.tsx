@@ -17,7 +17,7 @@ import { defaultServiceCategories } from "@/lib/service-catalog";
 import { serviceBillingSummary } from "@/lib/service-billing-policy";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { formatCurrencyBRL } from "@/lib/formatters";
-import { parsePublishProviderRef, parseRenewProviderRef } from "@/lib/payments";
+import { parsePublishProviderRef, parseRenewProviderRef, parseServiceProviderRef } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -162,7 +162,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
               <p className="mt-2 text-sm text-neutral-300">{serviceProfile.cidade}/{serviceProfile.estado}{serviceProfile.bairro ? ` - ${serviceProfile.bairro}` : ""}</p>
               {serviceBilling ? (
                 <p className="mt-2 text-sm text-neutral-300">
-                  {serviceBilling.billing.status === "TRIALING" ? "Gratis ate" : "Renovacao ate"} {new Date(serviceBilling.billing.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - R$ {(serviceBilling.billing.renewalPriceCents / 100).toFixed(2).replace(".", ",")} por 6 meses - tolerancia ate {new Date(serviceBilling.billing.graceEndsAt).toLocaleDateString("pt-BR")}.
+                  {serviceBilling.billing.status === "TRIALING" ? "Grátis até" : "Plano PRO até"} {new Date(serviceBilling.billing.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - R$ {(serviceBilling.billing.renewalPriceCents / 100).toFixed(2).replace(".", ",")} por 12 meses - tolerância até {new Date(serviceBilling.billing.graceEndsAt).toLocaleDateString("pt-BR")}.
                 </p>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
@@ -239,7 +239,7 @@ type DashboardPayment = {
   createdAt: string;
   updatedAt: string | null;
   listing: { title: string; slug: string } | null;
-  kind: "publish" | "renew" | "payment";
+  kind: "publish" | "renew" | "service" | "payment";
   planCode: string | null;
 };
 
@@ -261,7 +261,7 @@ function DashboardPayments({ payments }: { payments: DashboardPayment[] }) {
               <div>
                 <h3 className="font-black">{payment.listing?.title ?? paymentTitle(payment)}</h3>
                 <p className="mt-1 text-xs font-bold uppercase text-neutral-400">
-                  {payment.kind === "renew" ? "Renovação" : payment.kind === "publish" ? "Publicação" : "Pagamento"} · {payment.planCode ?? "Plano"}
+                  {payment.kind === "renew" ? "Renovação" : payment.kind === "publish" ? "Publicação" : payment.kind === "service" ? "Serviços" : "Pagamento"} · {payment.planCode ?? "Plano"}
                 </p>
               </div>
               <span className={`rounded-full px-2 py-1 text-xs font-black ${paymentStatusClass(payment.status)}`}>
@@ -339,12 +339,13 @@ async function findDashboardPayments(userId: string): Promise<DashboardPayment[]
   const parsed = rows.map((payment) => {
     const publish = parsePublishProviderRef(payment.providerRef);
     const renew = parseRenewProviderRef(payment.providerRef);
+    const service = parseServiceProviderRef(payment.providerRef);
     const reference = publish ?? renew;
     return {
       payment,
       listingId: reference?.listingId ?? null,
-      planCode: reference?.planCode ?? null,
-      kind: publish ? "publish" as const : renew ? "renew" as const : "payment" as const
+      planCode: service?.planCode ?? reference?.planCode ?? null,
+      kind: publish ? "publish" as const : renew ? "renew" as const : service ? "service" as const : "payment" as const
     };
   });
   const listingIds = [...new Set(parsed.map((item) => item.listingId).filter((id): id is string => Boolean(id)))];
@@ -400,6 +401,7 @@ function countByListing(rows: Array<{ listingId?: string | null }>) {
 function paymentTitle(payment: DashboardPayment) {
   if (payment.kind === "renew") return "Renovação de anúncio";
   if (payment.kind === "publish") return "Publicação de anúncio";
+  if (payment.kind === "service") return "Plano PRO de Serviços";
   return "Pagamento";
 }
 

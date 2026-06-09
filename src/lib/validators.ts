@@ -157,6 +157,7 @@ export const serviceProfileSchema = z.object({
   profilePhoto: z.string().trim().url().optional().or(z.literal("")),
   companyLogo: z.string().trim().url().optional().or(z.literal("")),
   locations: z.array(serviceLocationSchema).min(1).max(5).optional(),
+  servicePlanCode: z.enum(["SERVICE_FREE", "SERVICE_PRO"]).default("SERVICE_FREE"),
   contactPreference: z.enum(["LEADS_ONLY", "PHONE", "WHATSAPP", "BOTH"]).default("LEADS_ONLY"),
   publicContactEnabled: z.boolean().default(false),
   contactDisclosureAccepted: z.boolean().default(false)

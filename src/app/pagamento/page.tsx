@@ -2,6 +2,7 @@
 import { CreditCard, QrCode } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { formatCurrencyBRL } from "@/lib/formatters";
+import { parseServiceProviderRef } from "@/lib/payments";
 import { db, throwDbError } from "@/lib/supabase-db";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +39,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: { pa
               GERAR PIX
             </Link>
           ) : null}
-          <Link href="/planos" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Ver Planos</Link>
+          <Link href={parseServiceProviderRef(payment?.providerRef) ? "/servicos/planos" : "/planos"} className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Ver Planos</Link>
         </div>
       </section>
     </main>
@@ -58,7 +59,7 @@ function translatePaymentStatus(status: string) {
 async function findPayment(paymentId: string, userId: string) {
   const { data, error } = await db()
     .from("Payment")
-    .select("id,amountCents,status,provider,createdAt")
+    .select("id,amountCents,status,provider,providerRef,createdAt")
     .eq("id", paymentId)
     .eq("userId", userId)
     .maybeSingle();

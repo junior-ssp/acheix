@@ -6,6 +6,7 @@ import { errorResponse, json } from "@/lib/http";
 import { defaultServiceCategories, normalizeServiceSlug } from "@/lib/service-catalog";
 import { ensureServiceBilling, isServiceVisibleByBilling } from "@/lib/service-billing-policy";
 import { isPublicServiceContactPreference, isServicePublicContactEnabled, parseServiceComplement, serviceContactDisclosureText, serviceContactDisclosureVersion } from "@/lib/service-contact-disclosure";
+import { getServicePlan } from "@/lib/service-plans";
 import { orderAndRecordServiceSearchExposure } from "@/lib/service-search-exposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { newDbId } from "@/lib/supabase-db";
@@ -153,6 +154,10 @@ export async function POST(request: Request) {
     const district = String(cepInfo?.district || data.district || "").trim() || null;
     const address = String(cepInfo?.address || data.address || "").trim() || null;
     const categories = [...new Set(data.categories.map(normalizeCategory).filter(Boolean))].slice(0, 5);
+    const servicePlan = getServicePlan(data.servicePlanCode);
+    if (categories.length > servicePlan.maxCategories) {
+      return json({ error: `O plano ${servicePlan.name} permite no máximo ${servicePlan.maxCategories} atividades.` }, 422);
+    }
     const category = categories[0];
     const title = data.name.trim();
     const locations = (data.locations ?? []).slice(0, 5);
@@ -236,14 +241,14 @@ export async function POST(request: Request) {
       whatsapp_privado: data.privateWhatsapp ? onlyDigits(data.privateWhatsapp) : null,
       email_privado: data.privateEmail || null,
       website: null,
-      foto_perfil: data.profilePhoto || null,
-      logo_empresa: data.companyLogo || null,
+      foto_perfil: null,
+      logo_empresa: null,
       conta_verificada: Boolean(user.identityVerifiedAt),
       score,
       rank: rankFromScore(score),
       search_text: searchText,
-      active: true,
-      status: "ACTIVE",
+      active: servicePlan.code === "SERVICE_FREE" || Boolean(existing),
+      status: servicePlan.code === "SERVICE_FREE" || existing ? "ACTIVE" : "INACTIVE",
       last_active_at: nowIso,
       activity_confirmation_due_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       activity_prompted_at: null,
@@ -274,6 +279,23 @@ export async function POST(request: Request) {
       await insertServiceDisclosureAudit(user.id, profile.id, "service.contact_disclosure.accepted", contactDisclosure);
     } else if (hadPublicContact && !publicContactEnabled) {
       await insertServiceDisclosureAudit(user.id, profile.id, "service.contact_disclosure.revoked", contactDisclosure);
+    }
+
+    if (servicePlan.code === "SERVICE_PRO") {
+      const { data: payment, error: paymentError } = await supabase
+        .from("Payment")
+        .insert({
+          id: newDbId(),
+          userId: user.id,
+          amountCents: servicePlan.priceCents,
+          status: "PENDING",
+          provider: "PIX",
+          providerRef: `service:${profile.id}:${servicePlan.code}:${Date.now()}`
+        })
+        .select("*")
+        .single();
+      if (paymentError) throw paymentError;
+      return json({ service: toPublicProfile({ ...profile, distance_km: null }), payment, checkoutUrl: `/pagamento?paymentId=${payment.id}` }, 201);
     }
 
     return json({ service: toPublicProfile({ ...profile, distance_km: null }) }, 201);
@@ -337,7 +359,7 @@ function toPublicProfile(profile: any) {
     district: profile.bairro,
     state: profile.estado,
     cep: profile.cep,
-    imageUrl: type === "COMPANY" ? profile.logo_empresa : profile.foto_perfil,
+    imageUrl: null,
     averageRating: profile.avaliacao_media,
     totalRatings: profile.total_avaliacoes,
     totalServices: profile.total_servicos,

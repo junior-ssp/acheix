@@ -2,11 +2,13 @@ import { PublishLoginPrompt } from "@/components/publish-login-prompt";
 import { ServiceForm } from "@/components/service-form";
 import { requireUser } from "@/lib/auth";
 import { parseServiceComplement, serviceContactPreferenceFromComplement } from "@/lib/service-contact-disclosure";
+import { isServicePlanCode, type ServicePlanCode } from "@/lib/service-plans";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewServicePage() {
+export default async function NewServicePage({ searchParams }: { searchParams?: { servicePlan?: string } }) {
   const user = await requireUser().catch(() => null);
   if (!user) {
     return (
@@ -27,6 +29,9 @@ export default async function NewServicePage() {
   const serviceProfileEnabled = Boolean(profile?.active && ["ACTIVE", "INACTIVE"].includes(profile.status));
   const hasExistingServiceProfile = Boolean(profile?.id && profile.status !== "CLOSED");
   const complement = parseServiceComplement(profile?.complemento);
+  if (!hasExistingServiceProfile && !isServicePlanCode(searchParams?.servicePlan)) redirect("/servicos/planos");
+  const currentBillingPlan = complement.serviceBilling?.planCode === "SERVICE_PRO" ? "SERVICE_PRO" : null;
+  const servicePlanCode: ServicePlanCode = currentBillingPlan ?? (isServicePlanCode(searchParams?.servicePlan) ? searchParams.servicePlan : "SERVICE_FREE");
   const contactDisclosure = complement.contactDisclosure;
   const initialProfile = profile && profile.status !== "CLOSED" ? {
     type: profile.tipo_cadastro,
@@ -47,8 +52,6 @@ export default async function NewServicePage() {
     contactPublicEnabled: Boolean(contactDisclosure?.publicContactEnabled),
     contactDisclosureAcceptedAt: contactDisclosure?.acceptedAt ?? null,
     contactPreference: serviceContactPreferenceFromComplement(profile.complemento),
-    profilePhoto: profile.foto_perfil,
-    companyLogo: profile.logo_empresa
   } : null;
 
   return (
@@ -58,7 +61,7 @@ export default async function NewServicePage() {
       <p className="mb-6 mt-2 max-w-3xl text-neutral-300">
         Ative sua aba de serviços para aparecer nas buscas por região. Seus contatos só aparecem para visitantes se você autorizar a exibição pública.
       </p>
-      <ServiceForm initialEnabled={serviceProfileEnabled} hasExistingProfile={hasExistingServiceProfile} initialProfile={initialProfile} user={{ name: user.name, phone: user.phone, whatsapp: user.whatsapp, accountType: user.accountType, cnpj: user.cnpj, state: user.state, city: user.city, district: user.district, cep: user.cep }} />
+      <ServiceForm initialEnabled={serviceProfileEnabled} hasExistingProfile={hasExistingServiceProfile} initialProfile={initialProfile} servicePlanCode={servicePlanCode} user={{ name: user.name, phone: user.phone, whatsapp: user.whatsapp, accountType: user.accountType, cnpj: user.cnpj, state: user.state, city: user.city, district: user.district, cep: user.cep }} />
     </main>
   );
 }
