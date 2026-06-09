@@ -66,9 +66,9 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
           Tenho Interesse
         </button>
         {contactPublicEnabled ? (
-          <button type="button" onClick={revealContact} disabled={busy} className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white disabled:opacity-60">
+          <button type="button" onClick={revealContact} disabled={busy} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#22C55E] px-4 text-sm font-black text-black transition hover:bg-[#34D399] disabled:opacity-60">
             <Eye size={16} />
-            {busy ? "Carregando..." : "Ver contato"}
+            {busy ? "Carregando..." : "Ver Contato"}
           </button>
         ) : null}
       </div>
