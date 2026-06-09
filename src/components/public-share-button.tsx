@@ -40,8 +40,6 @@ export function PublicShareButton({ title, path, compact = false }: { title: str
   }, [open]);
 
   async function share(channel: ShareChannel) {
-    const text = `${title} - ${url}`;
-
     if (channel === "copy") {
       await navigator.clipboard?.writeText(url);
       setCopied(true);
@@ -51,7 +49,7 @@ export function PublicShareButton({ title, path, compact = false }: { title: str
 
     if (channel === "social") {
       if (navigator.share) {
-        await navigator.share({ title, text: title, url }).catch(() => null);
+        await navigator.share({ title, url }).catch(() => null);
       } else {
         window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
       }
@@ -59,7 +57,7 @@ export function PublicShareButton({ title, path, compact = false }: { title: str
       return;
     }
 
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
     setOpen(false);
   }
 

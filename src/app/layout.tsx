@@ -17,6 +17,7 @@ import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL((process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://acheix.com.br").replace(/\/$/, "")),
   title: {
     default: "Achei X Classificados",
     template: "%s | Achei X"

@@ -1,5 +1,6 @@
 ﻿import { shareChannels } from "@/lib/constants";
 import { errorResponse, json } from "@/lib/http";
+import { getPublicAppBaseUrl } from "@/lib/app-url";
 import { db, newDbId, throwDbError } from "@/lib/supabase-db";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     ]);
     throwDbError(shareError);
     throwDbError(updateError);
-    return json({ url: `${process.env.APP_URL ?? ""}/anuncios/${params.slug}` });
+    return json({ url: `${getPublicAppBaseUrl(request)}/s/${params.slug}` });
   } catch (error) {
     return errorResponse(error);
   }

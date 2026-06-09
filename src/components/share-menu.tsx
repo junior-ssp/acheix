@@ -16,8 +16,8 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const url = useMemo(() => {
-    if (typeof window === "undefined") return `/anuncios/${slug}`;
-    return `${window.location.origin}/anuncios/${slug}`;
+    if (typeof window === "undefined") return `/s/${slug}`;
+    return `${window.location.origin}/s/${slug}`;
   }, [slug]);
 
   useEffect(() => {
@@ -48,7 +48,6 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
   }
 
   async function share(channel: ShareChannel) {
-    const text = `${title} - ${url}`;
     await registerShare(channel);
 
     if (channel === "copy") {
@@ -60,7 +59,7 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
 
     if (channel === "social") {
       if (navigator.share) {
-        await navigator.share({ title, text: title, url }).catch(() => null);
+        await navigator.share({ title, url }).catch(() => null);
       } else {
         window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
       }
@@ -68,7 +67,7 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
       return;
     }
 
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
     setOpen(false);
   }
 
