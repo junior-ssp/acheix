@@ -34,7 +34,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
     findDashboardPayments(user.id),
     supabase
       .from("service_profiles")
-      .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,status,active,cidade,bairro,estado,last_active_at,activity_confirmation_due_at,complemento")
+      .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,status,active,cidade,bairro,estado,last_active_at,activity_confirmation_due_at,complemento,logo_empresa")
       .eq("user_id", user.id)
       .maybeSingle(),
     withTimeout(findDashboardLeads(user.id), [[], [], []] as const, 1800)
@@ -153,9 +153,14 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
           {serviceProfile && serviceProfile.status !== "CLOSED" ? (
             <article className="overflow-visible rounded-xl border border-emerald-300/20 bg-[linear-gradient(145deg,#090909_0%,#101713_58%,#071f12_100%)] p-4 shadow-2xl shadow-emerald-950/30">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="break-words text-2xl font-black">{serviceProfile.nome_fantasia ?? serviceProfile.name ?? serviceCategoryName(serviceProfile.categoria_servico)}</h3>
-                  <p className="mt-1 text-xs font-black uppercase text-yellow-300">{serviceProfile.tipo_cadastro === "COMPANY" ? "Empresa Prestadora" : "Profissional Autônomo"}</p>
+                <div className="flex min-w-0 items-start gap-3">
+                  {serviceProfile.logo_empresa ? (
+                    <img src={serviceProfile.logo_empresa} alt="Logotipo do CARD" className="h-16 w-16 shrink-0 rounded-xl border border-emerald-300/25 bg-black/35 object-contain p-2" />
+                  ) : null}
+                  <div className="min-w-0">
+                    <h3 className="break-words text-2xl font-black">{serviceProfile.nome_fantasia ?? serviceProfile.name ?? serviceCategoryName(serviceProfile.categoria_servico)}</h3>
+                    <p className="mt-1 text-xs font-black uppercase text-yellow-300">{serviceProfile.tipo_cadastro === "COMPANY" ? "Empresa Prestadora" : "Profissional Autônomo"}</p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <PublicShareButton title={`Achei este profissional: ${serviceProfile.nome_fantasia ?? serviceProfile.name ?? serviceCategoryName(serviceProfile.categoria_servico)}`} path={`/servicos/${serviceProfile.id}`} compact />

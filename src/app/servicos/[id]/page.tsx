@@ -119,7 +119,7 @@ async function getService(id: string): Promise<PublicServiceProfile | null> {
       verified: profile.conta_verificada,
       rank: profile.rank,
       score: profile.score,
-      imageUrl: null,
+      imageUrl: profile.logo_empresa ?? profile.foto_perfil ?? null,
       contactPublicEnabled: isServicePublicContactEnabled(profile.complemento)
     };
   }

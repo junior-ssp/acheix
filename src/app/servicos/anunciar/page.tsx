@@ -52,6 +52,7 @@ export default async function NewServicePage({ searchParams }: { searchParams?: 
     contactPublicEnabled: Boolean(contactDisclosure?.publicContactEnabled),
     contactDisclosureAcceptedAt: contactDisclosure?.acceptedAt ?? null,
     contactPreference: serviceContactPreferenceFromComplement(profile.complemento),
+    companyLogo: profile.logo_empresa,
   } : null;
 
   return (

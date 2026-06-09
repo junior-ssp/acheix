@@ -23,7 +23,7 @@ export default function ServicePlansPage() {
         `Até ${free.maxCategories} atividades profissionais`,
         "Perfil aparece nas buscas de serviços",
         "Contato protegido pelas regras do Achei X",
-        "Sem foto, cartão ou banner neste momento"
+        "Sem logotipo no CARD"
       ]
     },
     {
@@ -32,15 +32,15 @@ export default function ServicePlansPage() {
       price: formatCurrencyBRL(pro.priceCents),
       detail: "12 meses de validade",
       badge: `${pro.maxCategories} atividades`,
-      description: "Plano anual para profissional que quer mais atividades.",
+      description: "Plano anual para profissional que quer mais atividades e logotipo no CARD.",
       href: "/servicos/anunciar?servicePlan=SERVICE_PRO" as const,
       action: "Escolher Plano PRO",
       icon: "pro" as const,
       benefits: [
         `Até ${pro.maxCategories} atividades profissionais`,
+        "Logotipo da empresa ou marca no CARD",
         "Perfil aparece nas buscas de serviços",
-        "Pagamento via PIX com ativação automática",
-        "Sem foto, cartão ou banner neste momento"
+        "Pagamento via PIX com ativação automática"
       ]
     }
   ];

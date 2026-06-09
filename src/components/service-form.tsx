@@ -2,12 +2,13 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { FileText, MapPin, Plus, Search, Trash2 } from "lucide-react";
+import { FileText, Image as ImageIcon, MapPin, Plus, Search, Trash2, X } from "lucide-react";
 import { brazilStates, citiesByState } from "@/lib/constants";
 import { formatCep, formatCnpj, formatPhone, onlyDigits } from "@/lib/formatters";
 import { isPublicServiceContactPreference, serviceContactDisclosureItems, serviceContactDisclosureTitle, serviceContactDisclosureVersion, type ServiceContactPreference } from "@/lib/service-contact-disclosure";
 import { audienceForService, defaultServiceCategories, serviceAudiences, type ServiceAudience } from "@/lib/service-catalog";
 import { getServicePlan, type ServicePlanCode } from "@/lib/service-plans";
+import { isSupabaseStorageConfigured, uploadListingPhoto } from "@/lib/supabase-client";
 import { ServiceCategoryIcon } from "@/components/service-category-icon";
 
 type ServiceFormUser = {
@@ -50,6 +51,7 @@ type InitialServiceProfile = {
   contactPublicEnabled?: boolean;
   contactDisclosureAcceptedAt?: string | null;
   contactPreference?: ServiceContactPreference;
+  companyLogo?: string | null;
 };
 
 const emptyLocation: ServiceLocation = { cep: "", state: "", city: "", district: "", address: "", number: "" };
@@ -85,6 +87,7 @@ export function ServiceForm({
   const canUsePublicContact = user.accountType === "CNPJ" || Boolean(user.cnpj);
   const initialContactPreference = canUsePublicContact ? initialProfile?.contactPreference ?? (initialProfile?.contactPublicEnabled ? "BOTH" : "LEADS_ONLY") : "LEADS_ONLY";
   const initialPublicContactEnabled = Boolean(isPublicServiceContactPreference(initialContactPreference) && initialProfile?.contactDisclosureAcceptedAt);
+  const canUseLogo = servicePlan.code === "SERVICE_PRO";
   const [enabled, setEnabled] = useState(initialEnabled);
   const [contactPreference, setContactPreference] = useState<ServiceContactPreference>(initialContactPreference);
   const [contactDisclosureAccepted, setContactDisclosureAccepted] = useState(initialPublicContactEnabled);
@@ -100,6 +103,8 @@ export function ServiceForm({
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [cnpjValue, setCnpjValue] = useState(initialCompanyDocument);
   const [companyName, setCompanyName] = useState(initialCompanyName);
+  const [companyLogo, setCompanyLogo] = useState(canUseLogo ? initialProfile?.companyLogo ?? "" : "");
+  const [logoUploading, setLogoUploading] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
 
   useEffect(() => {
@@ -253,6 +258,22 @@ export function ServiceForm({
     });
   }
 
+  async function uploadLogo(files: FileList | null) {
+    const file = files?.[0];
+    if (!file || !canUseLogo) return;
+    setLogoUploading(true);
+    setMessage("");
+    try {
+      const uploaded = await uploadListingPhoto(file);
+      setCompanyLogo(uploaded.url);
+      setMessage("Logotipo enviado. Ele aparecerá no CARD do Plano PRO.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível enviar o logotipo.");
+    } finally {
+      setLogoUploading(false);
+    }
+  }
+
   function removeLocation(index: number) {
     setLocations((current) => {
       const next = current.length <= 1 ? current : current.filter((_, itemIndex) => itemIndex !== index);
@@ -352,6 +373,7 @@ export function ServiceForm({
       complement: JSON.stringify({ serviceLocations: locations }),
       privatePhone: phone,
       privateWhatsapp: phone,
+      companyLogo: canUseLogo ? companyLogo : "",
       servicePlanCode,
       locations,
       contactPreference,
@@ -401,6 +423,43 @@ export function ServiceForm({
               <span className="mt-1 block text-sm text-neutral-400">Empresa, loja ou prestadora com CNPJ.</span>
             </button>
           </div>
+
+          {canUseLogo ? (
+            <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 p-3">
+              <div className="flex items-center gap-2 text-emerald-200">
+                <ImageIcon size={16} />
+                <strong>Logotipo do CARD</strong>
+              </div>
+              <p className="mt-1 text-xs text-neutral-300">Benefício do Plano PRO. Envie uma imagem quadrada ou com fundo transparente, se tiver.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-black/35">
+                  {companyLogo ? <img src={companyLogo} alt="Logotipo do CARD" className="h-full w-full object-contain p-2" /> : <ImageIcon size={26} className="text-emerald-200" />}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className={`inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399] ${!isSupabaseStorageConfigured() || logoUploading ? "pointer-events-none opacity-50" : ""}`}>
+                    {logoUploading ? "Enviando..." : "Carregar Logotipo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      disabled={!isSupabaseStorageConfigured() || logoUploading}
+                      onChange={(event) => {
+                        uploadLogo(event.currentTarget.files);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                  {companyLogo ? (
+                    <button type="button" onClick={() => setCompanyLogo("")} className="inline-flex h-10 items-center gap-2 rounded-full border border-red-300/30 px-4 text-sm font-black text-red-100">
+                      <X size={15} />
+                      Remover
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {!isSupabaseStorageConfigured() ? <p className="mt-2 text-xs text-yellow-300">Configure Supabase Storage no servidor para enviar logotipo.</p> : null}
+            </div>
+          ) : null}
 
           <div className="rounded-lg border border-white/10 bg-black/30 p-3">
             <div className="flex items-center gap-2 text-yellow-300">
@@ -545,8 +604,8 @@ export function ServiceForm({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button disabled={busy || selectedCategories.length === 0} className="h-11 rounded-md px-4 btn-gold disabled:opacity-60">
-              {busy ? "Salvando..." : servicePlan.code === "SERVICE_PRO" ? "Salvar e Gerar PIX" : "Salvar Perfil de Serviços"}
+            <button disabled={busy || logoUploading || selectedCategories.length === 0} className="h-11 rounded-md px-4 btn-gold disabled:opacity-60">
+              {busy ? "Salvando..." : logoUploading ? "Aguarde o logotipo" : servicePlan.code === "SERVICE_PRO" ? "Salvar e Gerar PIX" : "Salvar Perfil de Serviços"}
             </button>
             {message ? <p className="text-sm text-yellow-300">{message}</p> : null}
           </div>

@@ -15,7 +15,7 @@ export const servicePlans = {
     priceCents: 990,
     durationMonths: 12,
     maxCategories: 6,
-    description: "Plano PRO por 12 meses com até 6 atividades."
+    description: "Plano PRO por 12 meses com até 6 atividades e logotipo no CARD."
   }
 } as const;
 
