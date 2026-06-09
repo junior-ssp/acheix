@@ -6,16 +6,16 @@ export const servicePlans = {
     name: "Grátis",
     priceCents: 0,
     durationMonths: 6,
-    maxCategories: 3,
-    description: "Teste grátis por 6 meses com até 3 atividades."
+    maxCategories: 4,
+    description: "Teste grátis por 6 meses com até 4 atividades."
   },
   SERVICE_PRO: {
     code: "SERVICE_PRO",
     name: "Plano PRO",
     priceCents: 990,
     durationMonths: 12,
-    maxCategories: 5,
-    description: "Plano PRO por 12 meses com até 5 atividades."
+    maxCategories: 6,
+    description: "Plano PRO por 12 meses com até 6 atividades."
   }
 } as const;
 

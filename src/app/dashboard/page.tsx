@@ -189,7 +189,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
           ) : null}
           {!serviceProfile || serviceProfile.status === "CLOSED" ? (
             <div className="rounded-lg border border-dashed border-white/15 bg-black/25 p-4 text-sm text-neutral-300 md:col-span-2">
-              Você ainda não publicou serviços. Ative a opção <strong className="text-yellow-300">Sou Prestador de Serviços</strong> para cadastrar até 5 especialidades.
+              Você ainda não publicou serviços. Ative a opção <strong className="text-yellow-300">Sou Prestador de Serviços</strong> para cadastrar suas especialidades.
             </div>
           ) : null}
         </div>

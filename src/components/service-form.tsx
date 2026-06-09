@@ -75,7 +75,7 @@ export function ServiceForm({
   user: ServiceFormUser;
 }) {
   const servicePlan = getServicePlan(servicePlanCode);
-  const initialCategories = initialProfile?.categories?.slice(0, 5) ?? [];
+  const initialCategories = initialProfile?.categories?.slice(0, servicePlan.maxCategories) ?? [];
   const firstCategoryAudience = initialCategories[0] ? audienceForService(initialCategories[0]) : null;
   const initialLocations = buildInitialLocations(initialProfile, user);
   const initialCompanyName = initialProfile?.type === "COMPANY" ? initialProfile.companyTradeName ?? initialProfile.companyLegalName ?? "" : "";
@@ -132,7 +132,7 @@ export function ServiceForm({
       if (typeof draft.enabled === "boolean") setEnabled(draft.enabled);
       if (draft.type === "INDIVIDUAL" || draft.type === "COMPANY") setType(draft.type);
       if (draft.audience === "VEHICLE" || draft.audience === "REAL_ESTATE") setAudience(draft.audience);
-      if (Array.isArray(draft.selectedCategories)) setSelectedCategories(draft.selectedCategories.slice(0, 5));
+      if (Array.isArray(draft.selectedCategories)) setSelectedCategories(draft.selectedCategories.slice(0, servicePlan.maxCategories));
       if (Array.isArray(draft.locations) && draft.locations.length) setLocations(draft.locations.slice(0, 5));
       if (typeof draft.companyName === "string") setCompanyName(draft.companyName);
       if (typeof draft.cnpjValue === "string" && isValidCnpjValue(draft.cnpjValue)) setCnpjValue(formatCnpj(draft.cnpjValue));

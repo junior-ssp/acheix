@@ -155,8 +155,8 @@ export async function POST(request: Request) {
     const city = String(cepInfo?.city || data.city).trim();
     const district = String(cepInfo?.district || data.district || "").trim() || null;
     const address = String(cepInfo?.address || data.address || "").trim() || null;
-    const categories = [...new Set(data.categories.map(normalizeCategory).filter(Boolean))].slice(0, 5);
     const servicePlan = getServicePlan(data.servicePlanCode);
+    const categories = [...new Set(data.categories.map(normalizeCategory).filter(Boolean))].slice(0, servicePlan.maxCategories);
     if (categories.length > servicePlan.maxCategories) {
       return json({ error: `O plano ${servicePlan.name} permite no máximo ${servicePlan.maxCategories} atividades.` }, 422);
     }

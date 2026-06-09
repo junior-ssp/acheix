@@ -20,7 +20,7 @@ export const defaultServiceCategories: ServiceCategoryOption[] = [
   { slug: "alinhamento-balanceamento", name: "Alinhamento e Balanceamento", group: "Pneus e Rodas", icon: "circle-dot", audience: "VEHICLE" },
   { slug: "auto-eletrica", name: "Auto Elétrica", group: "Elétrica e Eletrônica", icon: "battery-charging", audience: "VEHICLE" },
   { slug: "chaveiro-automotivo", name: "Chaveiro Automotivo", group: "Elétrica e Eletrônica", icon: "key-round", audience: "VEHICLE" },
-  { slug: "borracharia", name: "Borracharia", group: "Pneus e Rodas", icon: "circle", audience: "VEHICLE" },
+  { slug: "borracharia", name: "Borracharia", group: "Pneus e Rodas", icon: "disc-3", audience: "VEHICLE" },
   { slug: "funilaria-pintura", name: "Funilaria e Pintura", group: "Funilaria e Estética", icon: "paintbrush", audience: "VEHICLE" },
   { slug: "martelinho-ouro", name: "Martelinho de Ouro", group: "Funilaria e Estética", icon: "hammer", audience: "VEHICLE" },
   { slug: "lava-rapido", name: "Lava Rápido", group: "Funilaria e Estética", icon: "sparkles", audience: "VEHICLE" },
