@@ -58,6 +58,22 @@ export async function POST(request: Request) {
     const photoApproval = assertListingPhotosApproved(user.id, data.photos);
     if (!photoApproval.ok) return json({ error: photoApproval.error }, 422);
 
+    if (plan.priceCents > 0) {
+      const pendingDraft = await findRecentPendingPublishDraft({
+        ownerId: user.id,
+        title: data.title,
+        category: data.category,
+        type: data.type,
+        priceCents: data.priceCents,
+        planCode: plan.code,
+        amountCents: plan.priceCents
+      });
+      if (pendingDraft) {
+        const listing = await findListingBySlug(pendingDraft.slug);
+        return json({ listing, payment: pendingDraft.payment, checkoutUrl: `/pagamento?paymentId=${pendingDraft.payment.id}`, reusedPendingDraft: true }, 200);
+      }
+    }
+
     const now = new Date();
     if (plan.code === "FREE") {
       const since = addDays(now, -freeListingCooldownDays);
@@ -192,6 +208,39 @@ export async function POST(request: Request) {
     }
     return errorResponse(error);
   }
+}
+
+async function findRecentPendingPublishDraft(input: { ownerId: string; title: string; category: string; type: string; priceCents: number; planCode: string; amountCents: number }) {
+  const since = addDays(new Date(), -1).toISOString();
+  const { data: listings, error } = await db()
+    .from("Listing")
+    .select("id,slug,title")
+    .eq("ownerId", input.ownerId)
+    .eq("title", input.title)
+    .eq("category", input.category)
+    .eq("type", input.type)
+    .eq("priceCents", input.priceCents)
+    .eq("status", "DRAFT")
+    .gte("createdAt", since)
+    .order("createdAt", { ascending: false })
+    .limit(5);
+  throwDbError(error);
+
+  for (const listing of (listings ?? []) as Array<{ id: string; slug: string; title: string }>) {
+    const { data: payment, error: paymentError } = await db()
+      .from("Payment")
+      .select("id,amountCents,status")
+      .eq("userId", input.ownerId)
+      .eq("amountCents", input.amountCents)
+      .eq("status", "PENDING")
+      .like("providerRef", `publish:${listing.id}:${input.planCode}:%`)
+      .order("createdAt", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    throwDbError(paymentError);
+    if (payment) return { ...listing, payment };
+  }
+  return null;
 }
 
 
