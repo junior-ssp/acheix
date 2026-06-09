@@ -22,7 +22,7 @@ export function absolutePublicUrl(value: string, baseUrl = publicBaseUrl()) {
 
 export function optimizedOpenGraphImageUrl(value?: string | null) {
   const imageUrl = absolutePublicUrl(normalizeImageUrl(value));
-  return absolutePublicUrl(`/_next/image?url=${encodeURIComponent(imageUrl)}&w=1200&q=75`);
+  return `${publicBaseUrl().replace(/\/$/, "")}/_next/image?url=${encodeURIComponent(imageUrl)}&w=1200&q=75`;
 }
 
 export function imageContentType(url: string) {
