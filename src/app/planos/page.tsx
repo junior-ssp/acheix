@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { Car, CheckCircle2, HomeIcon } from "lucide-react";
 import { PlanIcon } from "@/components/plan-icon";
 import { planCatalog } from "@/lib/constants";
 import { formatPlanCurrencyBRL } from "@/lib/formatters";
@@ -75,10 +75,12 @@ export default async function PlansPage() {
             </ul>
 
             <div className="mt-auto grid grid-cols-2 gap-2 pt-5">
-              <Link href={`/anunciar?category=VEHICLE&planCode=${plan.code}`} className="inline-flex h-11 min-w-0 items-center justify-center rounded-full px-2 text-center text-xs font-black leading-tight btn-gold sm:px-3 sm:text-sm">
+              <Link href={`/anunciar?category=VEHICLE&planCode=${plan.code}`} className="inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 text-center text-xs font-black leading-tight btn-gold sm:px-3 sm:text-sm">
+                <Car size={16} strokeWidth={2.6} />
                 Anunciar Veículo
               </Link>
-              <Link href={`/anunciar?category=REAL_ESTATE&planCode=${plan.code}`} className="inline-flex h-11 min-w-0 items-center justify-center rounded-full bg-[#22C55E] px-2 text-center text-xs font-black leading-tight text-black shadow-[0_0_18px_rgba(34,197,94,0.2)] hover:bg-[#34D399] sm:px-3 sm:text-sm">
+              <Link href={`/anunciar?category=REAL_ESTATE&planCode=${plan.code}`} className="inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full bg-[#22C55E] px-2 text-center text-xs font-black leading-tight text-black shadow-[0_0_18px_rgba(34,197,94,0.2)] hover:bg-[#34D399] sm:px-3 sm:text-sm">
+                <HomeIcon size={16} strokeWidth={2.6} />
                 Anunciar Imóvel
               </Link>
             </div>
