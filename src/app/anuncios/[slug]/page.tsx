@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   const title = `${listing.title} - ${money(listing.priceCents)} - Achei X`;
   const description = compactText(`${listing.type} em ${listing.city}, ${listing.state}. ${listing.description || "Confira este anúncio no Achei X."}`, 155);
-  const imageUrl = absoluteUrl(listing.photos[0]?.url || "/achei-x-logo.png");
+  const imageUrl = optimizedImageUrl(listing.photos[0]?.url || "/achei-x-logo.png");
   const url = absoluteUrl(`/anuncios/${listing.slug}`);
 
   return {
@@ -270,6 +270,12 @@ function imageContentType(url: string) {
   if (pathname.endsWith(".png")) return "image/png";
   if (pathname.endsWith(".webp")) return "image/webp";
   return "image/jpeg";
+}
+
+function optimizedImageUrl(value: string) {
+  const imageUrl = absoluteUrl(value);
+  if (!/^https?:\/\//i.test(imageUrl)) return imageUrl;
+  return absoluteUrl(`/_next/image?url=${encodeURIComponent(imageUrl)}&w=1200&q=75`);
 }
 
 function compactText(value: string, maxLength: number) {
