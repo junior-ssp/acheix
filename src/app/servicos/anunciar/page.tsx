@@ -21,7 +21,7 @@ export default async function NewServicePage() {
   const supabase = getSupabaseAdmin();
   const { data: profile } = await supabase
     .from("service_profiles")
-    .select("id,active,status,tipo_cadastro,categorias_servico,name,razao_social,nome_fantasia,document,telefone_privado,whatsapp_privado,estado,cidade,bairro,cep,endereco,numero,complemento")
+    .select("id,active,status,tipo_cadastro,categorias_servico,name,razao_social,nome_fantasia,document,telefone_privado,whatsapp_privado,estado,cidade,bairro,cep,endereco,numero,complemento,foto_perfil,logo_empresa")
     .eq("user_id", user.id)
     .maybeSingle();
   const serviceProfileEnabled = Boolean(profile?.active && ["ACTIVE", "INACTIVE"].includes(profile.status));
@@ -46,7 +46,9 @@ export default async function NewServicePage() {
     complement: profile.complemento,
     contactPublicEnabled: Boolean(contactDisclosure?.publicContactEnabled),
     contactDisclosureAcceptedAt: contactDisclosure?.acceptedAt ?? null,
-    contactPreference: serviceContactPreferenceFromComplement(profile.complemento)
+    contactPreference: serviceContactPreferenceFromComplement(profile.complemento),
+    profilePhoto: profile.foto_perfil,
+    companyLogo: profile.logo_empresa
   } : null;
 
   return (

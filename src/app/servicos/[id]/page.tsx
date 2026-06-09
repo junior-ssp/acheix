@@ -4,6 +4,7 @@ import { BriefcaseBusiness, MapPin, ShieldCheck, Star } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { formatCep } from "@/lib/formatters";
 import { defaultServiceCategories } from "@/lib/service-catalog";
+import { isServiceVisibleByBilling } from "@/lib/service-billing-policy";
 import { isServicePublicContactEnabled } from "@/lib/service-contact-disclosure";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { PublicShareButton } from "@/components/public-share-button";
@@ -97,7 +98,7 @@ async function getService(id: string): Promise<PublicServiceProfile | null> {
     .maybeSingle();
 
   if (error) throw error;
-  if (profile && profile.active && ["ACTIVE", "INACTIVE"].includes(profile.status)) {
+  if (profile && profile.active && ["ACTIVE", "INACTIVE"].includes(profile.status) && isServiceVisibleByBilling(profile.complemento)) {
     return {
       id: profile.id,
       title: profile.nome_fantasia ?? profile.name ?? categoryName(profile.categoria_servico),

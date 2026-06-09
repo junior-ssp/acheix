@@ -1,5 +1,8 @@
 import { canDeleteServiceProfile, classifyServiceProfileActivity, nextServiceConfirmationDue } from "@/lib/service-profile-activity-policy";
+import { deliverUserNotice } from "@/lib/notifications";
+import { dueServiceBillingAlerts, ensureServiceBilling, refreshServiceBillingStatus, serviceBillingAlertText } from "@/lib/service-billing-policy";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { newDbId } from "@/lib/supabase-db";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +14,8 @@ type ServiceProfileRow = {
   total_avaliacoes: number | null;
   total_servicos: number | null;
   active: boolean;
+  complemento: string | null;
+  user_id: string;
 };
 
 export async function GET(request: Request) {
@@ -24,14 +29,21 @@ export async function GET(request: Request) {
   const now = new Date();
   const { data, error } = await supabase
     .from("service_profiles")
-    .select("id,status,last_active_at,updated_at,total_avaliacoes,total_servicos,active")
+    .select("id,user_id,status,last_active_at,updated_at,total_avaliacoes,total_servicos,active,complemento")
     .in("status", ["ACTIVE", "NEEDS_CONFIRMATION", "INACTIVE", "ARCHIVED", "DORMANT"]);
 
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
-  const counters = { active: 0, inactive: 0, hidden: 0, deleted: 0, unchanged: 0 };
+  const counters = { active: 0, inactive: 0, hidden: 0, deleted: 0, unchanged: 0, billingAlerts: 0, billingHidden: 0 };
 
   for (const profile of (data ?? []) as ServiceProfileRow[]) {
+    const billingResult = await processServiceBilling(profile);
+    counters.billingAlerts += billingResult.alerts;
+    if (billingResult.hidden) {
+      counters.billingHidden += 1;
+      continue;
+    }
+
     const nextStatus = classifyServiceProfileActivity(profile, now);
 
     if (nextStatus === "ARCHIVED" || nextStatus === "DORMANT") {
@@ -79,5 +91,70 @@ export async function GET(request: Request) {
       .update(values)
       .eq("id", id);
     if (updateError) throw updateError;
+  }
+
+  async function processServiceBilling(profile: ServiceProfileRow) {
+    const complement = parseComplement(profile.complemento);
+    const billing = refreshServiceBillingStatus(ensureServiceBilling(complement.serviceBilling, now), now);
+    const alerts = dueServiceBillingAlerts(billing, now);
+    let sent = 0;
+
+    for (const alertKey of alerts) {
+      const user = await findUser(profile.user_id);
+      if (user) {
+        const text = serviceBillingAlertText(alertKey, billing);
+        await deliverUserNotice(user, text.title, text.message, {
+          linkLabel: "Ver meus serviços",
+          linkUrl: "/dashboard#meus-servicos",
+          primaryActionLabel: "Ver meus serviços",
+          primaryActionUrl: "/dashboard#meus-servicos"
+        });
+      }
+      billing.alertsSent = { ...(billing.alertsSent ?? {}), [alertKey]: now.toISOString() };
+      await insertAudit(profile.user_id, "service.billing.alert", { profileId: profile.id, alertKey, periodEndsAt: billing.currentPeriodEndsAt, graceEndsAt: billing.graceEndsAt });
+      sent += 1;
+    }
+
+    const nextComplement = JSON.stringify({ ...complement, serviceBilling: billing });
+    if (billing.status === "HIDDEN") {
+      const wasVisible = profile.active || profile.status === "ACTIVE";
+      if (wasVisible || sent > 0 || profile.complemento !== nextComplement) {
+        await updateProfile(profile.id, { active: false, status: "INACTIVE", complemento: nextComplement, updated_at: now.toISOString() });
+      }
+      if (wasVisible) {
+        await insertAudit(profile.user_id, "service.billing.hidden_after_grace", { profileId: profile.id, periodEndsAt: billing.currentPeriodEndsAt, graceEndsAt: billing.graceEndsAt, userKept: true });
+      }
+      return { alerts: sent, hidden: wasVisible };
+    }
+
+    if (sent > 0 || profile.complemento !== nextComplement) {
+      await updateProfile(profile.id, { complemento: nextComplement, updated_at: now.toISOString() });
+    }
+    return { alerts: sent, hidden: false };
+  }
+
+  async function findUser(userId: string) {
+    const { data: user, error: userError } = await supabase
+      .from("User")
+      .select("id,email,phone,whatsapp,notificationChannel,notificationChannels")
+      .eq("id", userId)
+      .maybeSingle();
+    if (userError) throw userError;
+    return user as any;
+  }
+
+  async function insertAudit(userId: string, action: string, metadata: Record<string, unknown>) {
+    const { error: auditError } = await supabase.from("AuditLog").insert({ id: newDbId(), userId, action, metadata });
+    if (auditError) throw auditError;
+  }
+}
+
+function parseComplement(value: string | null | undefined) {
+  if (!value) return {} as Record<string, any>;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, any> : {};
+  } catch {
+    return {} as Record<string, any>;
   }
 }

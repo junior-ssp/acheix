@@ -4,6 +4,7 @@ import { onlyDigits } from "@/lib/formatters";
 import { lookupCepWithCoordinates, parseRadiusKm } from "@/lib/geolocation";
 import { errorResponse, json } from "@/lib/http";
 import { defaultServiceCategories, normalizeServiceSlug } from "@/lib/service-catalog";
+import { ensureServiceBilling, isServiceVisibleByBilling } from "@/lib/service-billing-policy";
 import { isPublicServiceContactPreference, isServicePublicContactEnabled, parseServiceComplement, serviceContactDisclosureText, serviceContactDisclosureVersion } from "@/lib/service-contact-disclosure";
 import { orderAndRecordServiceSearchExposure } from "@/lib/service-search-exposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
     });
     if (error) throw error;
     const textLocationProfiles = await findProfilesByTextLocation({ searchState, searchCity, searchDistrict, category, query });
-    const services = await orderAndRecordServiceSearchExposure(supabase, mergePublicProfiles((data ?? []).map(toPublicProfile), textLocationProfiles));
+    const services = await orderAndRecordServiceSearchExposure(supabase, mergePublicProfiles((data ?? []).map(toPublicProfile), textLocationProfiles).filter((service) => isServiceVisibleByBilling(service.complemento)));
     return json({ services: services.map(stripInternalServiceFields), radiusKm, location: { latitude, longitude } });
   }
 
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
   const { data, error } = await requestBuilder;
   if (error) throw error;
 
-  const services = await orderAndRecordServiceSearchExposure(supabase, (data ?? []).map((profile) => toPublicProfile({ ...profile, distance_km: null })));
+  const services = await orderAndRecordServiceSearchExposure(supabase, (data ?? []).map((profile) => toPublicProfile({ ...profile, distance_km: null })).filter((service) => isServiceVisibleByBilling(service.complemento)));
   return json({ services: services.map(stripInternalServiceFields), radiusKm });
 }
 
@@ -115,7 +116,7 @@ async function findProfilesByTextLocation(input: { searchState: string; searchCi
 
   const { data, error } = await request;
   if (error) throw error;
-  return (data ?? []).map((profile) => toPublicProfile({ ...profile, distance_km: null }));
+  return (data ?? []).map((profile) => toPublicProfile({ ...profile, distance_km: null })).filter((service) => isServiceVisibleByBilling(service.complemento));
 }
 
 function serviceLocationNeedle(input: { state?: string; city?: string; district?: string }) {
@@ -192,6 +193,7 @@ export async function POST(request: Request) {
     if (lookupError) throw lookupError;
 
     const existingComplement = parseServiceComplement(existing?.complemento);
+    const serviceBilling = ensureServiceBilling(existingComplement.serviceBilling, now);
     const previousDisclosure = existingComplement.contactDisclosure;
     const hadPublicContact = Boolean(previousDisclosure?.publicContactEnabled && previousDisclosure?.acceptedAt);
     const contactDisclosure = buildContactDisclosure({
@@ -205,7 +207,8 @@ export async function POST(request: Request) {
       ...existingComplement,
       serviceLocations: locations,
       contactPreference,
-      contactDisclosure
+      contactDisclosure,
+      serviceBilling
     });
 
     const payload = {
@@ -233,8 +236,8 @@ export async function POST(request: Request) {
       whatsapp_privado: data.privateWhatsapp ? onlyDigits(data.privateWhatsapp) : null,
       email_privado: data.privateEmail || null,
       website: null,
-      foto_perfil: null,
-      logo_empresa: null,
+      foto_perfil: data.profilePhoto || null,
+      logo_empresa: data.companyLogo || null,
       conta_verificada: Boolean(user.identityVerifiedAt),
       score,
       rank: rankFromScore(score),
@@ -255,12 +258,12 @@ export async function POST(request: Request) {
           .from("service_profiles")
           .update(payload)
           .eq("id", existing.id)
-          .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,descricao,experiencia,horario_atendimento,cidade,bairro,cep,estado,foto_perfil,logo_empresa,avaliacao_media,total_avaliacoes,total_servicos,tempo_resposta_minutos,conta_verificada,rank,score")
+          .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,descricao,experiencia,horario_atendimento,cidade,bairro,cep,estado,foto_perfil,logo_empresa,avaliacao_media,total_avaliacoes,total_servicos,tempo_resposta_minutos,conta_verificada,rank,score,complemento")
           .single()
       : supabase
           .from("service_profiles")
           .insert({ id: randomUUID(), ...payload })
-          .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,descricao,experiencia,horario_atendimento,cidade,bairro,cep,estado,foto_perfil,logo_empresa,avaliacao_media,total_avaliacoes,total_servicos,tempo_resposta_minutos,conta_verificada,rank,score")
+          .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,descricao,experiencia,horario_atendimento,cidade,bairro,cep,estado,foto_perfil,logo_empresa,avaliacao_media,total_avaliacoes,total_servicos,tempo_resposta_minutos,conta_verificada,rank,score,complemento")
           .single();
 
     const { data: profile, error } = await mutation;

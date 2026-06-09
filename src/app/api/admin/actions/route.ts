@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const action = String(formData.get("action") ?? "");
     const note = String(formData.get("note") ?? "").trim() || null;
-    const admin = action.startsWith("user_") || action === "delete_service_profile" || action === "delete_service_user" || action === "block_service_provider" || action === "unblock_service_provider" || action === "update_message_safety_keywords"
+    const admin = action.startsWith("user_") || action === "delete_service_profile" || action === "block_service_provider" || action === "unblock_service_provider" || action === "update_message_safety_keywords"
       ? await requireSuperAdmin()
       : await requireBackofficeUser();
     const ip = requestIp(request);
@@ -111,21 +111,13 @@ export async function POST(request: Request) {
       return redirectBack(request);
     }
 
-    if (action === "delete_service_profile" || action === "delete_service_user") {
+    if (action === "delete_service_profile") {
       const profileId = String(formData.get("profileId") ?? "");
       const confirmation = String(formData.get("confirmDelete") ?? "");
-      const deleteUserConfirmation = String(formData.get("confirmDeleteUser") ?? "");
       if (!profileId) return json({ error: "Prestador não informado." }, 422);
       if (confirmation !== "SIM") return json({ error: "Confirmação obrigatória." }, 422);
       const profile = await findProfile(profileId, true);
       if (!profile) return json({ error: "Prestador não encontrado." }, 404);
-      if (action === "delete_service_user") {
-        if (deleteUserConfirmation !== "SIM_EXCLUIR_USUARIO") return json({ error: "Confirmação para excluir usuário obrigatória." }, 422);
-        await insertAudit(admin.id, "admin.service_profile.delete_user_with_profile", auditProfileMetadata(profile, note, ip, admin.adminAccessLevel));
-        const { error } = await db().from("User").delete().eq("id", profile.user_id);
-        throwDbError(error);
-        return redirectBack(request);
-      }
       const now = new Date().toISOString();
       await updateUser(profile.user_id, { serviceBlockedAt: now, serviceBlockedReason: note ?? "Prestador excluído pelo Admin", updatedAt: now });
       const { error } = await db().from("service_profiles").update({ active: false, status: "CLOSED", closed_at: now, updated_at: now }).eq("id", profile.id);

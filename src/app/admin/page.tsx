@@ -304,21 +304,6 @@ export default async function AdminPage({
                         </label>
                         <button className="rounded-full bg-[#ff2800] px-4 py-2 text-sm font-black text-white">Excluir Só o Prestador</button>
                       </form>
-                      <form action="/api/admin/actions" method="POST" className="grid gap-2 rounded-md border border-red-500/50 bg-black/50 p-3">
-                        <input type="hidden" name="action" value="delete_service_user" />
-                        <input type="hidden" name="profileId" value={service.id} />
-                        <p className="font-black text-red-200">Deseja excluir também o usuário?</p>
-                        <p className="text-xs text-neutral-300">Atenção: isso apaga a conta principal e tudo ligado a ela, incluindo anúncios, favoritos, interesses e perfil de serviço.</p>
-                        <label className="flex gap-2 text-xs text-neutral-300">
-                          <input type="checkbox" name="confirmDelete" value="SIM" required />
-                          Confirmo que entendi a Regra de Ouro.
-                        </label>
-                        <label className="flex gap-2 text-xs text-neutral-300">
-                          <input type="checkbox" name="confirmDeleteUser" value="SIM_EXCLUIR_USUARIO" required />
-                          Sim, também quero excluir o usuário inteiro.
-                        </label>
-                        <button className="rounded-full bg-red-700 px-4 py-2 text-sm font-black text-white">Excluir Prestador e Usuário</button>
-                      </form>
                     </div>
                   </details>
                 ) : null}

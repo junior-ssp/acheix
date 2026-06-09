@@ -7,6 +7,7 @@ import { brazilStates, citiesByState } from "@/lib/constants";
 import { formatCep, formatCnpj, formatPhone, onlyDigits } from "@/lib/formatters";
 import { isPublicServiceContactPreference, serviceContactDisclosureItems, serviceContactDisclosureTitle, serviceContactDisclosureVersion, type ServiceContactPreference } from "@/lib/service-contact-disclosure";
 import { audienceForService, defaultServiceCategories, serviceAudiences, type ServiceAudience } from "@/lib/service-catalog";
+import { isSupabaseStorageConfigured, uploadListingPhoto } from "@/lib/supabase-client";
 
 type ServiceFormUser = {
   name: string | null;
@@ -48,6 +49,8 @@ type InitialServiceProfile = {
   contactPublicEnabled?: boolean;
   contactDisclosureAcceptedAt?: string | null;
   contactPreference?: ServiceContactPreference;
+  profilePhoto?: string | null;
+  companyLogo?: string | null;
 };
 
 const emptyLocation: ServiceLocation = { cep: "", state: "", city: "", district: "", address: "", number: "" };
@@ -95,6 +98,8 @@ export function ServiceForm({
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [cnpjValue, setCnpjValue] = useState(initialCompanyDocument);
   const [companyName, setCompanyName] = useState(initialCompanyName);
+  const [serviceImageUrl, setServiceImageUrl] = useState(initialProfile?.companyLogo ?? initialProfile?.profilePhoto ?? "");
+  const [imageUploading, setImageUploading] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
 
   useEffect(() => {
@@ -123,6 +128,7 @@ export function ServiceForm({
         companyName: string;
         cnpjValue: string;
         contactPreference: ServiceContactPreference;
+        serviceImageUrl: string;
       }>;
       if (typeof draft.enabled === "boolean") setEnabled(draft.enabled);
       if (draft.type === "INDIVIDUAL" || draft.type === "COMPANY") setType(draft.type);
@@ -132,6 +138,7 @@ export function ServiceForm({
       if (typeof draft.companyName === "string") setCompanyName(draft.companyName);
       if (typeof draft.cnpjValue === "string" && isValidCnpjValue(draft.cnpjValue)) setCnpjValue(formatCnpj(draft.cnpjValue));
       if (!initialPublicContactEnabled && isContactPreference(draft.contactPreference)) setContactPreference(canUsePublicContact ? draft.contactPreference : "LEADS_ONLY");
+      if (typeof draft.serviceImageUrl === "string") setServiceImageUrl(draft.serviceImageUrl);
     } catch {
       localStorage.removeItem(draftKey);
     } finally {
@@ -142,7 +149,7 @@ export function ServiceForm({
   useEffect(() => {
     if (!draftReady) return;
     saveDraft(false);
-  }, [draftReady, enabled, type, audience, selectedCategories, locations, companyName, cnpjValue, contactPreference]);
+  }, [draftReady, enabled, type, audience, selectedCategories, locations, companyName, cnpjValue, contactPreference, serviceImageUrl]);
 
   const filteredCategories = useMemo(() => {
     return categories
@@ -162,6 +169,7 @@ export function ServiceForm({
       companyName: string;
       cnpjValue: string;
       contactPreference: ServiceContactPreference;
+      serviceImageUrl: string;
     }> = {}
   ) {
     localStorage.setItem(draftKey, JSON.stringify({
@@ -173,10 +181,28 @@ export function ServiceForm({
       companyName,
       cnpjValue,
       contactPreference,
+      serviceImageUrl,
       ...overrides,
       savedAt: new Date().toISOString()
     }));
     if (showFeedback) setMessage("Rascunho salvo neste aparelho. Você pode sair e voltar antes de publicar.");
+  }
+
+  async function uploadServiceImage(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    setImageUploading(true);
+    setMessage("");
+    try {
+      const uploaded = await uploadListingPhoto(file);
+      setServiceImageUrl(uploaded.url);
+      saveDraft(false, { serviceImageUrl: uploaded.url });
+      setMessage("Imagem adicionada ao perfil de serviços.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível enviar a imagem.");
+    } finally {
+      setImageUploading(false);
+    }
   }
 
   async function toggleEnabled() {
@@ -347,6 +373,8 @@ export function ServiceForm({
       complement: JSON.stringify({ serviceLocations: locations }),
       privatePhone: phone,
       privateWhatsapp: phone,
+      profilePhoto: type === "INDIVIDUAL" ? serviceImageUrl : "",
+      companyLogo: type === "COMPANY" ? serviceImageUrl : "",
       locations,
       contactPreference,
       publicContactEnabled: wantsPublicContact,
@@ -426,6 +454,24 @@ export function ServiceForm({
             ) : null}
             <input name="name" required placeholder={type === "COMPANY" ? (cnpjLoading ? "Buscando dados do CNPJ..." : "Nome Fantasia ou Razão Social") : "Nome"} value={type === "COMPANY" ? companyName : undefined} defaultValue={type === "INDIVIDUAL" ? initialPersonName : undefined} onChange={type === "COMPANY" ? (event) => setCompanyName(event.currentTarget.value) : undefined} className="input" />
             <input name="privatePhone" required inputMode="numeric" maxLength={15} placeholder="Telefone" defaultValue={initialPhone} onChange={(event) => { event.currentTarget.value = formatPhone(event.currentTarget.value); }} className="input" />
+          </div>
+
+          <div className="rounded-lg border border-white/10 bg-black/30 p-3">
+            <strong className="text-sm text-yellow-300">Imagem do servico</strong>
+            <p className="mt-1 text-xs text-neutral-400">Pode ser foto profissional, cartao de visitas ou banner. A imagem passa por moderacao antes de ser usada.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              {serviceImageUrl ? <img src={serviceImageUrl} alt="" className="h-20 w-20 rounded-md border border-white/10 object-cover" /> : null}
+              <label className={`inline-flex h-10 cursor-pointer items-center rounded-full border border-yellow-300/30 px-4 text-sm font-black text-yellow-300 ${!isSupabaseStorageConfigured() || imageUploading ? "pointer-events-none opacity-50" : ""}`}>
+                {imageUploading ? "Enviando..." : serviceImageUrl ? "Trocar imagem" : "Adicionar imagem"}
+                <input type="file" accept="image/*" className="sr-only" disabled={!isSupabaseStorageConfigured() || imageUploading} onChange={(event) => uploadServiceImage(event.currentTarget.files)} />
+              </label>
+              {serviceImageUrl ? (
+                <button type="button" className="h-10 rounded-full border border-red-300/30 px-4 text-sm font-black text-red-100" onClick={() => { setServiceImageUrl(""); saveDraft(false, { serviceImageUrl: "" }); }}>
+                  Remover
+                </button>
+              ) : null}
+            </div>
+            {!isSupabaseStorageConfigured() ? <p className="mt-2 text-xs text-yellow-300">Configure Supabase Storage para enviar imagem.</p> : null}
           </div>
 
           <div className="rounded-lg border border-white/10 bg-black/30 p-3">
@@ -534,8 +580,8 @@ export function ServiceForm({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button disabled={busy || selectedCategories.length === 0} className="h-11 rounded-md px-4 btn-gold disabled:opacity-60">
-              {busy ? "Salvando..." : "Salvar Perfil de Serviços"}
+            <button disabled={busy || imageUploading || selectedCategories.length === 0} className="h-11 rounded-md px-4 btn-gold disabled:opacity-60">
+              {busy ? "Salvando..." : imageUploading ? "Aguarde a imagem" : "Salvar Perfil de Serviços"}
             </button>
             {message ? <p className="text-sm text-yellow-300">{message}</p> : null}
           </div>

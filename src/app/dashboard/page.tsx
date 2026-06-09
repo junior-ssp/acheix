@@ -13,6 +13,7 @@ import { ServiceProfileActions } from "@/components/service-profile-actions";
 import { LogoutButton } from "@/components/logout-button";
 import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } from "@/lib/response-metrics";
 import { defaultServiceCategories } from "@/lib/service-catalog";
+import { serviceBillingSummary } from "@/lib/service-billing-policy";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { formatCurrencyBRL } from "@/lib/formatters";
 import { parsePublishProviderRef, parseRenewProviderRef } from "@/lib/payments";
@@ -29,12 +30,13 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
     findDashboardPayments(user.id),
     supabase
       .from("service_profiles")
-      .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,status,active,cidade,bairro,estado,last_active_at,activity_confirmation_due_at")
+      .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,status,active,cidade,bairro,estado,last_active_at,activity_confirmation_due_at,complemento")
       .eq("user_id", user.id)
       .maybeSingle(),
     withTimeout(findDashboardLeads(user.id), [[], [], []] as const, 1800)
   ]);
   const serviceProfile = serviceProfileResult.data;
+  const serviceBilling = serviceProfile?.status !== "CLOSED" ? serviceBillingSummary(serviceProfile?.complemento) : null;
   const [receivedLeads, sentLeads, ownerLeadsForMetrics] = leadsResult;
   const responseMetrics = calculateResponseMetrics(ownerLeadsForMetrics);
   const responseScore = responseMetrics.score === null ? null : Math.round(responseMetrics.score / 10);
@@ -122,6 +124,12 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
           initialStatus={serviceProfile.status}
           initialLastActiveAt={serviceProfile.last_active_at}
           initialDueAt={serviceProfile.activity_confirmation_due_at}
+          billingSummary={serviceBilling ? {
+            status: serviceBilling.billing.status,
+            currentPeriodEndsAt: serviceBilling.billing.currentPeriodEndsAt,
+            graceEndsAt: serviceBilling.billing.graceEndsAt,
+            renewalPriceCents: serviceBilling.billing.renewalPriceCents
+          } : null}
         />
       ) : null}
       <section id="meus-servicos" className="mt-8 scroll-mt-24 rounded-lg border border-white/10 bg-neutral-900 p-4">
@@ -135,7 +143,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/servicos" className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">Ver Serviços</Link>
-            <Link href="/servicos/anunciar" className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm btn-gold">Publicar Serviço Grátis</Link>
+            <Link href="/servicos/anunciar" className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm btn-gold">Publicar Serviço</Link>
           </div>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -151,6 +159,11 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
                 </span>
               </div>
               <p className="mt-2 text-sm text-neutral-300">{serviceProfile.cidade}/{serviceProfile.estado}{serviceProfile.bairro ? ` - ${serviceProfile.bairro}` : ""}</p>
+              {serviceBilling ? (
+                <p className="mt-2 text-sm text-neutral-300">
+                  {serviceBilling.billing.status === "TRIALING" ? "Gratis ate" : "Renovacao ate"} {new Date(serviceBilling.billing.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - R$ {(serviceBilling.billing.renewalPriceCents / 100).toFixed(2).replace(".", ",")} por 6 meses - tolerancia ate {new Date(serviceBilling.billing.graceEndsAt).toLocaleDateString("pt-BR")}.
+                </p>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 {(serviceProfile.categorias_servico?.length ? serviceProfile.categorias_servico : [serviceProfile.categoria_servico]).map((item: string) => (
                   <span key={item} className="rounded-full border border-white/10 px-2 py-1 text-xs text-neutral-200">{serviceCategoryName(item)}</span>

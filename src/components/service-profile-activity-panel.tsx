@@ -6,6 +6,12 @@ type ServiceProfileActivityPanelProps = {
   initialStatus: string;
   initialLastActiveAt?: string | null;
   initialDueAt?: string | null;
+  billingSummary?: {
+    status: string;
+    currentPeriodEndsAt: string;
+    graceEndsAt: string;
+    renewalPriceCents: number;
+  } | null;
 };
 
 const statusLabels: Record<string, string> = {
@@ -18,7 +24,7 @@ const statusLabels: Record<string, string> = {
   CLOSED: "Encerrado"
 };
 
-export function ServiceProfileActivityPanel({ initialStatus, initialLastActiveAt, initialDueAt }: ServiceProfileActivityPanelProps) {
+export function ServiceProfileActivityPanel({ initialStatus, initialLastActiveAt, initialDueAt, billingSummary }: ServiceProfileActivityPanelProps) {
   const [status, setStatus] = useState(initialStatus);
   const [lastActiveAt, setLastActiveAt] = useState(initialLastActiveAt);
   const [dueAt, setDueAt] = useState(initialDueAt);
@@ -45,20 +51,25 @@ export function ServiceProfileActivityPanel({ initialStatus, initialLastActiveAt
     setStatus(data.profile.status);
     setLastActiveAt(data.profile.last_active_at);
     setDueAt(data.profile.activity_confirmation_due_at);
-    setMessage(action === "CONFIRM" ? "Pronto. Seu perfil aparece nas buscas. Volte aqui a cada 3 meses e atualize seu perfil. Ajudaremos você com isso lhe enviando um lembrete." : "Perfil Pausado");
+    setMessage(action === "CONFIRM" ? "Pronto. Seu perfil aparece nas buscas. Volte aqui periodicamente para confirmar que ainda atende." : "Perfil Pausado");
   }
 
   return (
     <section className={`mt-4 rounded-lg border p-4 ${needsAttention ? "border-yellow-300/40 bg-yellow-300/10" : "border-white/10 bg-neutral-900"}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase text-yellow-300">Perfil de Serviços</p>
-          <h2 className="mt-1 text-lg font-black">Você ainda atende?</h2>
+          <p className="text-xs font-black uppercase text-yellow-300">Perfil de Servicos</p>
+          <h2 className="mt-1 text-lg font-black">Voce ainda atende?</h2>
           <p className="mt-1 text-sm text-neutral-300">
             Status: <strong>{statusLabels[status] ?? status}</strong>
-            {lastActiveAt ? ` · confirmado em ${new Date(lastActiveAt).toLocaleDateString("pt-BR")}` : ""}
-            {dueAt ? ` · ativo até ${new Date(dueAt).toLocaleDateString("pt-BR")}` : ""}
+            {lastActiveAt ? ` - confirmado em ${new Date(lastActiveAt).toLocaleDateString("pt-BR")}` : ""}
+            {dueAt ? ` - ativo ate ${new Date(dueAt).toLocaleDateString("pt-BR")}` : ""}
           </p>
+          {billingSummary ? (
+            <p className="mt-1 text-sm text-neutral-300">
+              Plano: {billingSummary.status === "TRIALING" ? "gratis por 6 meses" : "servicos"} - renovacao R$ {(billingSummary.renewalPriceCents / 100).toFixed(2).replace(".", ",")} a cada 6 meses - vence em {new Date(billingSummary.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - tolerancia ate {new Date(billingSummary.graceEndsAt).toLocaleDateString("pt-BR")}.
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={Boolean(busy)} onClick={() => act("CONFIRM")} className="h-10 rounded-full px-4 text-sm btn-gold disabled:opacity-60">

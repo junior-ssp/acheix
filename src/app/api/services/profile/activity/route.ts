@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { errorResponse, json } from "@/lib/http";
+import { serviceBillingFromComplement } from "@/lib/service-billing-policy";
 import { nextServiceConfirmationDue } from "@/lib/service-profile-activity-policy";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -19,12 +20,17 @@ export async function PATCH(request: Request) {
 
     const { data: profile, error: lookupError } = await supabase
       .from("service_profiles")
-      .select("id")
+      .select("id,complemento")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (lookupError) throw lookupError;
     if (!profile) return json({ error: "Perfil de serviço não encontrado." }, 404);
+
+    const billing = serviceBillingFromComplement(profile.complemento, now);
+    if (action === "CONFIRM" && billing.status === "HIDDEN") {
+      return json({ error: "Seu perfil está pendente de renovação. Renove o plano de serviços para voltar às buscas." }, 402);
+    }
 
     const payload =
       action === "CONFIRM"

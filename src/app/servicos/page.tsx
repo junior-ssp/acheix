@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatCep } from "@/lib/formatters";
 import { geocodeFreeformBrazilAddress, lookupCepWithCoordinates, parseRadiusKm } from "@/lib/geolocation";
 import { audienceForService, defaultServiceCategories, iconForService, normalizeServiceSlug } from "@/lib/service-catalog";
+import { isServiceVisibleByBilling } from "@/lib/service-billing-policy";
 import { isServicePublicContactEnabled } from "@/lib/service-contact-disclosure";
 import { orderAndRecordServiceSearchExposure } from "@/lib/service-search-exposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -190,7 +191,7 @@ async function findServices(input: { latitude?: number; longitude?: number; radi
     });
     if (error) throw error;
     const textLocationProfiles = await findProfilesByTextLocation(input);
-    const services = filterByAudience(mergeServices(((data ?? []) as SearchRow[]).map(fromSearchRow), textLocationProfiles), input.audience);
+    const services = filterByAudience(mergeServices(((data ?? []) as SearchRow[]).map(fromSearchRow), textLocationProfiles), input.audience).filter((service) => isServiceVisibleByBilling(service.complemento));
     return orderAndRecordServiceSearchExposure(supabase, services);
   }
 
@@ -238,7 +239,7 @@ async function findServices(input: { latitude?: number; longitude?: number; radi
     contactPublicEnabled: isServicePublicContactEnabled(profile.complemento),
     complemento: profile.complemento
   }));
-  return orderAndRecordServiceSearchExposure(supabase, filterByAudience(profileServices, input.audience));
+  return orderAndRecordServiceSearchExposure(supabase, filterByAudience(profileServices, input.audience).filter((service) => isServiceVisibleByBilling(service.complemento)));
 }
 
 async function findProfilesByTextLocation(input: { state: string; city: string; district: string; query: string; category: string }): Promise<PublicService[]> {
@@ -259,7 +260,7 @@ async function findProfilesByTextLocation(input: { state: string; city: string; 
 
   const { data, error } = await request;
   if (error) throw error;
-  return ((data ?? []) as SearchRow[]).map(fromSearchRow).map((service) => ({ ...service, distanceKm: null }));
+  return ((data ?? []) as SearchRow[]).map(fromSearchRow).map((service) => ({ ...service, distanceKm: null })).filter((service) => isServiceVisibleByBilling(service.complemento));
 }
 
 function serviceLocationNeedle(input: { state?: string; city?: string; district?: string }) {
