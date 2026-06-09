@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   const title = `${listing.title} - ${money(listing.priceCents)} - Achei X`;
   const description = compactText(`${listing.type} em ${listing.city}, ${listing.state}. ${listing.description || "Confira este anúncio no Achei X."}`, 155);
-  const imageUrl = absoluteUrl(`/og/anuncios/${listing.slug}/image.png`);
+  const imageUrl = absoluteUrl(listing.photos[0]?.url || "/achei-x-logo.png");
   const url = absoluteUrl(`/anuncios/${listing.slug}`);
 
   return {
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
         {
           url: imageUrl,
           secureUrl: imageUrl,
-          type: "image/png",
+          type: imageContentType(imageUrl),
           width: 1200,
           height: 630,
           alt: listing.photos[0]?.alt || listing.title
@@ -263,6 +263,13 @@ function absoluteUrl(value: string) {
   if (/^https?:\/\//i.test(value)) return value;
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://acheix.com.br";
   return `${baseUrl.replace(/\/$/, "")}/${value.replace(/^\//, "")}`;
+}
+
+function imageContentType(url: string) {
+  const pathname = new URL(url).pathname.toLowerCase();
+  if (pathname.endsWith(".png")) return "image/png";
+  if (pathname.endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
 }
 
 function compactText(value: string, maxLength: number) {

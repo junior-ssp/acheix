@@ -16,8 +16,9 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const url = useMemo(() => {
-    if (typeof window === "undefined") return `/p/${slug}`;
-    return `${window.location.origin}/p/${slug}`;
+    const version = Date.now().toString(36);
+    if (typeof window === "undefined") return `/anuncios/${slug}?v=${version}`;
+    return `${window.location.origin}/anuncios/${slug}?v=${version}`;
   }, [slug]);
 
   useEffect(() => {
