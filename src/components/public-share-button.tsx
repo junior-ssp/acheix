@@ -8,7 +8,7 @@ type ShareChannel = "whatsapp" | "copy" | "social";
 const options: Array<{ channel: ShareChannel; label: string; icon: "whatsapp" | "copy" | "share"; color: string }> = [
   { channel: "whatsapp", label: "WhatsApp", icon: "whatsapp", color: "bg-[#22C55E] text-white" },
   { channel: "copy", label: "Copiar Link", icon: "copy", color: "bg-yellow-300 text-black" },
-  { channel: "social", label: "Compartilhar", icon: "share", color: "bg-blue-500 text-white" }
+  { channel: "social", label: "Redes Sociais", icon: "share", color: "bg-blue-500 text-white" }
 ];
 
 export function PublicShareButton({ title, path, compact = false }: { title: string; path: string; compact?: boolean }) {

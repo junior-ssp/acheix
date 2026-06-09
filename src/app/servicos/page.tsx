@@ -1,5 +1,5 @@
 ﻿import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { BadgeCheck, Clock3, MapPin, ShieldCheck, Star } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { formatCep } from "@/lib/formatters";
 import { geocodeFreeformBrazilAddress, lookupCepWithCoordinates, parseRadiusKm } from "@/lib/geolocation";
@@ -32,6 +32,8 @@ type PublicService = {
   id: string;
   type: string;
   title: string;
+  companyName: string | null;
+  providerName: string | null;
   category: string;
   categories: string[];
   description: string;
@@ -144,33 +146,58 @@ export default async function ServicesPage({ searchParams }: { searchParams: Ser
       {hasActiveSearch ? (
       <section className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {services.map((service) => (
-          <article key={service.id} className="rounded-lg border border-white/10 bg-neutral-900 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-start gap-3">
-                <ServiceAvatar service={service} />
-                <div className="min-w-0">
-                  <h2 className="break-words font-black">{service.title}</h2>
-                  <p className="text-xs font-bold uppercase text-yellow-300">{service.categories[0]}</p>
+          <article key={service.id} className="flex min-h-full flex-col overflow-hidden rounded-lg border border-white/10 bg-[linear-gradient(145deg,#151515_0%,#090909_58%,#101f16_100%)] shadow-2xl shadow-black/30">
+            <div className="border-b border-white/10 bg-white/[0.03] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <ServiceAvatar service={service} />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase text-emerald-300">{service.type === "COMPANY" ? "Empresa Prestadora" : "Profissional Autônomo"}</p>
+                    <h2 className="mt-1 break-words text-lg font-black leading-tight text-white">{service.companyName ?? service.title}</h2>
+                    {service.companyName && service.providerName ? <p className="mt-1 break-words text-sm font-bold text-neutral-300">{service.providerName}</p> : null}
+                  </div>
                 </div>
+                <PublicShareButton title={`Achei este profissional: ${service.title}`} path={serviceSharePath(service)} compact />
               </div>
-              <PublicShareButton title={`Achei este profissional: ${service.title}`} path={serviceSharePath(service)} compact />
             </div>
-            <p className="mt-3 line-clamp-4 text-sm text-neutral-300">{service.description}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {service.categories.map((item) => (
-                <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-xs font-black uppercase text-neutral-100">
-                  <ServiceCategoryIcon value={item} size={13} />
-                  {item}
-                </span>
-              ))}
+
+            <div className="flex flex-1 flex-col p-4">
+              <div className="flex flex-wrap gap-2">
+                {service.categories.map((item) => (
+                  <span key={item} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-yellow-300/30 bg-yellow-300/10 px-3 py-1 text-[11px] font-black uppercase text-yellow-100">
+                    <ServiceCategoryIcon value={item} size={14} />
+                    {item}
+                  </span>
+                ))}
+              </div>
+
+              <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-neutral-300">{service.description}</p>
+
+              <div className="mt-4 grid gap-2 text-sm text-neutral-300">
+                <p className="flex items-start gap-2">
+                  <MapPin size={16} className="mt-0.5 shrink-0 text-yellow-300" />
+                  <span>{service.district ? `${service.district}, ` : ""}{service.city}/{service.state}{service.cep ? ` - CEP ${formatCep(service.cep)}` : ""}</span>
+                </p>
+                {service.distanceKm !== null ? (
+                  <p className="flex items-center gap-2 font-bold text-emerald-200">
+                    <MapPin size={16} />
+                    {service.distanceKm} km de distância
+                  </p>
+                ) : null}
+                {service.businessHours ? (
+                  <p className="flex items-start gap-2">
+                    <Clock3 size={16} className="mt-0.5 shrink-0 text-yellow-300" />
+                    <span>Atendimento: {service.businessHours}</span>
+                  </p>
+                ) : null}
+              </div>
+
+              <ServiceTrust service={service} />
+
+              <div className="mt-auto pt-1">
+                <ServiceContactButton serviceId={service.id} serviceTitle={service.title} authenticated={Boolean(user)} contactPublicEnabled={service.contactPublicEnabled} />
+              </div>
             </div>
-            <div className="mt-3 grid gap-1 text-sm text-neutral-400">
-              <p>{service.district ? `${service.district}, ` : ""}{service.city}/{service.state}{service.cep ? ` - CEP ${formatCep(service.cep)}` : ""}</p>
-              {service.distanceKm !== null ? <p className="font-bold text-emerald-200">{service.distanceKm} km de distância</p> : null}
-              {service.businessHours ? <p>Atendimento: {service.businessHours}</p> : null}
-            </div>
-            <ServiceTrust service={service} />
-            <ServiceContactButton serviceId={service.id} serviceTitle={service.title} authenticated={Boolean(user)} contactPublicEnabled={service.contactPublicEnabled} />
           </article>
         ))}
         {!services.length ? (
@@ -223,7 +250,9 @@ async function findServices(input: { latitude?: number; longitude?: number; radi
   const profileServices = (profiles ?? []).map((profile) => ({
     id: profile.id,
     type: profile.tipo_cadastro,
-    title: profile.nome_fantasia ?? profile.name ?? categoryName(profile.categoria_servico),
+    title: serviceTitle(profile.nome_fantasia, profile.name, profile.categoria_servico),
+    companyName: profile.nome_fantasia ?? null,
+    providerName: profile.name ?? null,
     category: profile.categoria_servico,
     categories: profile.categorias_servico.map(categoryName),
     description: profile.descricao,
@@ -318,12 +347,21 @@ function ServiceTrust({ service }: { service: PublicService }) {
   const rankLabel = service.rank === "FEATURED" ? "Medalha Diamante" : `Medalha ${rankName(service.rank)}`;
   const publicScore = Math.round(service.score / 10);
   return (
-    <div className="mt-3 rounded-lg border border-white/10 bg-black/25 p-3 text-xs text-neutral-300">
-      <strong className="flex items-center gap-1 text-sm text-white">
-        <ShieldCheck size={15} />
+    <div className="mt-4 rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-neutral-300">
+      <strong className="flex items-center gap-1.5 text-sm text-white">
+        <ShieldCheck size={15} className="text-emerald-300" />
         {rankLabel}
       </strong>
-      <span>{service.averageRating || "Novo"}/5 · {service.totalRatings} avaliações · {service.totalServices} serviços · Nota {publicScore}/10</span>
+      <div className="mt-2 grid gap-1.5">
+        <span className="flex items-center gap-1.5">
+          <Star size={14} className="text-yellow-300" />
+          {service.averageRating || "Novo"}/5 · {service.totalRatings} avaliações · {service.totalServices} serviços
+        </span>
+        <span className="flex items-center gap-1.5">
+          <BadgeCheck size={14} className="text-emerald-300" />
+          Nota {publicScore}/10{service.verified ? " · Conta verificada" : ""}
+        </span>
+      </div>
     </div>
   );
 }
@@ -332,7 +370,9 @@ function fromSearchRow(row: SearchRow): PublicService {
   return {
     id: row.id,
     type: row.tipo_cadastro,
-    title: row.nome_fantasia ?? row.name ?? categoryName(row.categoria_servico),
+    title: serviceTitle(row.nome_fantasia, row.name, row.categoria_servico),
+    companyName: row.nome_fantasia ?? null,
+    providerName: row.name ?? null,
     category: row.categoria_servico,
     categories: row.categorias_servico.map(categoryName),
     description: row.descricao,
@@ -368,6 +408,10 @@ function normalizeCategory(value?: string) {
 
 function categoryName(slug: string) {
   return defaultServiceCategories.find((item) => item.slug === slug)?.name ?? slug;
+}
+
+function serviceTitle(companyName: string | null, providerName: string | null, category: string) {
+  return companyName ?? providerName ?? categoryName(category);
 }
 
 function rankName(rank: string) {
