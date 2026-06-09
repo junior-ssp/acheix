@@ -68,8 +68,8 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
       <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <Link href="/planos" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Novo Anúncio</Link>
         <Link href="/dashboard?meus=ALL#meus-anuncios" className="inline-flex h-11 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">Meus Anúncios</Link>
-        <Link href="/dashboard#meus-servicos" className="inline-flex h-11 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-400/10 px-4 text-sm font-black text-emerald-100 hover:bg-emerald-400/20">Meu Cartão de Visitas</Link>
-        <Link href="/servicos/anunciar" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Sou prestador</Link>
+        <Link href="/dashboard#meus-servicos" className="inline-flex h-11 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">Meu CARD</Link>
+        <Link href="/servicos/anunciar" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Sou Prestador</Link>
       </div>
       <div id="performance" className="mt-6 grid scroll-mt-24 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {metrics.map((metric) => {
