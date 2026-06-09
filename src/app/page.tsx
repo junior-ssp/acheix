@@ -37,11 +37,11 @@ export default async function Home({ searchParams }: { searchParams: { q?: strin
               </Link>
             </div>
             <div className="mt-2 grid grid-cols-3 gap-2 sm:mt-3 sm:flex sm:flex-wrap sm:gap-3">
-              <Link href="/anunciar?category=VEHICLE" prefetch={false} className="inline-flex h-10 min-w-0 items-center justify-center rounded-full px-2 text-center text-xs btn-gold sm:h-12 sm:min-w-36 sm:px-5 sm:text-base">+ Veículo</Link>
-              <Link href="/anunciar?category=REAL_ESTATE" prefetch={false} className="inline-flex h-10 min-w-0 items-center justify-center rounded-full px-2 text-center text-xs btn-gold sm:h-12 sm:min-w-36 sm:px-5 sm:text-base">+ Imóvel</Link>
+              <Link href="/anunciar?category=VEHICLE" prefetch={false} className="inline-flex h-10 min-w-0 items-center justify-center rounded-full px-2 text-center text-xs btn-gold sm:h-12 sm:min-w-36 sm:px-5 sm:text-base">Anunciar Veículo</Link>
+              <Link href="/anunciar?category=REAL_ESTATE" prefetch={false} className="inline-flex h-10 min-w-0 items-center justify-center rounded-full px-2 text-center text-xs btn-gold sm:h-12 sm:min-w-36 sm:px-5 sm:text-base">Anunciar Imóvel</Link>
               <Link href="/servicos/planos" prefetch={false} className="inline-flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 text-center text-xs btn-gold sm:h-12 sm:min-w-36 sm:px-5 sm:text-base">
                 <Wrench size={16} strokeWidth={2.6} />
-                + Serviço
+                Anunciar Serviços
               </Link>
             </div>
           </div>
