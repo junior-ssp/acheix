@@ -13,8 +13,10 @@ const options: Array<{ channel: ShareChannel; label: string; icon: "whatsapp" | 
 
 export function ShareMenu({ slug, title, compact = false }: { slug: string; title: string; compact?: boolean }) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ left: 8, top: 8 });
   const url = useMemo(() => {
     const version = Date.now().toString(36);
     if (typeof window === "undefined") return `/anuncios/${slug}?v=${version}`;
@@ -24,6 +26,20 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
   useEffect(() => {
     if (!open) return;
 
+    function updateMenuPosition() {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const menuWidth = 224;
+      const margin = 8;
+      const left = Math.min(
+        Math.max(margin, rect.right - menuWidth),
+        Math.max(margin, window.innerWidth - menuWidth - margin)
+      );
+      const top = Math.min(rect.bottom + margin, Math.max(margin, window.innerHeight - 190));
+      setMenuPosition({ left, top });
+    }
+
     function handlePointerDown(event: PointerEvent) {
       if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
     }
@@ -32,11 +48,16 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
       if (event.key === "Escape") setOpen(false);
     }
 
+    updateMenuPosition();
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
     };
   }, [open]);
 
@@ -75,6 +96,7 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
   return (
     <div ref={menuRef} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         title="Compartilhar"
         onClick={(event) => {
@@ -87,7 +109,10 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
         <Share2 size={compact ? 18 : 24} />
       </button>
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-lg border border-white/10 bg-neutral-950 p-1 text-white shadow-2xl">
+        <div
+          className="fixed z-50 w-56 overflow-hidden rounded-lg border border-white/10 bg-neutral-950 p-1 text-white shadow-2xl"
+          style={{ left: menuPosition.left, top: menuPosition.top }}
+        >
           {options.map((option) => (
             <button
               key={option.channel}
