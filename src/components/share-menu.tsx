@@ -13,10 +13,8 @@ const options: Array<{ channel: ShareChannel; label: string; icon: "whatsapp" | 
 
 export function ShareMenu({ slug, title, compact = false }: { slug: string; title: string; compact?: boolean }) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ left: 8, top: 8 });
   const url = useMemo(() => {
     const version = Date.now().toString(36);
     if (typeof window === "undefined") return `/anuncios/${slug}?v=${version}`;
@@ -26,38 +24,13 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
   useEffect(() => {
     if (!open) return;
 
-    function updateMenuPosition() {
-      const rect = buttonRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const menuWidth = 224;
-      const margin = 8;
-      const left = Math.min(
-        Math.max(margin, rect.right - menuWidth),
-        Math.max(margin, window.innerWidth - menuWidth - margin)
-      );
-      const top = Math.min(rect.bottom + margin, Math.max(margin, window.innerHeight - 190));
-      setMenuPosition({ left, top });
-    }
-
-    function handlePointerDown(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
 
-    updateMenuPosition();
-    document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("resize", updateMenuPosition);
-    window.addEventListener("scroll", updateMenuPosition, true);
     return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("resize", updateMenuPosition);
-      window.removeEventListener("scroll", updateMenuPosition, true);
     };
   }, [open]);
 
@@ -96,7 +69,6 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
   return (
     <div ref={menuRef} className="relative">
       <button
-        ref={buttonRef}
         type="button"
         title="Compartilhar"
         onClick={(event) => {
@@ -109,29 +81,38 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
         <Share2 size={compact ? 18 : 24} />
       </button>
       {open && (
-        <div
-          className="fixed z-50 w-56 overflow-hidden rounded-lg border border-white/10 bg-neutral-950 p-1 text-white shadow-2xl"
-          style={{ left: menuPosition.left, top: menuPosition.top }}
-        >
-          {options.map((option) => (
-            <button
-              key={option.channel}
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                void share(option.channel);
-              }}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-bold hover:bg-white/10"
-            >
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${option.color}`}>
-                {option.icon === "copy" ? <Copy size={16} /> : option.icon === "share" ? <Share2 size={16} /> : <MessageCircle size={16} />}
-              </span>
-              {copied && option.channel === "copy" ? "Link copiado" : option.label}
-              {copied && option.channel === "copy" && <Check className="ml-auto text-green-400" size={16} />}
-            </button>
-          ))}
-        </div>
+        <>
+          <button
+            type="button"
+            aria-label="Fechar compartilhamento"
+            className="fixed inset-0 z-40 cursor-default bg-black/20"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen(false);
+            }}
+          />
+          <div className="fixed inset-x-3 bottom-[calc(5.6rem+env(safe-area-inset-bottom,0px))] z-50 mx-auto w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-white/10 bg-neutral-950 p-1 text-white shadow-2xl sm:bottom-5 sm:right-5 sm:left-auto sm:mx-0 sm:w-56">
+            {options.map((option) => (
+              <button
+                key={option.channel}
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void share(option.channel);
+                }}
+                className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-bold hover:bg-white/10 sm:py-2"
+              >
+                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${option.color}`}>
+                  {option.icon === "copy" ? <Copy size={16} /> : option.icon === "share" ? <Share2 size={16} /> : <MessageCircle size={16} />}
+                </span>
+                {copied && option.channel === "copy" ? "Link copiado" : option.label}
+                {copied && option.channel === "copy" && <Check className="ml-auto text-green-400" size={16} />}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
