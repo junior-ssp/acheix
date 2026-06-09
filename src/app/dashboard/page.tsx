@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { Eye } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { withTimeout } from "@/lib/async";
@@ -16,6 +17,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } from "@/lib/response-metrics";
 import { defaultServiceCategories } from "@/lib/service-catalog";
 import { serviceBillingSummary } from "@/lib/service-billing-policy";
+import { parseServiceComplement } from "@/lib/service-contact-disclosure";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { formatCurrencyBRL } from "@/lib/formatters";
 import { parsePublishProviderRef, parseRenewProviderRef, parseServiceProviderRef } from "@/lib/payments";
@@ -39,6 +41,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
   ]);
   const serviceProfile = serviceProfileResult.data;
   const serviceBilling = serviceProfile?.status !== "CLOSED" ? serviceBillingSummary(serviceProfile?.complemento) : null;
+  const serviceCardViews = serviceProfile ? serviceSearchImpressions(serviceProfile.complemento) : 0;
   const [receivedLeads, sentLeads, ownerLeadsForMetrics] = leadsResult;
   const responseMetrics = calculateResponseMetrics(ownerLeadsForMetrics);
   const responseScore = responseMetrics.score === null ? null : Math.round(responseMetrics.score / 10);
@@ -162,6 +165,10 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
                 </div>
               </div>
               <p className="mt-2 text-sm text-neutral-300">{serviceProfile.cidade}/{serviceProfile.estado}{serviceProfile.bairro ? ` - ${serviceProfile.bairro}` : ""}</p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-sm font-black text-emerald-100">
+                <Eye size={18} className="text-emerald-300" />
+                {serviceCardViews} visualização{serviceCardViews === 1 ? "" : "ões"} do CARD
+              </div>
               {serviceBilling ? (
                 <p className="mt-2 text-sm text-neutral-300">
                   {serviceBilling.billing.status === "TRIALING" ? "Grátis até" : "Plano PRO até"} {new Date(serviceBilling.billing.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - R$ {(serviceBilling.billing.renewalPriceCents / 100).toFixed(2).replace(".", ",")} por 12 meses - tolerância até {new Date(serviceBilling.billing.graceEndsAt).toLocaleDateString("pt-BR")}.
@@ -428,6 +435,15 @@ function paymentStatusClass(status: string) {
 
 function serviceCategoryName(slug: string) {
   return defaultServiceCategories.find((item) => item.slug === slug)?.name ?? slug;
+}
+
+function serviceSearchImpressions(complement: string | null | undefined) {
+  const parsed = parseServiceComplement(complement);
+  const exposure = parsed.serviceSearchExposure && typeof parsed.serviceSearchExposure === "object"
+    ? parsed.serviceSearchExposure as Record<string, unknown>
+    : {};
+  const views = Number(exposure.searchImpressions ?? 0);
+  return Number.isFinite(views) && views > 0 ? Math.floor(views) : 0;
 }
 
 
