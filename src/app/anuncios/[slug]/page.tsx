@@ -75,6 +75,7 @@ export default async function ListingPage({ params }: { params: { slug: string }
   const publicHistory = getPublicHistory(listing.owner);
   const ownerId = "ownerId" in listing ? listing.ownerId : null;
   const listingId = "id" in listing ? listing.id : null;
+  const canReportListing = Boolean(user && (!ownerId || ownerId !== user.id));
   const isVerified = Boolean(listing.owner?.identityVerifiedAt);
   const ownerLeads = ownerId ? await findOwnerLeadMetrics(ownerId).catch(() => []) : [];
   const isFavorited = user && listingId ? await findViewerFavorite(user.id, listingId).catch(() => false) : false;
@@ -180,7 +181,7 @@ export default async function ListingPage({ params }: { params: { slug: string }
             <ContactBox slug={listing.slug} authenticated={Boolean(user)} />
           </div>
 
-          <ReportListingButton slug={listing.slug} ownerId={ownerId} canBlock={Boolean(user && ownerId && ownerId !== user.id)} />
+          <ReportListingButton slug={listing.slug} authenticated={Boolean(user)} canReport={canReportListing} ownerId={ownerId} canBlock={Boolean(user && ownerId && ownerId !== user.id)} />
         </aside>
       </section>
     </main>

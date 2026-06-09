@@ -40,6 +40,7 @@ const publicReasonLabels: Record<string, string> = {
 export async function POST(request: Request, { params }: { params: { slug: string } }) {
   try {
     const reporter = await requireUser();
+    const requestContext = getRequestContext(request);
     const data = reportSchema.parse(await request.json().catch(() => ({})));
     const supabase = db();
     const { data: listing, error: listingError } = await supabase
@@ -125,7 +126,24 @@ export async function POST(request: Request, { params }: { params: { slug: strin
       id: newDbId(),
       userId: reporter.id,
       action: "trust.report.created",
-      metadata: { reportId: report?.id, caseId: trustCase.id, listingId: listing.id, riskScore, riskLevel, credibilityScore }
+      metadata: {
+        reportId: report?.id,
+        caseId: trustCase.id,
+        listingId: listing.id,
+        listingSlug: params.slug,
+        listingTitle: listing.title,
+        targetUserId: listing.ownerId,
+        reporterId: reporter.id,
+        reporterName: reporter.name,
+        reporterEmail: reporter.email,
+        reason: data.reason,
+        publicReason: data.publicReason ?? null,
+        evidenceCount: data.evidenceUrls.length,
+        riskScore,
+        riskLevel,
+        credibilityScore,
+        requestContext
+      }
     });
     throwDbError(auditError);
 
@@ -133,6 +151,16 @@ export async function POST(request: Request, { params }: { params: { slug: strin
   } catch (error) {
     return errorResponse(error);
   }
+}
+
+function getRequestContext(request: Request) {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  return {
+    ip: forwardedFor?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? null,
+    userAgent: request.headers.get("user-agent"),
+    referer: request.headers.get("referer"),
+    origin: request.headers.get("origin")
+  };
 }
 
 async function countResolvedReporterReports(reporterId: string) {

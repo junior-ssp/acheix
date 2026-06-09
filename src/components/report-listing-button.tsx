@@ -4,17 +4,21 @@ import { useState } from "react";
 import { ChevronDown, Flag } from "lucide-react";
 
 const reportReasons = [
-  { publicReason: "FRAUD_SUSPECT", reason: "SCAM_ATTEMPT", label: "🚨 1. Suspeita de Golpe ou Fraude" },
-  { publicReason: "MISLEADING_INFO", reason: "FAKE_LISTING", label: "📢 2. Anúncio Enganoso ou Informações Falsas" },
-  { publicReason: "PROHIBITED_CONTENT", reason: "INAPPROPRIATE_CONTENT", label: "🚫 3. Conteúdo Proibido ou Irregular" },
-  { publicReason: "BAD_USER_BEHAVIOR", reason: "HARASSMENT_OR_THREAT", label: "🤬 4. Comportamento Inadequado do Usuário" },
-  { publicReason: "NON_EXISTENT_ADVERTISER", reason: "NON_EXISTENT_PRODUCT", label: "📍 5. Anunciante ou Prestador de Serviços Inexistente" }
+  { publicReason: "FRAUD_SUSPECT", reason: "SCAM_ATTEMPT", label: "1. Suspeita de Golpe ou Fraude" },
+  { publicReason: "MISLEADING_INFO", reason: "FAKE_LISTING", label: "2. Anúncio Enganoso ou Informações Falsas" },
+  { publicReason: "PROHIBITED_CONTENT", reason: "INAPPROPRIATE_CONTENT", label: "3. Conteúdo Proibido ou Irregular" },
+  { publicReason: "BAD_USER_BEHAVIOR", reason: "HARASSMENT_OR_THREAT", label: "4. Comportamento Inadequado do Usuário" },
+  { publicReason: "NON_EXISTENT_ADVERTISER", reason: "NON_EXISTENT_PRODUCT", label: "5. Anunciante ou Prestador de Serviços Inexistente" }
 ] as const;
 
 export function ReportListingButton({
-  slug
+  slug,
+  authenticated = false,
+  canReport = true
 }: {
   slug: string;
+  authenticated?: boolean;
+  canReport?: boolean;
   ownerId?: string | null;
   canBlock?: boolean;
 }) {
@@ -24,6 +28,14 @@ export function ReportListingButton({
 
   async function report(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!authenticated) {
+      redirectToLogin();
+      return;
+    }
+    if (!canReport) {
+      setMessage("Você não pode reportar seu próprio anúncio.");
+      return;
+    }
     if (busy) return;
     setBusy(true);
     setMessage("");
@@ -45,6 +57,10 @@ export function ReportListingButton({
       const data = await response.json().catch(() => null);
 
       setBusy(false);
+      if (response.status === 401) {
+        redirectToLogin();
+        return;
+      }
       setMessage(response.ok ? "Recebemos seu aviso. Vamos analisar." : data?.error ?? "Não deu para enviar agora.");
       if (response.ok) event.currentTarget.reset();
     } catch (error) {
@@ -57,7 +73,14 @@ export function ReportListingButton({
     <section className="rounded-2xl border border-[#ff2800] bg-[#ff2800] p-3 shadow-[0_0_24px_rgb(255_40_0_/_0.22)]">
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          if (!authenticated) {
+            setMessage("Entre na sua conta para reportar um problema.");
+            redirectToLogin();
+            return;
+          }
+          setOpen((current) => !current);
+        }}
         className="flex w-full items-center justify-between gap-3 text-left text-sm font-black text-white"
       >
         <span className="inline-flex items-center gap-2">
@@ -67,7 +90,15 @@ export function ReportListingButton({
         <ChevronDown size={17} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open ? (
+      {!authenticated ? (
+        <p className="mt-3 rounded-xl border border-white/25 bg-black/20 p-3 text-xs font-bold text-white">
+          Para evitar vandalismo, só usuários identificados podem enviar denúncias.
+        </p>
+      ) : !canReport ? (
+        <p className="mt-3 rounded-xl border border-white/25 bg-black/20 p-3 text-xs font-bold text-white">
+          Você não pode reportar seu próprio anúncio.
+        </p>
+      ) : open ? (
         <form onSubmit={report} className="mt-3 grid gap-3">
           <select name="publicReason" required className="input">
             {reportReasons.map((item) => (
@@ -76,9 +107,9 @@ export function ReportListingButton({
               </option>
             ))}
           </select>
-          <textarea name="description" required minLength={10} rows={4} placeholder="Descreva o Problema ou Conte o que aconteceu" className="input" />
+          <textarea name="description" required minLength={10} rows={4} placeholder="Descreva o problema ou conte o que aconteceu" className="input" />
           <label className="grid cursor-pointer gap-2 rounded-xl border border-white/30 bg-black/20 p-3 text-sm font-black text-white hover:bg-black/30">
-            <span>📷 Anexar Evidência</span>
+            <span>Anexar Evidência</span>
             <input
               name="evidence"
               type="file"
@@ -93,9 +124,16 @@ export function ReportListingButton({
           </button>
           {message ? <p className="text-xs font-bold text-white">{message}</p> : null}
         </form>
+      ) : message ? (
+        <p className="mt-3 rounded-xl border border-white/25 bg-black/20 p-3 text-xs font-bold text-white">{message}</p>
       ) : null}
     </section>
   );
+}
+
+function redirectToLogin() {
+  const next = `${window.location.pathname}${window.location.search}`;
+  window.location.href = `/entrar?next=${encodeURIComponent(next)}`;
 }
 
 async function uploadEvidence(files: FormDataEntryValue[]) {
@@ -111,6 +149,10 @@ async function uploadEvidence(files: FormDataEntryValue[]) {
       body: formData
     });
     const data = await response.json().catch(() => null);
+    if (response.status === 401) {
+      redirectToLogin();
+      throw new Error("Entre na sua conta para anexar evidência.");
+    }
     if (!response.ok || !data?.url) {
       throw new Error(data?.error ?? "Não deu para anexar a evidência.");
     }
