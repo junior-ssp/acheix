@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { normalizeImageUrl } from "@/lib/image-url";
 
 type GalleryPhoto = {
   url: string;
@@ -53,7 +54,7 @@ export function ListingPhotoGallery({ photos, title }: { photos: GalleryPhoto[];
         {photos.map((photo, index) => (
           <div key={`${photo.url}-${index}`} className="relative h-full w-full shrink-0 snap-center">
             <Image
-              src={photo.url}
+              src={normalizeImageUrl(photo.url)}
               alt={photo.alt ?? title}
               fill
               priority={index === 0}

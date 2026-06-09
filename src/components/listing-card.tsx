@@ -4,6 +4,7 @@ import { Clock, MapPin, ShieldCheck } from "lucide-react";
 import { ShareMenu } from "@/components/share-menu";
 import { PlanIcon } from "@/components/plan-icon";
 import { formatCurrencyBRL } from "@/lib/formatters";
+import { normalizeImageUrl } from "@/lib/image-url";
 
 type Listing = {
   slug: string;
@@ -28,6 +29,7 @@ export function money(cents: number) {
 
 export function ListingCard({ listing }: { listing: Listing }) {
   const photo = listing.photos[0];
+  const photoUrl = normalizeImageUrl(photo?.url);
   const planName = listing.plan?.name ?? "GRÁTIS";
   const planClassName =
     listing.plan?.code === "FREE" || planName === "GRÁTIS"
@@ -42,7 +44,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
       <Link href={`/anuncios/${listing.slug}`} className="block overflow-hidden rounded-2xl sm:rounded-3xl">
         <div className="relative aspect-[4/3] bg-neutral-200 dark:bg-neutral-800">
           {photo ? (
-            <Image src={photo.url} alt={photo.alt ?? listing.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" quality={78} className="object-cover" />
+            <Image src={photoUrl} alt={photo.alt ?? listing.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" quality={78} className="object-cover" />
           ) : (
             <div className="grid h-full place-items-center text-sm font-bold text-neutral-400">Sem foto</div>
           )}

@@ -10,6 +10,7 @@ import { ShareMenu } from "@/components/share-menu";
 import { getCurrentUser } from "@/lib/auth";
 import { demoListings } from "@/lib/constants";
 import { formatIntegerBR } from "@/lib/formatters";
+import { absolutePublicUrl, imageContentType, normalizeImageUrl, optimizedOpenGraphImageUrl } from "@/lib/image-url";
 import { findListingBySlug } from "@/lib/listing-records";
 import { db, throwDbError } from "@/lib/supabase-db";
 import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } from "@/lib/response-metrics";
@@ -17,7 +18,7 @@ import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } fr
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const listing = await findListingBySlug(params.slug).catch(() => null);
+  const listing = await findListingBySlug(params.slug).catch(() => null) ?? getDemoListing(params.slug);
   if (!listing) {
     return {
       title: "Anúncio não encontrado",
@@ -27,8 +28,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   const title = `${listing.title} - ${money(listing.priceCents)} - Achei X`;
   const description = compactText(`${listing.type} em ${listing.city}, ${listing.state}. ${listing.description || "Confira este anúncio no Achei X."}`, 155);
-  const imageUrl = optimizedImageUrl(listing.photos[0]?.url || "/achei-x-logo.png");
-  const url = absoluteUrl(`/anuncios/${listing.slug}`);
+  const imageUrl = optimizedOpenGraphImageUrl(listing.photos[0]?.url);
+  const url = absolutePublicUrl(`/anuncios/${listing.slug}`);
 
   return {
     title: { absolute: title },
@@ -232,9 +233,11 @@ function getPublicHistory(owner: { createdAt?: Date | string | null; _count?: { 
 
 function buildGalleryPhotos(photos: ReadonlyArray<{ url: string; alt: string | null }>, title: string) {
   if (!photos.length) return [];
-  const gallery = [...photos];
+  const gallery = photos.map((photo) => ({ ...photo, url: normalizeImageUrl(photo.url) }));
+  const originalLength = gallery.length;
   while (gallery.length < 3) {
-    gallery.push({ ...photos[gallery.length % photos.length], alt: photos[gallery.length % photos.length].alt ?? title });
+    const photo = gallery[gallery.length % originalLength];
+    gallery.push({ ...photo, alt: photo.alt ?? title });
   }
   return gallery;
 }
@@ -257,25 +260,6 @@ function Info({ label, value }: { label: string; value: string | number }) {
       <dd className="font-bold">{value}</dd>
     </div>
   );
-}
-
-function absoluteUrl(value: string) {
-  if (/^https?:\/\//i.test(value)) return value;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://acheix.com.br";
-  return `${baseUrl.replace(/\/$/, "")}/${value.replace(/^\//, "")}`;
-}
-
-function imageContentType(url: string) {
-  const pathname = new URL(url).pathname.toLowerCase();
-  if (pathname.endsWith(".png")) return "image/png";
-  if (pathname.endsWith(".webp")) return "image/webp";
-  return "image/jpeg";
-}
-
-function optimizedImageUrl(value: string) {
-  const imageUrl = absoluteUrl(value);
-  if (!/^https?:\/\//i.test(imageUrl)) return imageUrl;
-  return absoluteUrl(`/_next/image?url=${encodeURIComponent(imageUrl)}&w=1200&q=75`);
 }
 
 function compactText(value: string, maxLength: number) {
