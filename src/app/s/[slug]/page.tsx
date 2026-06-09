@@ -18,9 +18,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     };
   }
 
-  const title = `${listing.title} - ${money(listing.priceCents)}`;
+  const title = `${listing.title} - ${money(listing.priceCents)} - Achei X`;
   const description = compactText(`${listing.type} em ${listing.city}, ${listing.state}. ${listing.description || "Confira este anúncio no Achei X."}`, 155);
-  const imageUrl = absoluteUrl(listing.photos[0]?.url || "/achei-x-logo.png");
+  const imageUrl = absoluteUrl(`/api/listings/${listing.slug}/cover`);
   const shareUrl = absoluteUrl(`/s/${listing.slug}`);
   const listingUrl = absoluteUrl(`/anuncios/${listing.slug}`);
 
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description,
       url: shareUrl,
       siteName: "Achei X",
-      type: "article",
+      type: "website",
       locale: "pt_BR",
       images: [
         {
