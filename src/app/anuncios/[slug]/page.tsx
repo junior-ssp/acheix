@@ -1,6 +1,6 @@
 ﻿import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { Clock, Send, ShieldCheck, Star } from "lucide-react";
+import { Clock, Send, Share2, ShieldCheck, Star } from "lucide-react";
 import { ContactBox } from "@/components/contact-box";
 import { FavoriteButton } from "@/components/favorite-button";
 import { ListingPhotoGallery } from "@/components/listing-photo-gallery";
@@ -108,7 +108,7 @@ export default async function ListingPage({ params }: { params: { slug: string }
           <div className="absolute right-3 top-1/2 grid -translate-y-1/2 gap-3">
             <FavoriteButton slug={listing.slug} initialFavorited={isFavorited} />
             <ShareMenu slug={listing.slug} title={listing.title} />
-            <button title="Enviar interesse" className="grid h-12 w-12 place-items-center rounded-full bg-black/45 backdrop-blur"><Send /></button>
+            <button title="Redes sociais" className="grid h-12 w-12 place-items-center rounded-full bg-black/45 backdrop-blur"><Share2 /></button>
           </div>
         </div>
 
