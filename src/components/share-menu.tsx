@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, MessageCircle, Share2, X } from "lucide-react";
+import { Check, Copy, MessageCircle, Share2 } from "lucide-react";
 
 type ShareChannel = "whatsapp" | "copy" | "social";
 
@@ -81,61 +81,26 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
         <Share2 size={compact ? 18 : 24} />
       </button>
       {open && (
-        <>
-          <button
-            type="button"
-            aria-label="Fechar compartilhamento"
-            className="fixed inset-0 z-40 cursor-default bg-black/65 backdrop-blur-sm"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setOpen(false);
-            }}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Compartilhar anúncio"
-            className="fixed left-1/2 top-1/2 z-50 w-[min(21rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-white/10 bg-neutral-950 p-3 text-white shadow-2xl"
-          >
-            <div className="mb-2 flex items-center justify-between gap-3 px-1">
-              <div className="min-w-0">
-                <p className="text-xs font-bold uppercase text-yellow-300">Compartilhar</p>
-                <p className="truncate text-sm font-black text-white">{title}</p>
-              </div>
-              <button
-                type="button"
-                aria-label="Fechar"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-white hover:bg-white/15"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setOpen(false);
-                }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            {options.map((option) => (
-              <button
-                key={option.channel}
-                type="button"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  void share(option.channel);
-                }}
-                className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-bold hover:bg-white/10"
-              >
-                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${option.color}`}>
-                  {option.icon === "copy" ? <Copy size={16} /> : option.icon === "share" ? <Share2 size={16} /> : <MessageCircle size={16} />}
-                </span>
-                {copied && option.channel === "copy" ? "Link copiado" : option.label}
-                {copied && option.channel === "copy" && <Check className="ml-auto text-green-400" size={16} />}
-              </button>
-            ))}
-          </div>
-        </>
+        <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-lg border border-white/10 bg-neutral-950 p-1 text-white shadow-2xl">
+          {options.map((option) => (
+            <button
+              key={option.channel}
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void share(option.channel);
+              }}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-bold hover:bg-white/10"
+            >
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${option.color}`}>
+                {option.icon === "copy" ? <Copy size={16} /> : option.icon === "share" ? <Share2 size={16} /> : <MessageCircle size={16} />}
+              </span>
+              {copied && option.channel === "copy" ? "Link copiado" : option.label}
+              {copied && option.channel === "copy" && <Check className="ml-auto text-green-400" size={16} />}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
