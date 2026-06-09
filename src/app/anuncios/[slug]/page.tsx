@@ -1,7 +1,8 @@
 ﻿import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { Clock, Heart, Send, ShieldCheck, Star } from "lucide-react";
+import { Clock, Send, ShieldCheck, Star } from "lucide-react";
 import { ContactBox } from "@/components/contact-box";
+import { FavoriteButton } from "@/components/favorite-button";
 import { ListingPhotoGallery } from "@/components/listing-photo-gallery";
 import { money } from "@/components/listing-card";
 import { PlanIcon } from "@/components/plan-icon";
@@ -73,8 +74,10 @@ export default async function ListingPage({ params }: { params: { slug: string }
   const remaining = formatRemaining(listing.expiresAt);
   const publicHistory = getPublicHistory(listing.owner);
   const ownerId = "ownerId" in listing ? listing.ownerId : null;
+  const listingId = "id" in listing ? listing.id : null;
   const isVerified = Boolean(listing.owner?.identityVerifiedAt);
   const ownerLeads = ownerId ? await findOwnerLeadMetrics(ownerId).catch(() => []) : [];
+  const isFavorited = user && listingId ? await findViewerFavorite(user.id, listingId).catch(() => false) : false;
   const responseMetrics = calculateResponseMetrics(ownerLeads);
   const serviceScore = responseMetrics.score === null ? null : Math.round(responseMetrics.score / 10);
 
@@ -103,7 +106,7 @@ export default async function ListingPage({ params }: { params: { slug: string }
             <p className="text-sm text-white/80">{listing.city}, {listing.state}</p>
           </div>
           <div className="absolute right-3 top-1/2 grid -translate-y-1/2 gap-3">
-            <button title="Favoritar" className="grid h-12 w-12 place-items-center rounded-full bg-black/45 backdrop-blur"><Heart /></button>
+            <FavoriteButton slug={listing.slug} initialFavorited={isFavorited} />
             <ShareMenu slug={listing.slug} title={listing.title} />
             <button title="Enviar interesse" className="grid h-12 w-12 place-items-center rounded-full bg-black/45 backdrop-blur"><Send /></button>
           </div>
@@ -203,6 +206,18 @@ async function findOwnerLeadMetrics(ownerId: string) {
   throwDbError(error);
   return data ?? [];
 }
+
+async function findViewerFavorite(userId: string, listingId: string) {
+  const { data, error } = await db()
+    .from("Favorite")
+    .select("id")
+    .eq("userId", userId)
+    .eq("listingId", listingId)
+    .maybeSingle();
+  throwDbError(error);
+  return Boolean(data);
+}
+
 function getDemoListing(slug: string) {
   const demo = demoListings.find((listing) => listing.slug === slug);
   if (!demo) return null;
