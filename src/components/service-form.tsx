@@ -8,6 +8,7 @@ import { formatCep, formatCnpj, formatPhone, onlyDigits } from "@/lib/formatters
 import { isPublicServiceContactPreference, serviceContactDisclosureItems, serviceContactDisclosureTitle, serviceContactDisclosureVersion, type ServiceContactPreference } from "@/lib/service-contact-disclosure";
 import { audienceForService, defaultServiceCategories, serviceAudiences, type ServiceAudience } from "@/lib/service-catalog";
 import { isSupabaseStorageConfigured, uploadListingPhoto } from "@/lib/supabase-client";
+import { ServiceCategoryIcon } from "@/components/service-category-icon";
 
 type ServiceFormUser = {
   name: string | null;
@@ -436,7 +437,8 @@ export function ServiceForm({
               {filteredCategories.map((category) => {
                 const active = selectedCategories.includes(category.slug);
                 return (
-                  <button key={category.slug} type="button" onClick={() => toggleCategory(category.slug)} className={`rounded-full border px-3 py-1 text-xs font-bold ${active ? "border-yellow-300 bg-yellow-300 text-black" : "border-white/10 text-neutral-200"}`}>
+                  <button key={category.slug} type="button" onClick={() => toggleCategory(category.slug)} className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${active ? "border-yellow-300 bg-yellow-300 text-black" : "border-white/10 text-neutral-200"}`}>
+                    <ServiceCategoryIcon value={category.slug} size={14} />
                     {category.name}
                   </button>
                 );

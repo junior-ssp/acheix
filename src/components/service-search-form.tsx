@@ -5,6 +5,7 @@ import { BriefcaseBusiness, Navigation } from "lucide-react";
 import { brazilStates, citiesByState } from "@/lib/constants";
 import { formatCep } from "@/lib/formatters";
 import { audienceForService, defaultServiceCategories, serviceAudiences, type ServiceAudience, type ServiceCategoryOption } from "@/lib/service-catalog";
+import { ServiceCategoryIcon } from "@/components/service-category-icon";
 
 type ServiceSearchFormProps = {
   initialAddress?: string;
@@ -276,6 +277,28 @@ export function ServiceSearchForm({
                 ))}
               </select>
             </label>
+
+            {filteredCategories.length ? (
+              <div className="flex max-h-36 flex-wrap gap-2 overflow-auto rounded-lg border border-white/10 bg-black/20 p-2 sm:col-span-3">
+                {filteredCategories.map((item) => {
+                  const active = category === item.slug;
+                  return (
+                    <button
+                      key={item.slug}
+                      type="button"
+                      onClick={() => {
+                        setCategory(item.slug);
+                        changeMode("PROFESSIONAL");
+                      }}
+                      className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-black ${active ? "border-yellow-300 bg-yellow-300 text-black" : "border-white/10 bg-black/25 text-neutral-200"}`}
+                    >
+                      <ServiceCategoryIcon value={item.slug} size={14} />
+                      {item.name}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
 
             <label className="grid gap-1.5">
               <span className="text-xs font-black uppercase text-yellow-300">Buscar</span>

@@ -1,9 +1,9 @@
 ﻿import Link from "next/link";
-import { BriefcaseBusiness, Calculator, DraftingCompass, Hammer, HardHat, Home, KeyRound, Leaf, MonitorCog, PaintRoller, PanelTop, Scale, ShieldCheck, Sparkles, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { formatCep } from "@/lib/formatters";
 import { geocodeFreeformBrazilAddress, lookupCepWithCoordinates, parseRadiusKm } from "@/lib/geolocation";
-import { audienceForService, defaultServiceCategories, iconForService, normalizeServiceSlug } from "@/lib/service-catalog";
+import { audienceForService, defaultServiceCategories, normalizeServiceSlug } from "@/lib/service-catalog";
 import { isServiceVisibleByBilling } from "@/lib/service-billing-policy";
 import { isServicePublicContactEnabled } from "@/lib/service-contact-disclosure";
 import { orderAndRecordServiceSearchExposure } from "@/lib/service-search-exposure";
@@ -12,6 +12,7 @@ import { ServiceContactButton } from "@/components/service-contact-button";
 import { ServiceFoundPopup } from "@/components/service-found-popup";
 import { ServiceSearchForm } from "@/components/service-search-form";
 import { PublicShareButton } from "@/components/public-share-button";
+import { ServiceCategoryIcon, serviceCategoryIconComponent } from "@/components/service-category-icon";
 
 export const dynamic = "force-dynamic";
 
@@ -156,7 +157,12 @@ export default async function ServicesPage({ searchParams }: { searchParams: Ser
             </div>
             <p className="mt-3 line-clamp-4 text-sm text-neutral-300">{service.description}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {service.categories.map((item) => <span key={item} className="rounded-full border border-white/10 px-2 py-1 text-xs text-neutral-200">{item}</span>)}
+              {service.categories.map((item) => (
+                <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-xs text-neutral-200">
+                  <ServiceCategoryIcon value={item} size={13} />
+                  {item}
+                </span>
+              ))}
             </div>
             <div className="mt-3 grid gap-1 text-sm text-neutral-400">
               <p>{service.district ? `${service.district}, ` : ""}{service.city}/{service.state}{service.cep ? ` - CEP ${formatCep(service.cep)}` : ""}</p>
@@ -300,7 +306,7 @@ function ServiceAvatar({ service }: { service: PublicService }) {
   if (service.imageUrl) {
     return <img src={service.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-md border border-white/10 object-cover aspect-square" />;
   }
-  const Icon = iconMap[iconForService(service.category)] ?? BriefcaseBusiness;
+  const Icon = serviceCategoryIconComponent(service.category);
   return (
     <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-yellow-300 text-black">
       <Icon size={22} />
@@ -369,26 +375,3 @@ function rankName(rank: string) {
   if (rank === "SILVER") return "Prata";
   return "Bronze";
 }
-
-const iconMap: Record<string, LucideIcon> = {
-  "briefcase-business": BriefcaseBusiness,
-  calculator: Calculator,
-  "drafting-compass": DraftingCompass,
-  hammer: Hammer,
-  "hard-hat": HardHat,
-  home: Home,
-  "key-round": KeyRound,
-  leaf: Leaf,
-  "monitor-cog": MonitorCog,
-  "paint-roller": PaintRoller,
-  "panel-top": PanelTop,
-  pipe: Wrench,
-  scale: Scale,
-  sparkles: Sparkles,
-  wrench: Wrench,
-  zap: Zap
-};
-
-
-
-

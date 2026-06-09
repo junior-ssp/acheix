@@ -10,6 +10,7 @@ import { DashboardLeads } from "@/components/dashboard-leads";
 import { ProfileForm } from "@/components/profile-form";
 import { ServiceProfileActivityPanel } from "@/components/service-profile-activity-panel";
 import { ServiceProfileActions } from "@/components/service-profile-actions";
+import { ServiceCategoryIcon } from "@/components/service-category-icon";
 import { LogoutButton } from "@/components/logout-button";
 import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } from "@/lib/response-metrics";
 import { defaultServiceCategories } from "@/lib/service-catalog";
@@ -166,7 +167,10 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 {(serviceProfile.categorias_servico?.length ? serviceProfile.categorias_servico : [serviceProfile.categoria_servico]).map((item: string) => (
-                  <span key={item} className="rounded-full border border-white/10 px-2 py-1 text-xs text-neutral-200">{serviceCategoryName(item)}</span>
+                  <span key={item} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/10 px-2 py-1 text-xs text-neutral-200">
+                    <ServiceCategoryIcon value={item} size={13} />
+                    {serviceCategoryName(item)}
+                  </span>
                 ))}
               </div>
               <ServiceProfileActions />

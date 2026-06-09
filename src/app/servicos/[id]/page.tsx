@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BriefcaseBusiness, MapPin, ShieldCheck, Star } from "lucide-react";
+import { MapPin, ShieldCheck, Star } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { formatCep } from "@/lib/formatters";
 import { defaultServiceCategories } from "@/lib/service-catalog";
@@ -9,6 +9,7 @@ import { isServicePublicContactEnabled } from "@/lib/service-contact-disclosure"
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { PublicShareButton } from "@/components/public-share-button";
 import { ServiceContactButton } from "@/components/service-contact-button";
+import { ServiceCategoryIcon, serviceCategoryIconComponent } from "@/components/service-category-icon";
 
 type PublicServiceProfile = {
   id: string;
@@ -43,7 +44,7 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
       <section className="rounded-2xl border border-white/10 bg-neutral-900 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <ServiceAvatar imageUrl={service.imageUrl} title={service.title} />
+            <ServiceAvatar imageUrl={service.imageUrl} title={service.title} category={service.category} />
             <div className="min-w-0">
               <p className="text-xs font-black uppercase text-yellow-300">{service.categories[0]}</p>
               <h1 className="mt-1 break-words text-2xl font-black">{service.title}</h1>
@@ -60,7 +61,10 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
 
         <div className="mt-4 flex flex-wrap gap-2">
           {service.categories.map((item) => (
-            <span key={item} className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-200">{item}</span>
+            <span key={item} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-200">
+              <ServiceCategoryIcon value={item} size={14} />
+              {item}
+            </span>
           ))}
         </div>
 
@@ -134,13 +138,14 @@ function rankName(rank: string) {
   return "Bronze";
 }
 
-function ServiceAvatar({ imageUrl, title }: { imageUrl: string | null; title: string }) {
+function ServiceAvatar({ imageUrl, title, category }: { imageUrl: string | null; title: string; category: string }) {
   if (imageUrl) {
     return <img src={imageUrl} alt={title} className="h-16 w-16 shrink-0 rounded-lg border border-white/10 object-cover" />;
   }
+  const Icon = serviceCategoryIconComponent(category);
   return (
     <span className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-yellow-300 text-black">
-      <BriefcaseBusiness size={28} />
+      <Icon size={28} />
     </span>
   );
 }
