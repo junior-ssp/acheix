@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const listingUrl = absoluteUrl(`/anuncios/${listing.slug}`);
 
   return {
-    title,
+    title: { absolute: title },
     description,
     alternates: { canonical: listingUrl },
     openGraph: {
