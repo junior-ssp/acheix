@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const user = await requireUser();
     const [{ data: notifications, error }, { count: unreadCount, error: countError }] = await Promise.all([
-      db().from("Notification").select("*").eq("userId", user.id).is("readAt", null).order("createdAt", { ascending: false }).limit(5),
+      db().from("Notification").select("id,title,message,linkLabel,linkUrl,primaryActionLabel,primaryActionUrl,contactLeadId").eq("userId", user.id).is("readAt", null).order("createdAt", { ascending: false }).limit(5),
       db().from("Notification").select("id", { count: "exact", head: true }).eq("userId", user.id).is("readAt", null)
     ]);
     throwDbError(error);

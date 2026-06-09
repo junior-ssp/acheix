@@ -16,6 +16,8 @@ import { ServiceCategoryIcon, serviceCategoryIconComponent } from "@/components/
 
 export const dynamic = "force-dynamic";
 
+const serviceSearchLimit = 80;
+
 type ServicesPageParams = {
   q?: string;
   category?: string;
@@ -225,7 +227,7 @@ async function findServices(input: { latitude?: number; longitude?: number; radi
     if (error) throw error;
     const textLocationProfiles = await findProfilesByTextLocation(input);
     const services = filterByAudience(mergeServices(((data ?? []) as SearchRow[]).map(fromSearchRow), textLocationProfiles), input.audience).filter((service) => isServiceVisibleByBilling(service.complemento));
-    return orderAndRecordServiceSearchExposure(supabase, services);
+    return (await orderAndRecordServiceSearchExposure(supabase, services)).slice(0, serviceSearchLimit);
   }
 
   let request = supabase
@@ -233,7 +235,7 @@ async function findServices(input: { latitude?: number; longitude?: number; radi
     .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,descricao,experiencia,horario_atendimento,cidade,bairro,cep,estado,foto_perfil,logo_empresa,avaliacao_media,total_avaliacoes,total_servicos,tempo_resposta_minutos,conta_verificada,rank,score,complemento")
     .eq("active", true)
     .in("status", ["ACTIVE", "INACTIVE"])
-    .limit(200);
+    .limit(serviceSearchLimit);
 
   const locationNeedle = serviceLocationNeedle(input);
   if (locationNeedle) {
@@ -274,7 +276,7 @@ async function findServices(input: { latitude?: number; longitude?: number; radi
     contactPublicEnabled: isServicePublicContactEnabled(profile.complemento),
     complemento: profile.complemento
   }));
-  return orderAndRecordServiceSearchExposure(supabase, filterByAudience(profileServices, input.audience).filter((service) => isServiceVisibleByBilling(service.complemento)));
+  return (await orderAndRecordServiceSearchExposure(supabase, filterByAudience(profileServices, input.audience).filter((service) => isServiceVisibleByBilling(service.complemento)))).slice(0, serviceSearchLimit);
 }
 
 async function findProfilesByTextLocation(input: { state: string; city: string; district: string; query: string; category: string }): Promise<PublicService[]> {
@@ -288,7 +290,7 @@ async function findProfilesByTextLocation(input: { state: string; city: string; 
     .eq("active", true)
     .in("status", ["ACTIVE", "INACTIVE"])
     .ilike("search_text", `%${locationNeedle}%`)
-    .limit(200);
+    .limit(serviceSearchLimit);
 
   if (input.category) request = request.or(`categoria_servico.eq.${input.category},categorias_servico.cs.{${input.category}}`);
   if (input.query) request = request.ilike("search_text", `%${input.query}%`);

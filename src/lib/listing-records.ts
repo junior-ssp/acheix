@@ -51,6 +51,14 @@ export function listingColumns() {
   ].join(",");
 }
 
+const vehicleColumns = [
+  "id", "listingId", "brand", "model", "version", "fipeCode", "year", "mileageKm", "color", "fuel", "gearbox"
+].join(",");
+
+const realEstateColumns = [
+  "id", "listingId", "purpose", "bedrooms", "suites", "bathrooms", "parking", "areaM2", "features"
+].join(",");
+
 export async function hydrateListings(rows: ListingRow[]): Promise<ListingRecord[]> {
   if (!rows.length) return [];
   const listingIds = rows.map((row) => row.id);
@@ -59,11 +67,11 @@ export async function hydrateListings(rows: ListingRow[]): Promise<ListingRecord
 
   const [photosResult, vehiclesResult, realEstateResult, plansResult, ownersResult, ownerListingRowsResult] = await Promise.all([
     db().from("Photo").select("id,listingId,url,alt,order").in("listingId", listingIds).order("order", { ascending: true }),
-    db().from("Vehicle").select("*").in("listingId", listingIds),
-    db().from("RealEstate").select("*").in("listingId", listingIds),
+    db().from("Vehicle").select(vehicleColumns).in("listingId", listingIds),
+    db().from("RealEstate").select(realEstateColumns).in("listingId", listingIds),
     planIds.length ? db().from("Plan").select("id,code,name,priceCents,durationDays,photoLimit,listingLimit").in("id", planIds) : Promise.resolve({ data: [], error: null }),
     ownerIds.length ? db().from("User").select("id,name,city,state,acceptedTermsAt,identityVerifiedAt,createdAt").in("id", ownerIds) : Promise.resolve({ data: [], error: null }),
-    ownerIds.length ? db().from("Listing").select("ownerId").in("ownerId", ownerIds) : Promise.resolve({ data: [], error: null })
+    ownerIds.length ? db().from("Listing").select("ownerId").in("ownerId", ownerIds).eq("status", "ACTIVE") : Promise.resolve({ data: [], error: null })
   ]);
 
   for (const result of [photosResult, vehiclesResult, realEstateResult, plansResult, ownersResult, ownerListingRowsResult]) {
@@ -71,8 +79,8 @@ export async function hydrateListings(rows: ListingRow[]): Promise<ListingRecord
   }
 
   const photosByListing = groupBy(photosResult.data ?? [], "listingId");
-  const vehicleByListing = keyBy(vehiclesResult.data ?? [], "listingId");
-  const realEstateByListing = keyBy(realEstateResult.data ?? [], "listingId");
+  const vehicleByListing = keyBy((vehiclesResult.data ?? []) as any[], "listingId");
+  const realEstateByListing = keyBy((realEstateResult.data ?? []) as any[], "listingId");
   const planById = keyBy(plansResult.data ?? [], "id");
   const ownerById = keyBy(ownersResult.data ?? [], "id");
   const counts = new Map<string, number>();

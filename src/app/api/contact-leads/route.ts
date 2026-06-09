@@ -39,7 +39,7 @@ async function findOwnedLeads(ownerId: string) {
   const listingIds = [...listingById.keys()];
   if (!listingIds.length) return [];
 
-  const { data: leads, error } = await db().from("ContactLead").select("*").in("listingId", listingIds);
+  const { data: leads, error } = await db().from("ContactLead").select("id,listingId,interestedUserId").in("listingId", listingIds);
   throwDbError(error);
   const leadRows = (leads ?? []) as Array<any>;
   const interestedIds = [...new Set(leadRows.map((lead) => lead.interestedUserId).filter(Boolean))];

@@ -370,8 +370,8 @@ async function findDashboardLeads(ownerId: string) {
   const listingById = new Map(listingRows.map((listing) => [listing.id, listing]));
   const listingIds = [...listingById.keys()];
   const [receivedResult, sentResult, metricsResult] = await Promise.all([
-    listingIds.length ? db().from("ContactLead").select("*").in("listingId", listingIds).order("createdAt", { ascending: false }).limit(30) : Promise.resolve({ data: [], error: null }),
-    db().from("ContactLead").select("*").eq("interestedUserId", ownerId).order("createdAt", { ascending: false }).limit(30),
+    listingIds.length ? db().from("ContactLead").select("id,listingId,interestedUserId,name,email,phone,question1,question2,question3,status,createdAt").in("listingId", listingIds).order("createdAt", { ascending: false }).limit(30) : Promise.resolve({ data: [], error: null }),
+    db().from("ContactLead").select("id,listingId,status,readAt,createdAt").eq("interestedUserId", ownerId).order("createdAt", { ascending: false }).limit(30),
     listingIds.length ? db().from("ContactLead").select("createdAt,decidedAt,status,listingId").in("listingId", listingIds).order("createdAt", { ascending: false }).limit(200) : Promise.resolve({ data: [], error: null })
   ]);
   throwDbError(receivedResult.error);

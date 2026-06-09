@@ -14,6 +14,8 @@ import { serviceProfileSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
 
+const serviceSearchLimit = 80;
+
 type ServiceProfileSearchRow = {
   id: string;
   tipo_cadastro: "INDIVIDUAL" | "COMPANY";
@@ -72,7 +74,7 @@ export async function GET(request: Request) {
     });
     if (error) throw error;
     const textLocationProfiles = await findProfilesByTextLocation({ searchState, searchCity, searchDistrict, category, query });
-    const services = await orderAndRecordServiceSearchExposure(supabase, mergePublicProfiles((data ?? []).map(toPublicProfile), textLocationProfiles).filter((service) => isServiceVisibleByBilling(service.complemento)));
+    const services = (await orderAndRecordServiceSearchExposure(supabase, mergePublicProfiles((data ?? []).map(toPublicProfile), textLocationProfiles).filter((service) => isServiceVisibleByBilling(service.complemento)))).slice(0, serviceSearchLimit);
     return json({ services: services.map(stripInternalServiceFields), radiusKm, location: { latitude, longitude } });
   }
 
@@ -81,7 +83,7 @@ export async function GET(request: Request) {
     .select("id,tipo_cadastro,categoria_servico,categorias_servico,name,nome_fantasia,descricao,experiencia,horario_atendimento,cidade,bairro,cep,estado,foto_perfil,logo_empresa,avaliacao_media,total_avaliacoes,total_servicos,tempo_resposta_minutos,conta_verificada,rank,score,complemento")
     .eq("active", true)
     .in("status", ["ACTIVE", "INACTIVE"])
-    .limit(200);
+    .limit(serviceSearchLimit);
 
   const locationNeedle = serviceLocationNeedle({ state: searchState, city: searchCity, district: searchDistrict });
   if (locationNeedle) {
@@ -95,7 +97,7 @@ export async function GET(request: Request) {
   const { data, error } = await requestBuilder;
   if (error) throw error;
 
-  const services = await orderAndRecordServiceSearchExposure(supabase, (data ?? []).map((profile) => toPublicProfile({ ...profile, distance_km: null })).filter((service) => isServiceVisibleByBilling(service.complemento)));
+  const services = (await orderAndRecordServiceSearchExposure(supabase, (data ?? []).map((profile) => toPublicProfile({ ...profile, distance_km: null })).filter((service) => isServiceVisibleByBilling(service.complemento)))).slice(0, serviceSearchLimit);
   return json({ services: services.map(stripInternalServiceFields), radiusKm });
 }
 
@@ -110,7 +112,7 @@ async function findProfilesByTextLocation(input: { searchState: string; searchCi
     .eq("active", true)
     .in("status", ["ACTIVE", "INACTIVE"])
     .ilike("search_text", `%${locationNeedle}%`)
-    .limit(200);
+    .limit(serviceSearchLimit);
 
   if (input.category) request = request.or(`categoria_servico.eq.${input.category},categorias_servico.cs.{${input.category}}`);
   if (input.query) request = request.ilike("search_text", `%${input.query}%`);
