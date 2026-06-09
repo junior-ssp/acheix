@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, MessageCircle, Share2 } from "lucide-react";
 
 type ShareChannel = "whatsapp" | "copy" | "social";
@@ -15,11 +15,13 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
   const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const url = useMemo(() => {
+
+  function buildShareUrl() {
     const version = Date.now().toString(36);
-    if (typeof window === "undefined") return `/anuncios/${slug}?v=${version}`;
-    return `${window.location.origin}/anuncios/${slug}?v=${version}`;
-  }, [slug]);
+    const path = `/anuncios/${slug}?v=${version}`;
+    if (typeof window === "undefined") return path;
+    return `${window.location.origin}${path}`;
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +51,7 @@ export function ShareMenu({ slug, title, compact = false }: { slug: string; titl
   }
 
   async function share(channel: ShareChannel) {
+    const url = buildShareUrl();
     await registerShare(channel);
 
     if (channel === "copy") {
