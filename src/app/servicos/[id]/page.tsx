@@ -57,7 +57,7 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
           <PublicShareButton title={`Achei este profissional: ${service.title}`} path={`/servicos/${service.id}`} compact />
         </div>
 
-        <p className="mt-5 whitespace-pre-line text-neutral-200">{service.description}</p>
+        {publicServiceDescription(service) ? <p className="mt-5 whitespace-pre-line text-neutral-200">{publicServiceDescription(service)}</p> : null}
 
         <div className="mt-4 flex flex-wrap gap-2">
           {service.categories.map((item) => (
@@ -105,7 +105,7 @@ async function getService(id: string): Promise<PublicServiceProfile | null> {
   if (profile && profile.active && ["ACTIVE", "INACTIVE"].includes(profile.status) && isServiceVisibleByBilling(profile.complemento)) {
     return {
       id: profile.id,
-      title: profile.nome_fantasia ?? profile.name ?? categoryName(profile.categoria_servico),
+      title: serviceTitle(profile.nome_fantasia, profile.name, profile.categoria_servico),
       category: profile.categoria_servico,
       categories: (profile.categorias_servico ?? [profile.categoria_servico]).map(categoryName),
       description: profile.descricao,
@@ -136,6 +136,36 @@ function rankName(rank: string) {
   if (rank === "GOLD") return "Ouro";
   if (rank === "SILVER") return "Prata";
   return "Bronze";
+}
+
+function serviceTitle(companyName: string | null, providerName: string | null, category: string) {
+  const publicCompany = publicName(companyName);
+  const publicProvider = publicName(providerName);
+  return publicCompany ?? publicProvider ?? categoryName(category);
+}
+
+function publicServiceDescription(service: PublicServiceProfile) {
+  const description = String(service.description ?? "").trim();
+  if (!description) return null;
+  const normalizedDescription = normalize(description);
+  if (normalize(service.title) && normalizedDescription.startsWith(`${normalize(service.title)} atende em`)) return null;
+  if (looksLikeFiscalName(description.split(" atende em ")[0] ?? "")) return null;
+  return description;
+}
+
+function publicName(value: string | null | undefined) {
+  const name = String(value ?? "").trim();
+  if (!name || looksLikeFiscalName(name)) return null;
+  return name;
+}
+
+function looksLikeFiscalName(value: string) {
+  const text = String(value ?? "").trim();
+  return /^\d{2}\.?\d{3}\.?\d{3}/.test(text) || /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-?\d{2}\b/.test(text);
+}
+
+function normalize(value?: string | null) {
+  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 function ServiceAvatar({ imageUrl, title, category }: { imageUrl: string | null; title: string; category: string }) {

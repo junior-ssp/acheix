@@ -173,7 +173,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Ser
                 ))}
               </div>
 
-              <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-neutral-300">{service.description}</p>
+              {publicServiceDescription(service) ? <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-neutral-300">{publicServiceDescription(service)}</p> : null}
 
               <div className="mt-4 grid gap-2 text-sm text-neutral-300">
                 <p className="flex items-start gap-2">
@@ -253,8 +253,8 @@ async function findServices(input: { latitude?: number; longitude?: number; radi
     id: profile.id,
     type: profile.tipo_cadastro,
     title: serviceTitle(profile.nome_fantasia, profile.name, profile.categoria_servico),
-    companyName: profile.nome_fantasia ?? null,
-    providerName: profile.name ?? null,
+    companyName: publicCompanyName(profile.nome_fantasia),
+    providerName: publicProviderName(profile.name, profile.nome_fantasia),
     category: profile.categoria_servico,
     categories: profile.categorias_servico.map(categoryName),
     description: profile.descricao,
@@ -373,8 +373,8 @@ function fromSearchRow(row: SearchRow): PublicService {
     id: row.id,
     type: row.tipo_cadastro,
     title: serviceTitle(row.nome_fantasia, row.name, row.categoria_servico),
-    companyName: row.nome_fantasia ?? null,
-    providerName: row.name ?? null,
+    companyName: publicCompanyName(row.nome_fantasia),
+    providerName: publicProviderName(row.name, row.nome_fantasia),
     category: row.categoria_servico,
     categories: row.categorias_servico.map(categoryName),
     description: row.descricao,
@@ -413,7 +413,7 @@ function categoryName(slug: string) {
 }
 
 function serviceTitle(companyName: string | null, providerName: string | null, category: string) {
-  return companyName ?? providerName ?? categoryName(category);
+  return publicCompanyName(companyName) ?? publicProviderName(providerName, companyName) ?? categoryName(category);
 }
 
 function rankName(rank: string) {
@@ -425,4 +425,34 @@ function rankName(rank: string) {
 function serviceProfileImage(logo: string | null | undefined, photo: string | null | undefined, complement: string | null | undefined) {
   const billing = serviceBillingFromComplement(complement);
   return billing.planCode === "SERVICE_PRO" && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
+}
+
+function publicCompanyName(value: string | null | undefined) {
+  const name = String(value ?? "").trim();
+  if (!name || looksLikeFiscalName(name)) return null;
+  return name;
+}
+
+function publicProviderName(value: string | null | undefined, companyName?: string | null) {
+  const name = String(value ?? "").trim();
+  if (!name || name === companyName || looksLikeFiscalName(name)) return null;
+  return name;
+}
+
+function publicServiceDescription(service: PublicService) {
+  const description = String(service.description ?? "").trim();
+  if (!description || looksLikeAutoFiscalDescription(description, service)) return null;
+  return description;
+}
+
+function looksLikeAutoFiscalDescription(description: string, service: PublicService) {
+  const normalizedDescription = normalize(description);
+  const names = [service.title, service.companyName, service.providerName].filter((item): item is string => Boolean(item)).map((item) => normalize(item));
+  if (names.some((name) => name && normalizedDescription.startsWith(`${name} atende em`))) return true;
+  return looksLikeFiscalName(description.split(" atende em ")[0] ?? "");
+}
+
+function looksLikeFiscalName(value: string) {
+  const text = String(value ?? "").trim();
+  return /^\d{2}\.?\d{3}\.?\d{3}/.test(text) || /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-?\d{2}\b/.test(text);
 }

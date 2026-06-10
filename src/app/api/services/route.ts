@@ -358,7 +358,7 @@ function toPublicProfile(profile: any) {
   return {
     id: profile.id,
     type,
-    title: profile.nome_fantasia ?? profile.name ?? categoryName(category),
+    title: serviceTitle(profile.nome_fantasia, profile.name, category),
     category,
     categories: categories.map(categoryName),
     description: profile.descricao,
@@ -384,6 +384,23 @@ function toPublicProfile(profile: any) {
 
 function categoryName(slug: string) {
   return defaultServiceCategories.find((item) => item.slug === slug)?.name ?? slug;
+}
+
+function serviceTitle(companyName: string | null, providerName: string | null, category: string) {
+  const publicCompany = publicName(companyName);
+  const publicProvider = publicName(providerName);
+  return publicCompany ?? publicProvider ?? categoryName(category);
+}
+
+function publicName(value: string | null | undefined) {
+  const name = String(value ?? "").trim();
+  if (!name || looksLikeFiscalName(name)) return null;
+  return name;
+}
+
+function looksLikeFiscalName(value: string) {
+  const text = String(value ?? "").trim();
+  return /^\d{2}\.?\d{3}\.?\d{3}/.test(text) || /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-?\d{2}\b/.test(text);
 }
 
 function normalizeCategory(value: string | null | undefined) {
