@@ -4,7 +4,7 @@ import { MapPin, ShieldCheck, Star } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { formatCep } from "@/lib/formatters";
 import { defaultServiceCategories } from "@/lib/service-catalog";
-import { isServiceVisibleByBilling } from "@/lib/service-billing-policy";
+import { isServiceVisibleByBilling, serviceBillingFromComplement } from "@/lib/service-billing-policy";
 import { isServicePublicContactEnabled } from "@/lib/service-contact-disclosure";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { PublicShareButton } from "@/components/public-share-button";
@@ -119,7 +119,7 @@ async function getService(id: string): Promise<PublicServiceProfile | null> {
       verified: profile.conta_verificada,
       rank: profile.rank,
       score: profile.score,
-      imageUrl: profile.logo_empresa ?? profile.foto_perfil ?? null,
+      imageUrl: serviceProfileImage(profile.logo_empresa, profile.foto_perfil, profile.complemento),
       contactPublicEnabled: isServicePublicContactEnabled(profile.complemento)
     };
   }
@@ -148,6 +148,11 @@ function ServiceAvatar({ imageUrl, title, category }: { imageUrl: string | null;
       <Icon size={28} />
     </span>
   );
+}
+
+function serviceProfileImage(logo: string | null | undefined, photo: string | null | undefined, complement: string | null | undefined) {
+  const billing = serviceBillingFromComplement(complement);
+  return billing.planCode === "SERVICE_PRO" && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
 }
 
 

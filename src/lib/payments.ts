@@ -180,12 +180,15 @@ async function confirmServicePayment(payment: PaymentForConfirmation, reference:
 
   const complement = parseServiceComplement(profile.complemento);
   const serviceBilling = activateServiceProBilling(complement.serviceBilling, paidAt);
+  const pendingServicePro = isRecord(complement.pendingServicePro) ? complement.pendingServicePro : {};
+  const nextLogo = typeof pendingServicePro.companyLogo === "string" && pendingServicePro.companyLogo ? pendingServicePro.companyLogo : undefined;
   const { error: updateProfileError } = await supabase
     .from("service_profiles")
     .update({
       active: true,
       status: "ACTIVE",
-      complemento: JSON.stringify({ ...complement, serviceBilling }),
+      complemento: JSON.stringify({ ...complement, serviceBilling, pendingServicePro: null }),
+      ...(nextLogo ? { logo_empresa: nextLogo } : {}),
       last_active_at: paidAt.toISOString(),
       updated_at: paidAt.toISOString(),
       paused_at: null,
@@ -240,4 +243,8 @@ function isOldEnoughForReconciliation(updatedAt: string | null | undefined) {
 
 function isPaidPlanCode(value: string | undefined): value is PaidPlanCode {
   return value === "BRONZE" || value === "SILVER" || value === "GOLD" || value === "X6" || value === "X12";
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

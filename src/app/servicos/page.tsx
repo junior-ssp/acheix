@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatCep } from "@/lib/formatters";
 import { geocodeFreeformBrazilAddress, lookupCepWithCoordinates, parseRadiusKm } from "@/lib/geolocation";
 import { audienceForService, defaultServiceCategories, normalizeServiceSlug } from "@/lib/service-catalog";
-import { isServiceVisibleByBilling } from "@/lib/service-billing-policy";
+import { isServiceVisibleByBilling, serviceBillingFromComplement } from "@/lib/service-billing-policy";
 import { isServicePublicContactEnabled } from "@/lib/service-contact-disclosure";
 import { orderAndRecordServiceSearchExposure } from "@/lib/service-search-exposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -264,7 +264,7 @@ async function findServices(input: { latitude?: number; longitude?: number; radi
     district: profile.bairro,
     state: profile.estado,
     cep: profile.cep,
-    imageUrl: profile.logo_empresa ?? profile.foto_perfil ?? null,
+    imageUrl: serviceProfileImage(profile.logo_empresa, profile.foto_perfil, profile.complemento),
     averageRating: profile.avaliacao_media,
     totalRatings: profile.total_avaliacoes,
     totalServices: profile.total_servicos,
@@ -384,7 +384,7 @@ function fromSearchRow(row: SearchRow): PublicService {
     district: row.bairro,
     state: row.estado,
     cep: row.cep,
-    imageUrl: row.logo_empresa ?? row.foto_perfil ?? null,
+    imageUrl: serviceProfileImage(row.logo_empresa, row.foto_perfil, row.complemento),
     averageRating: row.avaliacao_media,
     totalRatings: row.total_avaliacoes,
     totalServices: row.total_servicos,
@@ -420,4 +420,9 @@ function rankName(rank: string) {
   if (rank === "GOLD") return "Ouro";
   if (rank === "SILVER") return "Prata";
   return "Bronze";
+}
+
+function serviceProfileImage(logo: string | null | undefined, photo: string | null | undefined, complement: string | null | undefined) {
+  const billing = serviceBillingFromComplement(complement);
+  return billing.planCode === "SERVICE_PRO" && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
 }

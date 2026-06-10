@@ -154,7 +154,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
             <article className="overflow-visible rounded-xl border border-emerald-300/20 bg-[linear-gradient(145deg,#090909_0%,#101713_58%,#071f12_100%)] p-4 shadow-2xl shadow-emerald-950/30">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">
-                  {serviceProfile.logo_empresa ? (
+                  {serviceBilling?.billing.planCode === "SERVICE_PRO" && serviceProfile.logo_empresa ? (
                     <img src={serviceProfile.logo_empresa} alt="Logotipo do CARD" className="h-16 w-16 shrink-0 rounded-xl border border-emerald-300/25 bg-black/35 object-contain p-2" />
                   ) : null}
                   <div className="min-w-0">

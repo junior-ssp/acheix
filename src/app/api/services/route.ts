@@ -4,7 +4,7 @@ import { onlyDigits } from "@/lib/formatters";
 import { lookupCepWithCoordinates, parseRadiusKm } from "@/lib/geolocation";
 import { errorResponse, json } from "@/lib/http";
 import { defaultServiceCategories, normalizeServiceSlug } from "@/lib/service-catalog";
-import { ensureServiceBilling, isServiceVisibleByBilling } from "@/lib/service-billing-policy";
+import { ensureServiceBilling, isServiceVisibleByBilling, serviceBillingFromComplement } from "@/lib/service-billing-policy";
 import { isPublicServiceContactPreference, isServicePublicContactEnabled, parseServiceComplement, serviceContactDisclosureText, serviceContactDisclosureVersion } from "@/lib/service-contact-disclosure";
 import { getServicePlan } from "@/lib/service-plans";
 import { orderAndRecordServiceSearchExposure } from "@/lib/service-search-exposure";
@@ -194,13 +194,17 @@ export async function POST(request: Request) {
 
     const { data: existing, error: lookupError } = await supabase
       .from("service_profiles")
-      .select("id,complemento")
+      .select("id,complemento,logo_empresa")
       .eq("user_id", user.id)
       .maybeSingle();
     if (lookupError) throw lookupError;
 
     const existingComplement = parseServiceComplement(existing?.complemento);
     const serviceBilling = ensureServiceBilling(existingComplement.serviceBilling, now);
+    const hasPaidServicePro = serviceBilling.planCode === "SERVICE_PRO" && serviceBilling.status !== "HIDDEN";
+    const pendingServicePro = servicePlan.code === "SERVICE_PRO" && !hasPaidServicePro
+      ? { companyLogo: data.companyLogo || null, requestedAt: nowIso }
+      : existingComplement.pendingServicePro;
     const previousDisclosure = existingComplement.contactDisclosure;
     const hadPublicContact = Boolean(previousDisclosure?.publicContactEnabled && previousDisclosure?.acceptedAt);
     const contactDisclosure = buildContactDisclosure({
@@ -215,7 +219,8 @@ export async function POST(request: Request) {
       serviceLocations: locations,
       contactPreference,
       contactDisclosure,
-      serviceBilling
+      serviceBilling,
+      pendingServicePro
     });
 
     const payload = {
@@ -244,7 +249,7 @@ export async function POST(request: Request) {
       email_privado: data.privateEmail || null,
       website: null,
       foto_perfil: null,
-      logo_empresa: servicePlan.code === "SERVICE_PRO" ? data.companyLogo || null : null,
+      logo_empresa: hasPaidServicePro ? data.companyLogo || null : existing?.logo_empresa ?? null,
       conta_verificada: Boolean(user.identityVerifiedAt),
       score,
       rank: rankFromScore(score),
@@ -363,7 +368,7 @@ function toPublicProfile(profile: any) {
     district: profile.bairro,
     state: profile.estado,
     cep: profile.cep,
-    imageUrl: profile.logo_empresa ?? profile.foto_perfil ?? null,
+    imageUrl: serviceProfileImage(profile.logo_empresa, profile.foto_perfil, profile.complemento),
     averageRating: profile.avaliacao_media,
     totalRatings: profile.total_avaliacoes,
     totalServices: profile.total_servicos,
@@ -410,4 +415,9 @@ function rankFromScore(score: number) {
   if (score >= 75) return "GOLD";
   if (score >= 50) return "SILVER";
   return "BRONZE";
+}
+
+function serviceProfileImage(logo: string | null | undefined, photo: string | null | undefined, complement: string | null | undefined) {
+  const billing = serviceBillingFromComplement(complement);
+  return billing.planCode === "SERVICE_PRO" && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
 }
