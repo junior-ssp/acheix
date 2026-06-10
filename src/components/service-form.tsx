@@ -81,6 +81,7 @@ export function ServiceForm({
   const firstCategoryAudience = initialCategories[0] ? audienceForService(initialCategories[0]) : null;
   const initialLocations = buildInitialLocations(initialProfile, user);
   const initialCompanyName = initialProfile?.type === "COMPANY" ? initialProfile.companyTradeName ?? initialProfile.companyLegalName ?? "" : "";
+  const initialCompanyLegalName = initialProfile?.type === "COMPANY" ? initialProfile.companyLegalName ?? "" : "";
   const initialPersonName = initialProfile?.name ?? user.name ?? "";
   const initialPhone = formatPhone(initialProfile?.privateWhatsapp ?? initialProfile?.privatePhone ?? user.whatsapp ?? user.phone ?? "");
   const initialCompanyDocument = initialProfile?.type === "COMPANY" && isValidCnpjValue(initialProfile.document) ? formatCnpj(initialProfile.document) : "";
@@ -103,6 +104,8 @@ export function ServiceForm({
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [cnpjValue, setCnpjValue] = useState(initialCompanyDocument);
   const [companyName, setCompanyName] = useState(initialCompanyName);
+  const [companyLegalName, setCompanyLegalName] = useState(initialCompanyLegalName);
+  const [companyLookupTradeName, setCompanyLookupTradeName] = useState(initialProfile?.type === "COMPANY" ? initialProfile.companyTradeName ?? "" : "");
   const [companyLogo, setCompanyLogo] = useState(canUseLogo ? initialProfile?.companyLogo ?? "" : "");
   const [logoUploading, setLogoUploading] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
@@ -131,6 +134,8 @@ export function ServiceForm({
         selectedCategories: string[];
         locations: ServiceLocation[];
         companyName: string;
+        companyLegalName: string;
+        companyLookupTradeName: string;
         cnpjValue: string;
         contactPreference: ServiceContactPreference;
       }>;
@@ -140,6 +145,8 @@ export function ServiceForm({
       if (Array.isArray(draft.selectedCategories)) setSelectedCategories(draft.selectedCategories.slice(0, servicePlan.maxCategories));
       if (Array.isArray(draft.locations) && draft.locations.length) setLocations(draft.locations.slice(0, 5));
       if (typeof draft.companyName === "string") setCompanyName(draft.companyName);
+      if (typeof draft.companyLegalName === "string") setCompanyLegalName(draft.companyLegalName);
+      if (typeof draft.companyLookupTradeName === "string") setCompanyLookupTradeName(draft.companyLookupTradeName);
       if (typeof draft.cnpjValue === "string" && isValidCnpjValue(draft.cnpjValue)) setCnpjValue(formatCnpj(draft.cnpjValue));
       if (!initialPublicContactEnabled && isContactPreference(draft.contactPreference)) setContactPreference(canUsePublicContact ? draft.contactPreference : "LEADS_ONLY");
     } catch {
@@ -152,7 +159,7 @@ export function ServiceForm({
   useEffect(() => {
     if (!draftReady) return;
     saveDraft(false);
-  }, [draftReady, enabled, type, audience, selectedCategories, locations, companyName, cnpjValue, contactPreference]);
+  }, [draftReady, enabled, type, audience, selectedCategories, locations, companyName, companyLegalName, companyLookupTradeName, cnpjValue, contactPreference]);
 
   const filteredCategories = useMemo(() => {
     return categories
@@ -170,6 +177,8 @@ export function ServiceForm({
       selectedCategories: string[];
       locations: ServiceLocation[];
       companyName: string;
+      companyLegalName: string;
+      companyLookupTradeName: string;
       cnpjValue: string;
       contactPreference: ServiceContactPreference;
     }> = {}
@@ -181,6 +190,8 @@ export function ServiceForm({
       selectedCategories,
       locations,
       companyName,
+      companyLegalName,
+      companyLookupTradeName,
       cnpjValue,
       contactPreference,
       ...overrides,
@@ -233,6 +244,8 @@ export function ServiceForm({
     if (value === "COMPANY" && !isValidCnpjValue(cnpjValue)) {
       setCnpjValue("");
       if (!initialCompanyName) setCompanyName("");
+      if (!initialCompanyLegalName) setCompanyLegalName("");
+      setCompanyLookupTradeName("");
     }
   }
 
@@ -315,8 +328,12 @@ export function ServiceForm({
       return;
     }
 
-    const name = data.tradeName || data.companyName || "";
-    if (name) setCompanyName(name);
+    const legalName = String(data.companyName ?? "").trim();
+    const tradeName = String(data.tradeName ?? "").trim();
+    const suggestedPublicName = tradeName || legalName;
+    if (legalName) setCompanyLegalName(legalName);
+    setCompanyLookupTradeName(tradeName);
+    if (suggestedPublicName && (!companyName || companyName === companyLegalName || companyName === companyLookupTradeName)) setCompanyName(suggestedPublicName);
     const cep = formatCep(data.cep ?? "");
     setLocations((current) => {
       const next = [...current];
@@ -329,7 +346,13 @@ export function ServiceForm({
         address: data.address || next[0].address,
         number: data.number || next[0].number
       };
-      saveDraft(false, { companyName: name || companyName, cnpjValue: formatCnpj(digits), locations: next });
+      saveDraft(false, {
+        companyName: suggestedPublicName || companyName,
+        companyLegalName: legalName || companyLegalName,
+        companyLookupTradeName: tradeName,
+        cnpjValue: formatCnpj(digits),
+        locations: next
+      });
       return next;
     });
     setMessage("CNPJ consultado. Confira os dados preenchidos automaticamente.");
@@ -360,7 +383,7 @@ export function ServiceForm({
       type,
       categories: selectedCategories,
       name,
-      companyLegalName: type === "COMPANY" ? name : "",
+      companyLegalName: type === "COMPANY" ? companyLegalName || name : "",
       companyTradeName: type === "COMPANY" ? name : "",
       document: type === "COMPANY" ? cnpj : "",
       description: `${name || "Prestador"} atende em ${firstLocation.city || "sua região"}.`,
@@ -494,7 +517,39 @@ export function ServiceForm({
             {type === "COMPANY" ? (
               <input name="document" required inputMode="numeric" maxLength={18} placeholder="XX.XXX.XXX/XXXX-XX" value={cnpjValue} onChange={(event) => { const next = formatCnpj(event.currentTarget.value); setCnpjValue(next); saveDraft(false, { cnpjValue: next }); }} onBlur={(event) => lookupCnpj(event.currentTarget.value)} className="input" />
             ) : null}
-            <input name="name" required placeholder={type === "COMPANY" ? (cnpjLoading ? "Buscando dados do CNPJ..." : "Nome Fantasia ou Razão Social") : "Nome"} value={type === "COMPANY" ? companyName : undefined} defaultValue={type === "INDIVIDUAL" ? initialPersonName : undefined} onChange={type === "COMPANY" ? (event) => setCompanyName(event.currentTarget.value) : undefined} className="input" />
+            {type === "COMPANY" ? (
+              <div className="grid gap-2 sm:col-span-2">
+                {companyLegalName ? (
+                  <div className="rounded-lg border border-white/10 bg-black/25 p-3 text-xs text-neutral-300">
+                    <span className="block font-black uppercase text-neutral-500">Razão Social puxada pelo CNPJ</span>
+                    <strong className="mt-1 block text-sm text-white">{companyLegalName}</strong>
+                    {companyLookupTradeName ? (
+                      <p className="mt-1">Nome fantasia encontrado: <strong className="text-yellow-300">{companyLookupTradeName}</strong></p>
+                    ) : null}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {companyLookupTradeName ? (
+                        <button type="button" onClick={() => setCompanyName(companyLookupTradeName)} className="rounded-full bg-[#22C55E] px-3 py-1.5 text-xs font-black text-black">
+                          Usar Nome Fantasia
+                        </button>
+                      ) : null}
+                      <button type="button" onClick={() => setCompanyName(companyLegalName)} className="rounded-full border border-yellow-300/35 px-3 py-1.5 text-xs font-black text-yellow-300">
+                        Usar Razão Social
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                <input
+                  name="name"
+                  required
+                  placeholder={cnpjLoading ? "Buscando dados do CNPJ..." : "Nome que aparecerá no CARD"}
+                  value={companyName}
+                  onChange={(event) => setCompanyName(event.currentTarget.value)}
+                  className="input"
+                />
+              </div>
+            ) : (
+              <input name="name" required placeholder="Nome" defaultValue={initialPersonName} className="input" />
+            )}
             <input name="privatePhone" required inputMode="numeric" maxLength={15} placeholder="Telefone" defaultValue={initialPhone} onChange={(event) => { event.currentTarget.value = formatPhone(event.currentTarget.value); }} className="input" />
           </div>
 
