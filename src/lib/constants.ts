@@ -201,6 +201,20 @@ export const demoListings = [
     plan: { code: "GOLD", name: "OURO" }
   },
   {
+    id: "demo-vehicle-hybrid-honda",
+    slug: "demo-honda-civic-hibrido-2024",
+    title: "Honda Civic híbrido 2024 completo",
+    category: "VEHICLE",
+    type: "Carro",
+    priceCents: 18990000,
+    city: "Campinas",
+    state: "SP",
+    createdAt: demoCreatedAt,
+    expiresAt: demoExpiresIn(120),
+    photos: [{ url: "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=900&q=80", alt: "Honda híbrido em anúncio demonstrativo" }],
+    plan: { code: "GOLD", name: "OURO" }
+  },
+  {
     id: "demo-vehicle-electric-moto-voltz",
     slug: "demo-voltz-evs-eletrica-2024",
     title: "Voltz EVS elétrica 2024 bateria revisada",

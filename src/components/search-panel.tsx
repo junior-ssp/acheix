@@ -13,6 +13,7 @@ type SearchPanelProps = {
   min?: string;
   max?: string;
   brand?: string;
+  fuel?: string;
   purpose?: string;
   sort?: string;
   action?: string;
@@ -20,8 +21,9 @@ type SearchPanelProps = {
   compact?: boolean;
 };
 
-export function SearchPanel({ q, category, type, min, max, brand, purpose, sort, action = "/buscar", fixedCategory, compact }: SearchPanelProps) {
+export function SearchPanel({ q, category, type, min, max, brand, fuel, purpose, sort, action = "/buscar", fixedCategory, compact }: SearchPanelProps) {
   const currentCategory = fixedCategory ?? category;
+  const fuelValue = fuel === "ELECTRIC_OR_HYBRID" ? "Elétrico/Híbrido" : fuel;
 
   if (compact) {
     return (
@@ -97,7 +99,7 @@ export function SearchPanel({ q, category, type, min, max, brand, purpose, sort,
               <input name="minYear" type="number" placeholder="Ano mínimo" className="filter-input" />
               <input name="maxYear" type="number" placeholder="Ano máximo" className="filter-input" />
               <input name="color" placeholder="Cor" className="filter-input" />
-              <input name="fuel" placeholder="Combustível" className="filter-input" />
+              <input name="fuel" defaultValue={fuelValue} placeholder="Combustível" className="filter-input" />
               <input name="gearbox" placeholder="Câmbio" className="filter-input" />
               <IntegerInput name="maxMileageKm" placeholder="Km máximo" className="filter-input" />
             </>

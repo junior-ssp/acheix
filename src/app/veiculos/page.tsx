@@ -1,6 +1,6 @@
 import { ListingResults } from "@/components/listing-results";
 import { SearchPanel } from "@/components/search-panel";
-import type { ListingSearchParams } from "@/lib/listing-search";
+import { ELECTRIC_OR_HYBRID_FUEL_FILTER, type ListingSearchParams } from "@/lib/listing-search";
 import type { LucideIcon } from "lucide-react";
 import { Bike, BusFront, CarFront, Package, ShipWheel, Truck, Zap } from "lucide-react";
 import type { Route } from "next";
@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default function VehiclesPage({ searchParams }: { searchParams: ListingSearchParams }) {
   const activeType = normalizeVehicleType(searchParams.type);
+  const electricHybridActive = isElectricHybridFuel(searchParams.fuel);
   const priceBands = priceBandsFor(activeType);
   const brands = brandsFor(activeType);
 
@@ -25,6 +26,7 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
         category="VEHICLE"
         type={searchParams.type}
         brand={searchParams.brand}
+        fuel={searchParams.fuel}
         min={searchParams.min}
         max={searchParams.max}
         sort={searchParams.sort}
@@ -38,10 +40,15 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
             <VehicleTypeButton
               key={option.label}
               option={option}
-              active={activeType === option.value}
+              active={option.value === null ? !activeType && !electricHybridActive : activeType === option.value}
               href={quickVehicleHref(searchParams, { type: option.value ?? "", brand: "", min: "", max: "" })}
             />
           ))}
+          <VehicleTypeButton
+            option={{ value: null, label: "Elétricos e Híbridos", icon: Zap }}
+            active={electricHybridActive}
+            href={quickVehicleHref(searchParams, { fuel: electricHybridActive ? "" : ELECTRIC_OR_HYBRID_FUEL_FILTER, min: "", max: "" })}
+          />
         </div>
 
         <div className="mt-5 flex items-end justify-between gap-3">
@@ -49,8 +56,8 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
             <p className="text-xs font-black uppercase text-emerald-300">Faixas de Preço</p>
             <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">{priceTitle(activeType)}</h2>
           </div>
-          {activeType ? (
-            <Link href={quickVehicleHref(searchParams, { type: "", brand: "", min: "", max: "" })} prefetch={false} className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white hover:bg-white/10">
+          {activeType || electricHybridActive ? (
+            <Link href={quickVehicleHref(searchParams, { type: "", brand: "", fuel: "", min: "", max: "" })} prefetch={false} className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white hover:bg-white/10">
               Ver geral
             </Link>
           ) : null}
@@ -258,6 +265,11 @@ function normalizeVehicleType(value?: string): VehicleTypeValue | null {
   return vehicleTypeOptions.find((option) => option.value === value)?.value ?? null;
 }
 
+function isElectricHybridFuel(value?: string) {
+  if (!value) return false;
+  return value === ELECTRIC_OR_HYBRID_FUEL_FILTER || value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes("eletrico/hibrido");
+}
+
 function priceBandsFor(type: VehicleTypeValue | null) {
   if (type === "Moto") return motorcyclePriceBands;
   if (type === "Bicicleta Elétrica") return electricBikePriceBands;
@@ -297,7 +309,7 @@ function brandTitle(type: VehicleTypeValue | null) {
   return "Marcas populares";
 }
 
-function quickVehicleHref(searchParams: ListingSearchParams, patch: Partial<Record<"type" | "brand" | "min" | "max", string>>): Route {
+function quickVehicleHref(searchParams: ListingSearchParams, patch: Partial<Record<"type" | "brand" | "fuel" | "min" | "max", string>>): Route {
   const params = new URLSearchParams();
   const keepKeys: Array<keyof ListingSearchParams> = ["q", "state", "city", "district", "sort", "model", "minYear", "maxYear", "maxMileageKm"];
   for (const key of keepKeys) {
@@ -306,6 +318,7 @@ function quickVehicleHref(searchParams: ListingSearchParams, patch: Partial<Reco
   }
   if (typeof searchParams.type === "string" && searchParams.type.trim()) params.set("type", searchParams.type);
   if (typeof searchParams.brand === "string" && searchParams.brand.trim()) params.set("brand", searchParams.brand);
+  if (typeof searchParams.fuel === "string" && searchParams.fuel.trim()) params.set("fuel", searchParams.fuel);
   if (typeof searchParams.min === "string" && searchParams.min.trim()) params.set("min", searchParams.min);
   if (typeof searchParams.max === "string" && searchParams.max.trim()) params.set("max", searchParams.max);
   params.set("category", "VEHICLE");

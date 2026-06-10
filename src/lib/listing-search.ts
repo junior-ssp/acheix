@@ -5,6 +5,8 @@ import { db, throwDbError } from "@/lib/supabase-db";
 import { orderAndRecordListingSearchExposure } from "@/lib/listing-search-exposure";
 import { hydrateListingCards, hydrateListings, listingColumns, type ListingCategory, type ListingRecord } from "@/lib/listing-records";
 
+export const ELECTRIC_OR_HYBRID_FUEL_FILTER = "ELECTRIC_OR_HYBRID";
+
 export type ListingSearchParams = {
   q?: string;
   category?: string;
@@ -147,7 +149,8 @@ function filterHydratedListings(listings: ListingRecord[], params: ListingSearch
       if (params.model && !includesText(vehicle.model, params.model)) return false;
       if (params.version && !includesText(vehicle.version, params.version)) return false;
       if (params.color && !includesText(vehicle.color, params.color)) return false;
-      if (params.fuel && !includesText(vehicle.fuel, params.fuel)) return false;
+      if (isElectricOrHybridFuelFilter(params.fuel) && !isElectricOrHybridListing(listing)) return false;
+      if (params.fuel && !isElectricOrHybridFuelFilter(params.fuel) && !includesText(vehicle.fuel, params.fuel)) return false;
       if (params.gearbox && !includesText(vehicle.gearbox, params.gearbox)) return false;
       if (minYear !== undefined && Number(vehicle.year ?? 0) < minYear) return false;
       if (maxYear !== undefined && Number(vehicle.year ?? 0) > maxYear) return false;
@@ -171,6 +174,35 @@ function filterHydratedListings(listings: ListingRecord[], params: ListingSearch
 
 function includesText(value: unknown, wanted: string) {
   return (normalizeText(String(value ?? "")) ?? "").includes(normalizeText(wanted) ?? "");
+}
+
+function isElectricOrHybridListing(listing: ListingRecord) {
+  const haystack = [
+    listing.type,
+    listing.title,
+    listing.searchText,
+    listing.vehicle?.fuel,
+    listing.vehicle?.brand,
+    listing.vehicle?.model,
+    listing.vehicle?.version
+  ].join(" ");
+  return isElectricOrHybridText(haystack);
+}
+
+function isElectricOrHybridFuelFilter(value?: string) {
+  if (!value) return false;
+  if (value === ELECTRIC_OR_HYBRID_FUEL_FILTER) return true;
+  const text = normalizeText(value) ?? "";
+  return text.includes("eletric") && text.includes("hibrid");
+}
+
+function isElectricOrHybridDemoListing(listing: (typeof demoListings)[number]) {
+  return isElectricOrHybridText([listing.title, listing.type].join(" "));
+}
+
+function isElectricOrHybridText(value: string) {
+  const text = normalizeText(value) ?? "";
+  return text.includes("eletric") || text.includes("hibrid");
 }
 
 async function rankListings<T extends { id: string; title: string; type: string; city: string; state: string; district: string | null; searchText: string; createdAt: Date | string }>(
@@ -221,6 +253,7 @@ function filterDemoListings(params: ListingSearchParams, category?: ListingCateg
     if (min !== undefined && listing.priceCents < min) return false;
     if (max !== undefined && listing.priceCents > max) return false;
     if (category === "VEHICLE" && params.brand && !includesText(`${listing.title} ${listing.type}`, params.brand)) return false;
+    if (category === "VEHICLE" && isElectricOrHybridFuelFilter(params.fuel) && !isElectricOrHybridDemoListing(listing)) return false;
     if (category === "REAL_ESTATE" && params.purpose) {
       const demoPurpose = listing.priceCents <= 500000 ? "Locação" : "Venda";
       if (params.purpose !== demoPurpose) return false;
