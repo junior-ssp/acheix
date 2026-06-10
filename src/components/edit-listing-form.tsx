@@ -85,6 +85,7 @@ export function EditListingForm({ listing }: { listing: EditableListing }) {
             <select name="purpose" required defaultValue={normalizePurpose(listing.realEstate?.purpose)} className="input">
               <option value="Venda">Venda</option>
               <option value="Locação">Locação</option>
+              <option value="Temporada">Temporada</option>
             </select>
           </label>
         ) : null}
@@ -124,5 +125,6 @@ export function EditListingForm({ listing }: { listing: EditableListing }) {
 }
 
 function normalizePurpose(value?: string | null) {
+  if (value?.toLowerCase().includes("temp")) return "Temporada";
   return value?.toLowerCase().includes("loca") ? "Locação" : "Venda";
 }

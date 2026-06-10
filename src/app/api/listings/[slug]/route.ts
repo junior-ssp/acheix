@@ -17,7 +17,7 @@ const updateListingSchema = z.object({
   city: z.string().min(2),
   state: z.string().length(2),
   district: z.string().nullable().optional(),
-  purpose: z.enum(["Venda", "Locação"]).optional()
+  purpose: z.enum(["Venda", "Locação", "Temporada"]).optional()
 });
 
 export async function GET(_: Request, { params }: { params: { slug: string } }) {

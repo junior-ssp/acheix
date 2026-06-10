@@ -11,13 +11,14 @@ type SearchPanelProps = {
   category?: string;
   min?: string;
   max?: string;
+  purpose?: string;
   sort?: string;
   action?: string;
   fixedCategory?: "VEHICLE" | "REAL_ESTATE";
   compact?: boolean;
 };
 
-export function SearchPanel({ q, category, min, max, sort, action = "/buscar", fixedCategory, compact }: SearchPanelProps) {
+export function SearchPanel({ q, category, min, max, purpose, sort, action = "/buscar", fixedCategory, compact }: SearchPanelProps) {
   const currentCategory = fixedCategory ?? category;
 
   if (compact) {
@@ -102,9 +103,10 @@ export function SearchPanel({ q, category, min, max, sort, action = "/buscar", f
 
           {currentCategory !== "VEHICLE" && (
             <>
-              <select name="purpose" className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white">
+              <select name="purpose" defaultValue={purpose ?? ""} className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white">
                 <option value="">Venda ou locação</option>
                 <option value="Venda">Venda</option>
+                <option value="Temporada">Temporada</option>
                 <option value="Locação">Locação</option>
               </select>
               <input name="bedrooms" type="number" min="0" placeholder="Quartos min." className="filter-input" />

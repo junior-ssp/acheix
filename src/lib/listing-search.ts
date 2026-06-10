@@ -210,12 +210,20 @@ function scoreListing(listing: { title: string; type: string; city: string; stat
 
 function filterDemoListings(params: ListingSearchParams, category?: ListingCategory) {
   const qTerms = (normalizeText(params.q) ?? "").split(" ").filter((term) => term.length >= 2);
+  const min = normalizePrice(params.min);
+  const max = normalizePrice(params.max);
 
   return demoListings.filter((listing) => {
     if (category && listing.category !== category) return false;
     if (params.type && listing.type !== params.type) return false;
     if (params.state && listing.state !== params.state.toUpperCase()) return false;
     if (params.city && !listing.city.toLowerCase().includes(params.city.toLowerCase())) return false;
+    if (min !== undefined && listing.priceCents < min) return false;
+    if (max !== undefined && listing.priceCents > max) return false;
+    if (category === "REAL_ESTATE" && params.purpose) {
+      const demoPurpose = listing.priceCents <= 500000 ? "Locação" : "Venda";
+      if (params.purpose !== demoPurpose) return false;
+    }
     if (!qTerms.length) return true;
     const haystack = [listing.title, listing.type, listing.city, listing.state]
       .join(" ")

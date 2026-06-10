@@ -207,7 +207,7 @@ export const listingSchema = z.object({
     mileageKm: z.number().int().nonnegative().optional()
   }).optional(),
   realEstate: z.object({
-    purpose: z.enum(["Venda", "Locação"]),
+    purpose: z.enum(["Venda", "Locação", "Temporada"]),
     bedrooms: z.number().int().nonnegative().optional(),
     suites: z.number().int().nonnegative().optional(),
     bathrooms: z.number().int().nonnegative().optional(),

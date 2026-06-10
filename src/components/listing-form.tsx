@@ -348,6 +348,7 @@ export function ListingForm({
                 <option value="">Selecione a finalidade</option>
                 <option value="Venda">Venda</option>
                 <option value="Locação">Locação</option>
+                <option value="Temporada">Temporada</option>
               </select>
             </label>
             <input name="bedrooms" type="number" placeholder="Quartos" className="input" />
