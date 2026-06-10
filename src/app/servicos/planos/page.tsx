@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { CheckCircle2, Sparkles, Tag } from "lucide-react";
 import { formatCurrencyBRL } from "@/lib/formatters";
 import { servicePlans } from "@/lib/service-plans";
 
@@ -31,7 +31,7 @@ export default function ServicePlansPage() {
       name: pro.name,
       price: formatCurrencyBRL(pro.priceCents),
       detail: "12 meses de validade",
-      badge: `${pro.maxCategories} atividades`,
+      badge: "Oferta de Lançamento",
       description: "Plano anual para profissional que quer mais atividades e logotipo no CARD.",
       href: "/servicos/anunciar?servicePlan=SERVICE_PRO" as const,
       action: "Escolher Plano PRO",
@@ -57,10 +57,10 @@ export default function ServicePlansPage() {
 
       <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {plans.map((plan) => (
-          <article key={plan.code} className="soft-card flex min-h-full flex-col rounded-2xl p-4">
+          <article key={plan.code} className={`soft-card flex min-h-full flex-col rounded-2xl p-4 ${plan.icon === "pro" ? "border-emerald-300/35 shadow-[0_0_30px_rgba(34,197,94,0.12)]" : ""}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/10 bg-black/35 text-yellow-300">
+                <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/10 ${plan.icon === "pro" ? "bg-emerald-400 text-black" : "bg-black/35 text-yellow-300"}`}>
                   {plan.icon === "pro" ? <Sparkles size={25} /> : <CheckCircle2 size={25} />}
                 </span>
                 <div>
@@ -68,23 +68,32 @@ export default function ServicePlansPage() {
                   <p className="mt-1 text-sm text-neutral-400">{plan.detail}</p>
                 </div>
               </div>
-              <span className={plan.icon === "pro" ? "rounded-full px-3 py-1 text-xs btn-gold" : "rounded-full border border-white/10 px-3 py-1 text-xs font-black text-neutral-300"}>
+              <span className={plan.icon === "pro" ? "inline-flex items-center gap-1 rounded-full border border-emerald-300/40 bg-emerald-400/15 px-3 py-1 text-xs font-black uppercase text-emerald-200" : "rounded-full border border-white/10 px-3 py-1 text-xs font-black text-neutral-300"}>
+                {plan.icon === "pro" ? <Tag size={13} /> : null}
                 {plan.badge}
               </span>
             </div>
 
-            <p className="mt-5 text-3xl font-black text-yellow-300">{plan.price}</p>
-            <p className="mt-1 text-xs text-neutral-400">{plan.description}</p>
+            {plan.icon === "pro" ? (
+              <div className="mt-5 rounded-2xl border border-emerald-300/35 bg-emerald-400/10 p-3">
+                <p className="text-xs font-black uppercase text-emerald-200">Oferta de Lançamento</p>
+                <p className="mt-1 text-4xl font-black text-emerald-300">{plan.price}</p>
+                <p className="mt-1 text-xs font-bold text-emerald-50/80">por 12 meses no Plano PRO</p>
+              </div>
+            ) : (
+              <p className="mt-5 text-3xl font-black text-yellow-300">{plan.price}</p>
+            )}
+            <p className="mt-2 text-xs text-neutral-400">{plan.description}</p>
 
             <ul className="mt-5 grid gap-2 text-sm text-neutral-200">
               {plan.benefits.map((benefit) => (
                 <li key={benefit} className="flex gap-2">
-                  <CheckCircle2 className="mt-0.5 shrink-0 text-yellow-300" size={16} />
+                  <CheckCircle2 className={`mt-0.5 shrink-0 ${plan.icon === "pro" ? "text-emerald-300" : "text-yellow-300"}`} size={16} />
                   <span>{benefit}</span>
                 </li>
               ))}
               <li className="flex gap-2">
-                <CheckCircle2 className="mt-0.5 shrink-0 text-yellow-300" size={16} />
+                <CheckCircle2 className={`mt-0.5 shrink-0 ${plan.icon === "pro" ? "text-emerald-300" : "text-yellow-300"}`} size={16} />
                 <span>Quando vencer, renove para continuar aparecendo.</span>
               </li>
             </ul>
