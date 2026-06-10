@@ -59,11 +59,13 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
 
         {publicServiceDescription(service) ? <p className="mt-5 whitespace-pre-line text-neutral-200">{publicServiceDescription(service)}</p> : null}
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {service.categories.map((item) => (
-            <span key={item} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-xs font-black uppercase text-neutral-100">
-              <ServiceCategoryIcon value={item} size={14} />
-              {item}
+            <span key={item} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border border-yellow-300/30 bg-yellow-300/10 px-2 py-3 text-center text-[10px] font-black uppercase leading-tight text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.10)]">
+              <span className="grid h-10 w-10 place-items-center rounded-lg bg-yellow-300 text-black shadow-[0_0_16px_rgba(250,204,21,0.28)]">
+                <ServiceCategoryIcon value={item} size={24} strokeWidth={2.8} />
+              </span>
+              <span>{item}</span>
             </span>
           ))}
         </div>
