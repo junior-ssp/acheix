@@ -8,7 +8,7 @@ import { IntegerInput } from "@/components/integer-input";
 type Brand = { id: string; name: string; source?: string };
 type Model = { id: string; name: string; fipeCode?: string | null };
 type Version = { id: string; name: string; fipeCode?: string | null };
-type VehicleType = "CAR" | "MOTORCYCLE" | "TRUCK";
+type VehicleType = "CAR" | "MOTORCYCLE" | "TRUCK" | "BICYCLE";
 
 const fallbackBrandsByType: Record<VehicleType, Brand[]> = {
   CAR: [
@@ -19,7 +19,10 @@ const fallbackBrandsByType: Record<VehicleType, Brand[]> = {
   ].map((name) => ({ id: `fallback:MOTORCYCLE:${name}`, name, source: "Catálogo" })),
   TRUCK: [
     "Agrale", "DAF", "Ford Caminhões", "Iveco", "MAN", "Mercedes-Benz", "Scania", "Volkswagen Caminhões", "Volvo"
-  ].map((name) => ({ id: `fallback:TRUCK:${name}`, name, source: "Catálogo" }))
+  ].map((name) => ({ id: `fallback:TRUCK:${name}`, name, source: "Catálogo" })),
+  BICYCLE: [
+    "Caloi", "Sense", "Oggi", "Specialized", "Trek", "Cannondale", "Lev", "Duos", "Machine Motors", "Two Dogs", "Outra"
+  ].map((name) => ({ id: `fallback:BICYCLE:${name}`, name, source: "Catálogo" }))
 };
 
 const fallbackModelsByBrand: Record<string, string[]> = {
@@ -57,6 +60,17 @@ const fallbackModelsByBrand: Record<string, string[]> = {
   Triumph: ["Tiger", "Bonneville", "Street Triple", "Speed Triple"],
   Yamaha: ["Factor", "Fazer", "MT-03", "MT-07", "NMax", "XJ6", "XTZ"],
   "Zero Motorcycles": ["S", "SR", "DS", "FX"],
+  Caloi: ["E-Vibe", "Elite", "Explorer", "Atacama", "Vulcan"],
+  Sense: ["Impulse", "Impact", "One", "Fun", "Activ"],
+  Oggi: ["Big Wheel", "Hacker", "Float", "Cattura"],
+  Specialized: ["Turbo", "Rockhopper", "Stumpjumper", "Sirrus"],
+  Trek: ["Marlin", "Domane", "Powerfly", "Rail"],
+  Cannondale: ["Trail", "Quick", "Moterra", "Scalpel"],
+  Lev: ["E-bike urbana", "E-bike dobrável", "E-bike cargo"],
+  Duos: ["Comfort", "Urban", "Mountain"],
+  "Machine Motors": ["Beach", "Urban", "Mountain"],
+  "Two Dogs": ["Pliage", "Comfort", "Mountain"],
+  Outra: ["Bicicleta elétrica", "Bicicleta de pedal", "Bike urbana", "Mountain bike", "Speed"],
   Agrale: ["A8700", "A10000", "Marruá"],
   DAF: ["XF", "CF", "LF"],
   "Ford Caminhões": ["Cargo", "F-4000"],
@@ -112,6 +126,7 @@ export function VehicleFields({
     setVersions([]);
     setVersionId("");
     setYears(defaultYears());
+    if (vehicleType === "BICYCLE") return;
     fetch(`/api/vehicle-catalog?mode=brands&vehicleType=${vehicleType}`)
       .then((response) => response.json())
       .then((data) => {
@@ -312,6 +327,7 @@ export function VehicleFields({
 
 function vehicleTypeFromSubtype(subtype: string): VehicleType {
   const normalized = subtype.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (normalized.includes("bicicleta")) return "BICYCLE";
   if (normalized.includes("moto")) return "MOTORCYCLE";
   if (normalized.includes("caminhao") || normalized.includes("onibus")) return "TRUCK";
   return "CAR";

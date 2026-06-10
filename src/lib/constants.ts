@@ -1,5 +1,5 @@
 ﻿export const categories = {
-  VEHICLE: ["Carro", "Moto", "Caminhão", "Utilitário", "Van", "Ônibus", "Embarcação"],
+  VEHICLE: ["Carro", "Moto", "Bicicleta Elétrica", "Bicicleta de Pedal", "Caminhão", "Utilitário", "Van", "Ônibus", "Embarcação"],
   REAL_ESTATE: [
     "Casa",
     "Apto",

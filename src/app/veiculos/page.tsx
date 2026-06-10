@@ -2,7 +2,7 @@ import { ListingResults } from "@/components/listing-results";
 import { SearchPanel } from "@/components/search-panel";
 import type { ListingSearchParams } from "@/lib/listing-search";
 import type { LucideIcon } from "lucide-react";
-import { Bike, BusFront, CarFront, Package, ShipWheel, Truck } from "lucide-react";
+import { Bike, BusFront, CarFront, Package, ShipWheel, Truck, Zap } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 
@@ -17,7 +17,7 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
     <main className="mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6">
         <p className="text-sm font-black uppercase text-yellow-300">Veículos</p>
-        <h1 className="mt-2 text-3xl font-black">Carro, Moto, Caminhão e mais</h1>
+        <h1 className="mt-2 text-3xl font-black">Carro, Moto, Bicicleta e mais</h1>
       </div>
 
       <SearchPanel
@@ -33,7 +33,7 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
       />
 
       <section className="mt-4 rounded-3xl border border-white/10 bg-neutral-950/80 p-3 shadow-[0_0_35px_rgba(0,0,0,0.35)] sm:p-4">
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
           {vehicleTypeOptions.map((option) => (
             <VehicleTypeButton
               key={option.label}
@@ -116,7 +116,7 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
   );
 }
 
-type VehicleTypeValue = "Carro" | "Moto" | "Utilitário" | "Ônibus" | "Caminhão" | "Van" | "Embarcação";
+type VehicleTypeValue = "Carro" | "Moto" | "Bicicleta Elétrica" | "Bicicleta de Pedal" | "Utilitário" | "Ônibus" | "Caminhão" | "Van" | "Embarcação";
 type VehicleTypeOption = { value: VehicleTypeValue | null; label: string; icon: LucideIcon };
 type PriceBand = { label: string; value: string; min?: string; max?: string };
 type BrandOption = { name: string; iconSlug: string; type?: VehicleTypeValue };
@@ -125,6 +125,8 @@ const vehicleTypeOptions: VehicleTypeOption[] = [
   { value: null, label: "Todos", icon: Package },
   { value: "Carro", label: "Carro", icon: CarFront },
   { value: "Moto", label: "Moto", icon: Bike },
+  { value: "Bicicleta Elétrica", label: "Bike Elétrica", icon: Zap },
+  { value: "Bicicleta de Pedal", label: "Bike Pedal", icon: Bike },
   { value: "Utilitário", label: "Utilitários", icon: Truck },
   { value: "Ônibus", label: "Ônibus", icon: BusFront },
   { value: "Caminhão", label: "Caminhão", icon: Truck },
@@ -147,6 +149,24 @@ const motorcyclePriceBands: PriceBand[] = [
   { label: "Até", value: "R$ 50 mil", max: "5000000" },
   { label: "Até", value: "R$ 80 mil", max: "8000000" },
   { label: "A partir de", value: "R$ 80 mil", min: "8000000" }
+];
+
+const electricBikePriceBands: PriceBand[] = [
+  { label: "Até", value: "R$ 2 mil", max: "200000" },
+  { label: "Até", value: "R$ 4 mil", max: "400000" },
+  { label: "Até", value: "R$ 7 mil", max: "700000" },
+  { label: "Até", value: "R$ 10 mil", max: "1000000" },
+  { label: "Até", value: "R$ 15 mil", max: "1500000" },
+  { label: "A partir de", value: "R$ 15 mil", min: "1500000" }
+];
+
+const pedalBikePriceBands: PriceBand[] = [
+  { label: "Até", value: "R$ 500", max: "50000" },
+  { label: "Até", value: "R$ 1 mil", max: "100000" },
+  { label: "Até", value: "R$ 2 mil", max: "200000" },
+  { label: "Até", value: "R$ 4 mil", max: "400000" },
+  { label: "Até", value: "R$ 8 mil", max: "800000" },
+  { label: "A partir de", value: "R$ 8 mil", min: "800000" }
 ];
 
 const heavyVehiclePriceBands: PriceBand[] = [
@@ -192,6 +212,19 @@ const motorcycleBrands: BrandOption[] = [
   { name: "Yamaha", iconSlug: "yamaha", type: "Moto" }
 ];
 
+const bicycleBrands: BrandOption[] = [
+  { name: "Caloi", iconSlug: "bicycle", type: "Bicicleta de Pedal" },
+  { name: "Sense", iconSlug: "bicycle", type: "Bicicleta de Pedal" },
+  { name: "Oggi", iconSlug: "bicycle", type: "Bicicleta de Pedal" },
+  { name: "Specialized", iconSlug: "specialized", type: "Bicicleta de Pedal" },
+  { name: "Trek", iconSlug: "trek", type: "Bicicleta de Pedal" },
+  { name: "Cannondale", iconSlug: "cannondale", type: "Bicicleta de Pedal" },
+  { name: "Lev", iconSlug: "bicycle", type: "Bicicleta Elétrica" },
+  { name: "Duos", iconSlug: "bicycle", type: "Bicicleta Elétrica" },
+  { name: "Machine Motors", iconSlug: "bicycle", type: "Bicicleta Elétrica" },
+  { name: "Two Dogs", iconSlug: "bicycle", type: "Bicicleta Elétrica" }
+];
+
 const heavyBrands: BrandOption[] = [
   { name: "Mercedes-Benz", iconSlug: "mercedesbenz" },
   { name: "Scania", iconSlug: "scania" },
@@ -227,6 +260,8 @@ function normalizeVehicleType(value?: string): VehicleTypeValue | null {
 
 function priceBandsFor(type: VehicleTypeValue | null) {
   if (type === "Moto") return motorcyclePriceBands;
+  if (type === "Bicicleta Elétrica") return electricBikePriceBands;
+  if (type === "Bicicleta de Pedal") return pedalBikePriceBands;
   if (type === "Caminhão" || type === "Ônibus") return heavyVehiclePriceBands;
   if (type === "Embarcação") return boatPriceBands;
   return carPriceBands;
@@ -234,13 +269,17 @@ function priceBandsFor(type: VehicleTypeValue | null) {
 
 function brandsFor(type: VehicleTypeValue | null) {
   if (type === "Moto") return motorcycleBrands;
+  if (type === "Bicicleta Elétrica") return bicycleBrands.filter((brand) => brand.type === "Bicicleta Elétrica");
+  if (type === "Bicicleta de Pedal") return bicycleBrands.filter((brand) => brand.type === "Bicicleta de Pedal");
   if (type === "Caminhão" || type === "Ônibus") return heavyBrands;
   if (type === "Carro" || type === "Utilitário" || type === "Van") return carBrands;
-  return [...carBrands, ...motorcycleBrands].slice(0, 18);
+  return [...carBrands, ...motorcycleBrands, ...bicycleBrands].slice(0, 18);
 }
 
 function priceTitle(type: VehicleTypeValue | null) {
   if (type === "Moto") return "Faixas de preço de motos";
+  if (type === "Bicicleta Elétrica") return "Faixas de preço de bikes elétricas";
+  if (type === "Bicicleta de Pedal") return "Faixas de preço de bikes de pedal";
   if (type === "Caminhão") return "Faixas de preço de caminhões";
   if (type === "Ônibus") return "Faixas de preço de ônibus";
   if (type === "Embarcação") return "Faixas de preço de embarcações";
@@ -251,6 +290,8 @@ function priceTitle(type: VehicleTypeValue | null) {
 
 function brandTitle(type: VehicleTypeValue | null) {
   if (type === "Moto") return "Marcas de moto";
+  if (type === "Bicicleta Elétrica") return "Marcas de bike elétrica";
+  if (type === "Bicicleta de Pedal") return "Marcas de bike de pedal";
   if (type === "Caminhão" || type === "Ônibus") return "Marcas de pesados";
   if (type === "Carro" || type === "Utilitário" || type === "Van") return "Marcas de carro";
   return "Marcas populares";
