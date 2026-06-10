@@ -55,6 +55,7 @@ type PublicService = {
   score: number;
   distanceKm: number | null;
   contactPublicEnabled: boolean;
+  isPro: boolean;
   complemento?: string | null;
 };
 
@@ -155,6 +156,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Ser
                   <ServiceAvatar service={service} />
                   <div className="min-w-0">
                     <p className="text-[11px] font-black uppercase text-emerald-300">{service.type === "COMPANY" ? "Empresa Prestadora" : "Profissional Autônomo"}</p>
+                    {service.isPro ? <span className="mt-1 inline-flex rounded-full border border-emerald-300/40 bg-emerald-400/15 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-200">Prestador PRO</span> : null}
                     <h2 className="mt-1 break-words text-lg font-black leading-tight text-white">{service.companyName ?? service.title}</h2>
                     {service.companyName && service.providerName ? <p className="mt-1 break-words text-sm font-bold text-neutral-300">{service.providerName}</p> : null}
                   </div>
@@ -166,8 +168,8 @@ export default async function ServicesPage({ searchParams }: { searchParams: Ser
             <div className="flex flex-1 flex-col p-4">
               <div className="grid grid-cols-2 gap-2">
                 {service.categories.map((item) => (
-                  <span key={item} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border border-yellow-300/30 bg-yellow-300/10 px-2 py-3 text-center text-[10px] font-black uppercase leading-tight text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.10)]">
-                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-yellow-300 text-black shadow-[0_0_16px_rgba(250,204,21,0.28)]">
+                  <span key={item} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border border-emerald-300/30 bg-emerald-400/10 px-2 py-3 text-center text-[10px] font-black uppercase leading-tight text-emerald-50 shadow-[0_0_18px_rgba(34,197,94,0.10)]">
+                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#22C55E] text-black shadow-[0_0_16px_rgba(34,197,94,0.28)]">
                       <ServiceCategoryIcon value={item} size={24} strokeWidth={2.8} />
                     </span>
                     <span>{item}</span>
@@ -179,7 +181,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Ser
 
               <div className="mt-4 grid gap-2 text-sm text-neutral-300">
                 <p className="flex items-start gap-2">
-                  <MapPin size={16} className="mt-0.5 shrink-0 text-yellow-300" />
+                  <MapPin size={16} className="mt-0.5 shrink-0 text-emerald-300" />
                   <span>{service.district ? `${service.district}, ` : ""}{service.city}/{service.state}{service.cep ? ` - CEP ${formatCep(service.cep)}` : ""}</span>
                 </p>
                 {service.distanceKm !== null ? (
@@ -276,6 +278,7 @@ async function findServices(input: { latitude?: number; longitude?: number; radi
     score: profile.score,
     distanceKm: null,
     contactPublicEnabled: isServicePublicContactEnabled(profile.complemento),
+    isPro: isServicePro(profile.complemento),
     complemento: profile.complemento
   }));
   return (await orderAndRecordServiceSearchExposure(supabase, filterByAudience(profileServices, input.audience).filter((service) => isServiceVisibleByBilling(service.complemento)))).slice(0, serviceSearchLimit);
@@ -341,7 +344,7 @@ function ServiceAvatar({ service }: { service: PublicService }) {
   }
   const Icon = serviceCategoryIconComponent(service.category);
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-yellow-300 text-black">
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-[#22C55E] text-black">
       <Icon size={22} />
     </span>
   );
@@ -356,9 +359,10 @@ function ServiceTrust({ service }: { service: PublicService }) {
         <ShieldCheck size={15} className="text-emerald-300" />
         {rankLabel}
       </strong>
+      {service.isPro ? <p className="mt-2 inline-flex rounded-full border border-emerald-300/35 bg-emerald-400/10 px-2 py-1 text-[11px] font-black uppercase text-emerald-200">Plano PRO ativo</p> : null}
       <div className="mt-2 grid gap-1.5">
         <span className="flex items-center gap-1.5">
-          <Star size={14} className="text-yellow-300" />
+          <Star size={14} className="text-emerald-300" />
           {service.averageRating || "Novo"}/5 · {service.totalRatings} avaliações · {service.totalServices} serviços
         </span>
         <span className="flex items-center gap-1.5">
@@ -396,6 +400,7 @@ function fromSearchRow(row: SearchRow): PublicService {
     score: row.score,
     distanceKm: row.distance_km,
     contactPublicEnabled: isServicePublicContactEnabled(row.complemento),
+    isPro: isServicePro(row.complemento),
     complemento: row.complemento
   };
 }
@@ -427,6 +432,11 @@ function rankName(rank: string) {
 function serviceProfileImage(logo: string | null | undefined, photo: string | null | undefined, complement: string | null | undefined) {
   const billing = serviceBillingFromComplement(complement);
   return billing.planCode === "SERVICE_PRO" && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
+}
+
+function isServicePro(complement: string | null | undefined) {
+  const billing = serviceBillingFromComplement(complement);
+  return billing.planCode === "SERVICE_PRO" && billing.status === "ACTIVE";
 }
 
 function publicCompanyName(value: string | null | undefined) {

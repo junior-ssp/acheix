@@ -29,6 +29,7 @@ type PublicServiceProfile = {
   score: number;
   imageUrl: string | null;
   contactPublicEnabled: boolean;
+  isPro: boolean;
 };
 
 export const dynamic = "force-dynamic";
@@ -46,7 +47,8 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
           <div className="flex min-w-0 items-start gap-3">
             <ServiceAvatar imageUrl={service.imageUrl} title={service.title} category={service.category} />
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase text-yellow-300">{service.categories[0]}</p>
+              <p className="text-xs font-black uppercase text-emerald-300">{service.categories[0]}</p>
+              {service.isPro ? <span className="mt-1 inline-flex rounded-full border border-emerald-300/40 bg-emerald-400/15 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-200">Prestador PRO</span> : null}
               <h1 className="mt-1 break-words text-2xl font-black">{service.title}</h1>
               <p className="mt-1 flex items-center gap-1 text-sm text-neutral-300">
                 <MapPin size={15} />
@@ -61,8 +63,8 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
 
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {service.categories.map((item) => (
-            <span key={item} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border border-yellow-300/30 bg-yellow-300/10 px-2 py-3 text-center text-[10px] font-black uppercase leading-tight text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.10)]">
-              <span className="grid h-10 w-10 place-items-center rounded-lg bg-yellow-300 text-black shadow-[0_0_16px_rgba(250,204,21,0.28)]">
+            <span key={item} className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border border-emerald-300/30 bg-emerald-400/10 px-2 py-3 text-center text-[10px] font-black uppercase leading-tight text-emerald-50 shadow-[0_0_18px_rgba(34,197,94,0.10)]">
+              <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#22C55E] text-black shadow-[0_0_16px_rgba(34,197,94,0.28)]">
                 <ServiceCategoryIcon value={item} size={24} strokeWidth={2.8} />
               </span>
               <span>{item}</span>
@@ -82,6 +84,7 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
             <span>Nota {publicScore}/10</span>
           </p>
           {service.verified ? <p className="mt-2 text-emerald-200">Conta verificada</p> : null}
+          {service.isPro ? <p className="mt-2 inline-flex rounded-full border border-emerald-300/35 bg-emerald-400/10 px-2 py-1 text-[11px] font-black uppercase text-emerald-200">Plano PRO ativo</p> : null}
           {service.cep ? <p className="mt-2">CEP {formatCep(service.cep)}</p> : null}
         </div>
 
@@ -122,7 +125,8 @@ async function getService(id: string): Promise<PublicServiceProfile | null> {
       rank: profile.rank,
       score: profile.score,
       imageUrl: serviceProfileImage(profile.logo_empresa, profile.foto_perfil, profile.complemento),
-      contactPublicEnabled: isServicePublicContactEnabled(profile.complemento)
+      contactPublicEnabled: isServicePublicContactEnabled(profile.complemento),
+      isPro: isServicePro(profile.complemento)
     };
   }
 
@@ -176,7 +180,7 @@ function ServiceAvatar({ imageUrl, title, category }: { imageUrl: string | null;
   }
   const Icon = serviceCategoryIconComponent(category);
   return (
-    <span className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-yellow-300 text-black">
+    <span className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-[#22C55E] text-black">
       <Icon size={28} />
     </span>
   );
@@ -185,6 +189,11 @@ function ServiceAvatar({ imageUrl, title, category }: { imageUrl: string | null;
 function serviceProfileImage(logo: string | null | undefined, photo: string | null | undefined, complement: string | null | undefined) {
   const billing = serviceBillingFromComplement(complement);
   return billing.planCode === "SERVICE_PRO" && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
+}
+
+function isServicePro(complement: string | null | undefined) {
+  const billing = serviceBillingFromComplement(complement);
+  return billing.planCode === "SERVICE_PRO" && billing.status === "ACTIVE";
 }
 
 
