@@ -292,7 +292,9 @@ export async function POST(request: Request) {
           amountCents: servicePlan.priceCents,
           status: "PENDING",
           provider: "PIX",
-          providerRef: `service:${profile.id}:${servicePlan.code}:${Date.now()}`
+          providerRef: `service:${profile.id}:${servicePlan.code}:${Date.now()}`,
+          createdAt: nowIso,
+          updatedAt: nowIso
         })
         .select("*")
         .single();
