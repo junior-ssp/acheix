@@ -22,6 +22,7 @@ export default function RealEstatePage({ searchParams }: { searchParams: Listing
       <SearchPanel
         q={searchParams.q}
         category="REAL_ESTATE"
+        type={searchParams.type}
         min={searchParams.min}
         max={searchParams.max}
         sort={searchParams.sort}
@@ -89,21 +90,21 @@ const purposeOptions: PurposeOption[] = [
 ];
 
 const rentPriceBands: PriceBand[] = [
-  { label: "Até", value: "R$ 1.000", max: "1000" },
-  { label: "Até", value: "R$ 2.000", max: "2000" },
-  { label: "Até", value: "R$ 3.000", max: "3000" },
-  { label: "Até", value: "R$ 5.000", max: "5000" },
-  { label: "Até", value: "R$ 8.000", max: "8000" },
-  { label: "A partir de", value: "R$ 8.000", min: "8000" }
+  { label: "Até", value: "R$ 1.000", max: "100000" },
+  { label: "Até", value: "R$ 2.000", max: "200000" },
+  { label: "Até", value: "R$ 3.000", max: "300000" },
+  { label: "Até", value: "R$ 5.000", max: "500000" },
+  { label: "Até", value: "R$ 8.000", max: "800000" },
+  { label: "A partir de", value: "R$ 8.000", min: "800000" }
 ];
 
 const salePriceBands: PriceBand[] = [
-  { label: "Até", value: "R$ 150 mil", max: "150000" },
-  { label: "Até", value: "R$ 300 mil", max: "300000" },
-  { label: "Até", value: "R$ 500 mil", max: "500000" },
-  { label: "Até", value: "R$ 800 mil", max: "800000" },
-  { label: "Até", value: "R$ 1,2 mi", max: "1200000" },
-  { label: "A partir de", value: "R$ 1,2 mi", min: "1200000" }
+  { label: "Até", value: "R$ 150 mil", max: "15000000" },
+  { label: "Até", value: "R$ 300 mil", max: "30000000" },
+  { label: "Até", value: "R$ 500 mil", max: "50000000" },
+  { label: "Até", value: "R$ 800 mil", max: "80000000" },
+  { label: "Até", value: "R$ 1,2 mi", max: "120000000" },
+  { label: "A partir de", value: "R$ 1,2 mi", min: "120000000" }
 ];
 
 function QuickPurposeButton({ option, active, href }: { option: PurposeOption; active: boolean; href: Route }) {

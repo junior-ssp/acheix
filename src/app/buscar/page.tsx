@@ -11,7 +11,7 @@ export default function SearchPage({ searchParams }: { searchParams: ListingSear
         <p className="text-sm font-black uppercase text-yellow-300">Busca</p>
         <h1 className="mt-2 text-3xl font-black">Encontre Veículos e Imóveis</h1>
       </div>
-      <SearchPanel q={searchParams.q} category={searchParams.category} min={searchParams.min} max={searchParams.max} purpose={searchParams.purpose} sort={searchParams.sort} />
+      <SearchPanel q={searchParams.q} category={searchParams.category} type={searchParams.type} brand={searchParams.brand} min={searchParams.min} max={searchParams.max} purpose={searchParams.purpose} sort={searchParams.sort} />
       <section className="mt-6">
         <ListingResults searchParams={searchParams} />
       </section>

@@ -220,6 +220,7 @@ function filterDemoListings(params: ListingSearchParams, category?: ListingCateg
     if (params.city && !listing.city.toLowerCase().includes(params.city.toLowerCase())) return false;
     if (min !== undefined && listing.priceCents < min) return false;
     if (max !== undefined && listing.priceCents > max) return false;
+    if (category === "VEHICLE" && params.brand && !includesText(`${listing.title} ${listing.type}`, params.brand)) return false;
     if (category === "REAL_ESTATE" && params.purpose) {
       const demoPurpose = listing.priceCents <= 500000 ? "Locação" : "Venda";
       if (params.purpose !== demoPurpose) return false;

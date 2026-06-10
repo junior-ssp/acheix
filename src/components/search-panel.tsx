@@ -9,8 +9,10 @@ const SEARCH_PLACEHOLDER = "O que você procura?";
 type SearchPanelProps = {
   q?: string;
   category?: string;
+  type?: string;
   min?: string;
   max?: string;
+  brand?: string;
   purpose?: string;
   sort?: string;
   action?: string;
@@ -18,7 +20,7 @@ type SearchPanelProps = {
   compact?: boolean;
 };
 
-export function SearchPanel({ q, category, min, max, purpose, sort, action = "/buscar", fixedCategory, compact }: SearchPanelProps) {
+export function SearchPanel({ q, category, type, min, max, brand, purpose, sort, action = "/buscar", fixedCategory, compact }: SearchPanelProps) {
   const currentCategory = fixedCategory ?? category;
 
   if (compact) {
@@ -77,7 +79,7 @@ export function SearchPanel({ q, category, min, max, purpose, sort, action = "/b
       <details className="mt-2 rounded-2xl border border-white/10 bg-black/35 p-3 sm:mt-3">
         <summary className="cursor-pointer text-sm font-black text-yellow-300">Filtros avançados</summary>
         <div className="mt-3 grid gap-3 md:grid-cols-4">
-          <select name="type" className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white">
+          <select name="type" defaultValue={type ?? ""} className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white">
             <option value="">Tipo</option>
             {(currentCategory === "VEHICLE" ? categories.VEHICLE : currentCategory === "REAL_ESTATE" ? categories.REAL_ESTATE : [...categories.VEHICLE, ...categories.REAL_ESTATE]).map((item) => (
               <option key={item} value={item}>{item}</option>
@@ -90,7 +92,7 @@ export function SearchPanel({ q, category, min, max, purpose, sort, action = "/b
 
           {currentCategory !== "REAL_ESTATE" && (
             <>
-              <input name="brand" placeholder="Marca" className="filter-input" />
+              <input name="brand" defaultValue={brand} placeholder="Marca" className="filter-input" />
               <input name="model" placeholder="Modelo" className="filter-input" />
               <input name="minYear" type="number" placeholder="Ano mínimo" className="filter-input" />
               <input name="maxYear" type="number" placeholder="Ano máximo" className="filter-input" />
