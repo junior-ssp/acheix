@@ -138,6 +138,8 @@ export const serviceProfileSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome."),
   companyLegalName: z.string().trim().optional(),
   companyTradeName: z.string().trim().optional(),
+  providerName: z.string().trim().optional(),
+  showProviderName: z.boolean().default(false),
   document: z.string().optional(),
   categories: z.array(z.string().trim().min(2)).min(1).max(6),
   description: z.string().trim().optional(),

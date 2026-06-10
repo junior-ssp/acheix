@@ -82,6 +82,7 @@ export function ServiceForm({
   const initialLocations = buildInitialLocations(initialProfile, user);
   const initialCompanyName = initialProfile?.type === "COMPANY" ? initialProfile.companyTradeName ?? initialProfile.companyLegalName ?? "" : "";
   const initialCompanyLegalName = initialProfile?.type === "COMPANY" ? initialProfile.companyLegalName ?? "" : "";
+  const initialProviderName = initialProfile?.type === "COMPANY" ? initialProfile.name ?? user.name ?? "" : "";
   const initialPersonName = initialProfile?.name ?? user.name ?? "";
   const initialPhone = formatPhone(initialProfile?.privateWhatsapp ?? initialProfile?.privatePhone ?? user.whatsapp ?? user.phone ?? "");
   const initialCompanyDocument = initialProfile?.type === "COMPANY" && isValidCnpjValue(initialProfile.document) ? formatCnpj(initialProfile.document) : "";
@@ -106,6 +107,8 @@ export function ServiceForm({
   const [companyName, setCompanyName] = useState(initialCompanyName);
   const [companyLegalName, setCompanyLegalName] = useState(initialCompanyLegalName);
   const [companyLookupTradeName, setCompanyLookupTradeName] = useState(initialProfile?.type === "COMPANY" ? initialProfile.companyTradeName ?? "" : "");
+  const [showProviderName, setShowProviderName] = useState(initialProfile?.type === "COMPANY" ? Boolean(initialProfile.name) : false);
+  const [providerName, setProviderName] = useState(initialProviderName);
   const [companyLogo, setCompanyLogo] = useState(canUseLogo ? initialProfile?.companyLogo ?? "" : "");
   const [logoUploading, setLogoUploading] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
@@ -136,6 +139,8 @@ export function ServiceForm({
         companyName: string;
         companyLegalName: string;
         companyLookupTradeName: string;
+        showProviderName: boolean;
+        providerName: string;
         cnpjValue: string;
         contactPreference: ServiceContactPreference;
       }>;
@@ -147,6 +152,8 @@ export function ServiceForm({
       if (typeof draft.companyName === "string") setCompanyName(draft.companyName);
       if (typeof draft.companyLegalName === "string") setCompanyLegalName(draft.companyLegalName);
       if (typeof draft.companyLookupTradeName === "string") setCompanyLookupTradeName(draft.companyLookupTradeName);
+      if (typeof draft.showProviderName === "boolean") setShowProviderName(draft.showProviderName);
+      if (typeof draft.providerName === "string") setProviderName(draft.providerName);
       if (typeof draft.cnpjValue === "string" && isValidCnpjValue(draft.cnpjValue)) setCnpjValue(formatCnpj(draft.cnpjValue));
       if (!initialPublicContactEnabled && isContactPreference(draft.contactPreference)) setContactPreference(canUsePublicContact ? draft.contactPreference : "LEADS_ONLY");
     } catch {
@@ -159,7 +166,7 @@ export function ServiceForm({
   useEffect(() => {
     if (!draftReady) return;
     saveDraft(false);
-  }, [draftReady, enabled, type, audience, selectedCategories, locations, companyName, companyLegalName, companyLookupTradeName, cnpjValue, contactPreference]);
+  }, [draftReady, enabled, type, audience, selectedCategories, locations, companyName, companyLegalName, companyLookupTradeName, showProviderName, providerName, cnpjValue, contactPreference]);
 
   const filteredCategories = useMemo(() => {
     return categories
@@ -179,6 +186,8 @@ export function ServiceForm({
       companyName: string;
       companyLegalName: string;
       companyLookupTradeName: string;
+      showProviderName: boolean;
+      providerName: string;
       cnpjValue: string;
       contactPreference: ServiceContactPreference;
     }> = {}
@@ -192,6 +201,8 @@ export function ServiceForm({
       companyName,
       companyLegalName,
       companyLookupTradeName,
+      showProviderName,
+      providerName,
       cnpjValue,
       contactPreference,
       ...overrides,
@@ -385,6 +396,8 @@ export function ServiceForm({
       name,
       companyLegalName: type === "COMPANY" ? companyLegalName || name : "",
       companyTradeName: type === "COMPANY" ? name : "",
+      providerName: type === "COMPANY" ? providerName : "",
+      showProviderName: type === "COMPANY" ? showProviderName : false,
       document: type === "COMPANY" ? cnpj : "",
       description: `${name || "Prestador"} atende em ${firstLocation.city || "sua região"}.`,
       cep: firstLocation.cep,
@@ -546,6 +559,28 @@ export function ServiceForm({
                   onChange={(event) => setCompanyName(event.currentTarget.value)}
                   className="input"
                 />
+                <label className="grid gap-2 rounded-lg border border-white/10 bg-black/25 p-3 text-sm text-neutral-200">
+                  <span className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={showProviderName}
+                      onChange={(event) => setShowProviderName(event.currentTarget.checked)}
+                      className="mt-1 h-5 w-5 shrink-0 accent-emerald-500"
+                    />
+                    <span>
+                      <strong className="block text-white">Mostrar nome do profissional no CARD</strong>
+                      <span className="text-xs text-neutral-400">Se ativar, o nome aparece abaixo do nome da empresa.</span>
+                    </span>
+                  </span>
+                  {showProviderName ? (
+                    <input
+                      value={providerName}
+                      onChange={(event) => setProviderName(event.currentTarget.value)}
+                      placeholder="Nome do profissional responsável"
+                      className="input"
+                    />
+                  ) : null}
+                </label>
               </div>
             ) : (
               <input name="name" required placeholder="Nome" defaultValue={initialPersonName} className="input" />

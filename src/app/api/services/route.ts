@@ -228,7 +228,7 @@ export async function POST(request: Request) {
       tipo_cadastro: data.type,
       categoria_servico: category,
       categorias_servico: categories,
-      name: data.type === "INDIVIDUAL" ? title : null,
+      name: data.type === "INDIVIDUAL" ? title : data.showProviderName ? data.providerName?.trim() || user.name || null : null,
       razao_social: data.type === "COMPANY" ? data.companyLegalName || title : null,
       nome_fantasia: data.type === "COMPANY" ? data.companyTradeName || title : null,
       document: data.type === "COMPANY" ? onlyDigits(data.document) : onlyDigits(user.cpf),
