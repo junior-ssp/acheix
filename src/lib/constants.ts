@@ -257,6 +257,34 @@ export const demoListings = [
     plan: { code: "FREE", name: "GRÁTIS" }
   },
   {
+    id: "demo-vehicle-electric-truck-byd",
+    slug: "demo-byd-t5-caminhao-eletrico-vuc",
+    title: "BYD T5 caminhão elétrico VUC urbano",
+    category: "VEHICLE",
+    type: "Caminhão",
+    priceCents: 38990000,
+    city: "Guarulhos",
+    state: "SP",
+    createdAt: demoCreatedAt,
+    expiresAt: demoExpiresIn(120),
+    photos: [{ url: "https://images.unsplash.com/photo-1591768793355-74d04bb6608f?auto=format&fit=crop&w=900&q=80", alt: "Caminhão elétrico em anúncio demonstrativo" }],
+    plan: { code: "GOLD", name: "OURO" }
+  },
+  {
+    id: "demo-vehicle-electric-bus-byd",
+    slug: "demo-byd-onibus-eletrico-urbano",
+    title: "BYD ônibus elétrico urbano executivo",
+    category: "VEHICLE",
+    type: "Ônibus",
+    priceCents: 89000000,
+    city: "São Bernardo do Campo",
+    state: "SP",
+    createdAt: demoCreatedAt,
+    expiresAt: demoExpiresIn(120),
+    photos: [{ url: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=900&q=80", alt: "Ônibus elétrico em anúncio demonstrativo" }],
+    plan: { code: "GOLD", name: "OURO" }
+  },
+  {
     id: "demo-real-estate-free",
     slug: "demo-kitnet-mobiliada-centro",
     title: "Kitnet mobiliada no centro",

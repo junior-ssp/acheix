@@ -53,7 +53,7 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
 
         <div className="mt-5 flex items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase text-emerald-300">Faixas de Preço</p>
+            <p className="text-base font-black uppercase text-emerald-300 sm:text-xl">Busca por Valor</p>
             <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">{priceTitle(activeType)}</h2>
           </div>
           {activeType || electricHybridActive ? (

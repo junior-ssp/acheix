@@ -45,10 +45,7 @@ export default function RealEstatePage({ searchParams }: { searchParams: Listing
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase text-emerald-300">Busca por Valor</p>
-            <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">
-              {activePurpose === "Venda" ? "Compra com filtro rápido" : activePurpose === "Temporada" ? "Temporada que cabe no bolso" : "Aluguel que cabe no bolso"}
-            </h2>
+            <p className="text-base font-black uppercase text-emerald-300 sm:text-xl">Busca por Valor</p>
           </div>
           <Home className="hidden shrink-0 text-emerald-300 sm:block" size={34} strokeWidth={2.4} />
         </div>
