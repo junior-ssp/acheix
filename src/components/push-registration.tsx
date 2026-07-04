@@ -20,8 +20,7 @@ export function PushRegistration() {
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       try {
-        const { Capacitor } = await import("@capacitor/core");
-        if (Capacitor.isNativePlatform()) return;
+        await import("@capacitor/core");
       } catch {
         // Continue with web push detection when Capacitor is unavailable.
       }
