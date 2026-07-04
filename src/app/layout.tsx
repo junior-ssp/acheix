@@ -2,7 +2,6 @@
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
-import Script from "next/script";
 import { User } from "lucide-react";
 import { AccountMenu } from "@/components/account-menu";
 import { AdminAutoLogout } from "@/components/admin-auto-logout";
@@ -12,7 +11,6 @@ import { AndroidBackHandler } from "@/components/android-back-handler";
 import { AppUpdatePrompt } from "@/components/app-update-prompt";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { KeyboardSafeScroll } from "@/components/keyboard-safe-scroll";
-import { ThemeColorButton } from "@/components/theme-color-button";
 import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
 
@@ -43,9 +41,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="pt-BR" className="dark" suppressHydrationWarning>
       <body className="min-h-screen antialiased">
-        <Script id="acheix-theme" strategy="beforeInteractive">
-          {`try{var t=localStorage.getItem("acheix-theme");if(t==="light"){document.documentElement.classList.remove("dark");document.documentElement.classList.add("theme-light");document.documentElement.style.colorScheme="light";}}catch(e){}`}
-        </Script>
         {!adminShell ? <header className="sticky top-0 z-30 border-b border-white/10 bg-black/95 backdrop-blur-xl app-safe-top">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2 sm:py-3">
             <Link href="/" className="flex h-10 min-w-0 shrink items-center" aria-label="Achei X">
@@ -88,7 +83,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 {user ? <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-black bg-emerald-300" aria-hidden="true" /> : null}
               </Link>
               <AccountMenu />
-              <ThemeColorButton />
             </div>
           </div>
         </header> : null}
