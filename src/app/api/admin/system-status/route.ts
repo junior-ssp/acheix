@@ -2,6 +2,7 @@
 import { json } from "@/lib/http";
 import { db, newDbId, throwDbError } from "@/lib/supabase-db";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { verifySmtpConnection } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -19,18 +20,28 @@ const appUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https
 const supabaseUrl = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/$/, "");
 const supabaseAuthKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
 const storageBucket = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "listing-photos";
-const databaseLimitBytes = numberEnv("SUPABASE_DB_LIMIT_BYTES", 8 * 1024 ** 3);
-const storageLimitBytes = numberEnv("SUPABASE_STORAGE_LIMIT_BYTES", 100 * 1024 ** 3);
+const databaseLimitBytes = capacityLimitBytes("SUPABASE_DB_LIMIT_GB", "SUPABASE_DB_LIMIT_BYTES", 8);
+const storageLimitBytes = capacityLimitBytes("SUPABASE_STORAGE_LIMIT_GB", "SUPABASE_STORAGE_LIMIT_BYTES", 100);
+
+type CapacityStats = {
+  databaseBytes: number;
+  storageBytes: number;
+  fileCount: number;
+  imageCount: number;
+  bucketCount: number;
+  bucketNames: string[];
+};
 
 export async function GET() {
   const admin = await authenticateSuperAdmin();
   if (admin instanceof Response) return admin;
   const checkedAt = new Date().toISOString();
+  const capacityStats = readCapacityStats(checkedAt);
 
   const [vercel, database, storage, auth, domain, api, messages, push, email, upload, asaas] = await Promise.all([
     checkVercel(checkedAt),
-    checkDatabase(checkedAt),
-    checkStorage(checkedAt),
+    checkDatabase(checkedAt, capacityStats),
+    checkStorage(checkedAt, capacityStats),
     checkSupabaseAuth(checkedAt),
     checkDomain(checkedAt),
     checkApi(checkedAt),
@@ -55,13 +66,13 @@ export async function GET() {
     });
   }
 
-  return json({
+  return Response.json({
     checkedAt,
     summary: {
       healthPercent,
       infrastructure: healthPercent >= 95 ? "operational" : healthPercent >= 75 ? "degraded" : "offline",
-      database: database.usagePercent <= 70 ? "operational" : database.usagePercent <= 90 ? "degraded" : "offline",
-      storage: storage.usagePercent <= 70 ? "operational" : storage.usagePercent <= 90 ? "degraded" : "offline",
+      database: capacityState(database.usagePercent),
+      storage: capacityState(storage.usagePercent),
       domain: domain.service.status,
       deploy: vercel.status
     },
@@ -78,7 +89,7 @@ export async function GET() {
       buildTime: process.env.VERCEL_BUILD_TIME || null
     },
     alerts
-  });
+  }, { headers: { "cache-control": "no-store, no-cache, must-revalidate, max-age=0", pragma: "no-cache", expires: "0" } });
 }
 
 export async function HEAD() {
@@ -101,57 +112,62 @@ async function checkVercel(checkedAt: string): Promise<ServiceCheck> {
   return service("Vercel", result.ok ? "operational" : "offline", checkedAt, result.ms, result.ok ? "Deploy respondendo" : result.error);
 }
 
-async function checkDatabase(checkedAt: string) {
+async function checkDatabase(checkedAt: string, statsPromise: Promise<CapacityStats>) {
   const start = Date.now();
   try {
-    await countRows("User");
+    const stats = await statsPromise;
+    const usedBytes = stats.databaseBytes;
     return {
-      service: service("Supabase Database", "operational", checkedAt, Date.now() - start, "Banco respondendo"),
+      service: service("Supabase Database", "operational", checkedAt, Date.now() - start, "Tamanho real consultado"),
+      available: true,
       totalBytes: databaseLimitBytes,
-      usedBytes: 0,
-      freeBytes: databaseLimitBytes,
-      usagePercent: 0
+      usedBytes,
+      freeBytes: Math.max(databaseLimitBytes - usedBytes, 0),
+      usagePercent: usagePercent(usedBytes, databaseLimitBytes)
     };
   } catch (error) {
     await logMonitorError("database", error);
     return {
-      service: service("Supabase Database", "offline", checkedAt, Date.now() - start, "Falha ao consultar banco"),
+      service: service("Supabase Database", "degraded", checkedAt, Date.now() - start, "Métrica de uso indisponível"),
+      available: false,
       totalBytes: databaseLimitBytes,
-      usedBytes: 0,
-      freeBytes: databaseLimitBytes,
-      usagePercent: 0
+      usedBytes: null,
+      freeBytes: null,
+      usagePercent: null
     };
   }
 }
 
-async function checkStorage(checkedAt: string) {
+async function checkStorage(checkedAt: string, statsPromise: Promise<CapacityStats>) {
   const start = Date.now();
   try {
-    const supabase = getSupabaseAdmin();
-    const bucket = await supabase.storage.getBucket(storageBucket);
-    if (bucket.error) throw bucket.error;
-    const listed = await supabase.storage.from(storageBucket).list("", { limit: 100 });
-    if (listed.error) throw listed.error;
-    const fileCount = listed.data?.length ?? 0;
+    const stats = await statsPromise;
+    const usedBytes = stats.storageBytes;
     return {
-      service: service("Supabase Storage", "operational", checkedAt, Date.now() - start, "Bucket acessível"),
+      service: service("Supabase Storage", "operational", checkedAt, Date.now() - start, `${stats.bucketCount} bucket(s) medido(s)`),
+      available: true,
       totalBytes: storageLimitBytes,
-      usedBytes: 0,
-      freeBytes: storageLimitBytes,
-      usagePercent: 0,
-      imageCount: fileCount,
-      fileCount
+      usedBytes,
+      freeBytes: Math.max(storageLimitBytes - usedBytes, 0),
+      usagePercent: usagePercent(usedBytes, storageLimitBytes),
+      imageCount: stats.imageCount,
+      fileCount: stats.fileCount,
+      bucketCount: stats.bucketCount,
+      bucketNames: stats.bucketNames
     };
   } catch (error) {
     await logMonitorError("storage", error);
     return {
       service: service("Supabase Storage", "degraded", checkedAt, Date.now() - start, "Uso do storage indisponível"),
+      available: false,
       totalBytes: storageLimitBytes,
-      usedBytes: 0,
-      freeBytes: storageLimitBytes,
-      usagePercent: 0,
-      imageCount: 0,
-      fileCount: 0
+      usedBytes: null,
+      freeBytes: null,
+      usagePercent: null,
+      imageCount: null,
+      fileCount: null,
+      bucketCount: null,
+      bucketNames: []
     };
   }
 }
@@ -212,8 +228,16 @@ async function checkPush(checkedAt: string): Promise<ServiceCheck> {
 }
 
 async function checkEmail(checkedAt: string): Promise<ServiceCheck> {
+  const start = Date.now();
   const configured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
-  return service("Serviço de E-mails", configured ? "operational" : "degraded", checkedAt, null, configured ? "SMTP configurado" : "SMTP não configurado");
+  if (!configured) return service("Serviço de E-mails", "degraded", checkedAt, Date.now() - start, "SMTP não configurado agora");
+  try {
+    await verifySmtpConnection();
+    return service("Serviço de E-mails", "operational", checkedAt, Date.now() - start, "Conexão e autenticação SMTP confirmadas agora");
+  } catch (error) {
+    await logMonitorError("email", error);
+    return service("Serviço de E-mails", "degraded", checkedAt, Date.now() - start, `SMTP indisponível agora: ${safeMonitorReason(error)}`);
+  }
 }
 
 async function checkUpload(checkedAt: string): Promise<ServiceCheck> {
@@ -244,8 +268,9 @@ async function checkAsaasPix(checkedAt: string): Promise<ServiceCheck> {
       asaasFetch(`${baseUrl}/v3/myAccount/status`, apiKey),
       asaasFetch(`${baseUrl}/v3/pix/addressKeys`, apiKey)
     ]);
-    const accountApproved = hasAnyValue(accountStatus.data, ["APPROVED", "ACTIVE", "ENABLED"]);
-    const accountPending = hasAnyValue(accountStatus.data, ["PENDING", "AWAITING", "WAITING", "ANALYSIS", "IN_ANALYSIS"]);
+    const statusValues = responseStatusValues(accountStatus.data);
+    const accountApproved = statusValues.some((value) => ["APPROVED", "ACTIVE", "ENABLED"].includes(value));
+    const accountPending = statusValues.some((value) => ["PENDING", "AWAITING", "WAITING", "ANALYSIS", "IN_ANALYSIS", "PENDING_DOCUMENTS"].includes(value));
     const pixKeyCount = Array.isArray(pixKeys.data?.data)
       ? pixKeys.data.data.length
       : Array.isArray(pixKeys.data)
@@ -259,7 +284,7 @@ async function checkAsaasPix(checkedAt: string): Promise<ServiceCheck> {
       return service("Asaas PIX", "degraded", checkedAt, Date.now() - start, `Asaas ${environment}: não foi possível consultar chaves PIX (${pixKeys.detail})`);
     }
     if (accountPending) {
-      return service("Asaas PIX", "degraded", checkedAt, Date.now() - start, `Asaas ${environment}: conta ainda indica análise/pendência cadastral`);
+      return service("Asaas PIX", "degraded", checkedAt, Date.now() - start, `Asaas ${environment}: API consultada agora e conta ainda indica análise/pendência cadastral`);
     }
     if (pixKeyCount <= 0) {
       return service("Asaas PIX", "degraded", checkedAt, Date.now() - start, `Asaas ${environment}: nenhuma chave PIX retornada pela API`);
@@ -311,9 +336,16 @@ function service(name: string, status: ServiceState, checkedAt: string, response
   return { name, status, checkedAt, responseMs, detail };
 }
 
-function hasAnyValue(input: unknown, expected: string[]) {
-  const haystack = JSON.stringify(input ?? {}).toUpperCase();
-  return expected.some((value) => haystack.includes(value));
+function responseStatusValues(input: unknown): string[] {
+  if (typeof input === "string") return [input.trim().toUpperCase()];
+  if (Array.isArray(input)) return input.flatMap(responseStatusValues);
+  if (input && typeof input === "object") return Object.values(input as Record<string, unknown>).flatMap(responseStatusValues);
+  return [];
+}
+
+function safeMonitorReason(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/[\r\n]+/g, " ").slice(0, 160);
 }
 
 function buildAlerts(input: { services: ServiceCheck[]; database: any; storage: any; domain: any }) {
@@ -321,16 +353,56 @@ function buildAlerts(input: { services: ServiceCheck[]; database: any; storage: 
   for (const serviceItem of input.services) {
     if (serviceItem.status === "offline") alerts.push({ level: "offline", title: serviceItem.name, message: "Serviço offline." });
   }
-  if (input.database.usagePercent >= 80) alerts.push({ level: input.database.usagePercent > 90 ? "offline" : "degraded", title: "Banco de Dados", message: "Uso acima de 80%." });
-  if (input.storage.usagePercent >= 80) alerts.push({ level: input.storage.usagePercent > 90 ? "offline" : "degraded", title: "Storage", message: "Uso acima de 80%." });
+  if (input.database.usagePercent !== null && input.database.usagePercent >= 80) alerts.push({ level: input.database.usagePercent > 90 ? "offline" : "degraded", title: "Banco de Dados", message: "Uso acima de 80%." });
+  if (input.storage.usagePercent !== null && input.storage.usagePercent >= 80) alerts.push({ level: input.storage.usagePercent > 90 ? "offline" : "degraded", title: "Storage", message: "Uso acima de 80%." });
   if (input.domain.sslDaysLeft !== null && input.domain.sslDaysLeft <= 30) alerts.push({ level: "degraded", title: "SSL", message: `Certificado vence em ${input.domain.sslDaysLeft} dias.` });
   if (input.domain.domainDaysLeft !== null && input.domain.domainDaysLeft <= 30) alerts.push({ level: "degraded", title: "Domínio", message: `Domínio vence em ${input.domain.domainDaysLeft} dias.` });
   return alerts;
 }
 
-function numberEnv(name: string, fallback: number) {
-  const value = Number(process.env[name]);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
+async function readCapacityStats(checkedAt: string): Promise<CapacityStats> {
+  const startedAt = Date.now();
+  try {
+    const { data, error } = await getSupabaseAdmin().rpc("admin_system_capacity_stats");
+    if (error) throw error;
+    const raw = data as Partial<CapacityStats> | null;
+    const stats: CapacityStats = {
+      databaseBytes: safeNonNegativeNumber(raw?.databaseBytes),
+      storageBytes: safeNonNegativeNumber(raw?.storageBytes),
+      fileCount: safeNonNegativeNumber(raw?.fileCount),
+      imageCount: safeNonNegativeNumber(raw?.imageCount),
+      bucketCount: safeNonNegativeNumber(raw?.bucketCount),
+      bucketNames: Array.isArray(raw?.bucketNames) ? raw.bucketNames.filter((name): name is string => typeof name === "string") : []
+    };
+    console.info("[admin-system-capacity]", { checkedAt, status: "success", responseMs: Date.now() - startedAt, fileCount: stats.fileCount, bucketCount: stats.bucketCount });
+    return stats;
+  } catch (error) {
+    console.error("[admin-system-capacity]", { checkedAt, status: "failure", responseMs: Date.now() - startedAt, reason: error instanceof Error ? error.message : String(error) });
+    throw error;
+  }
+}
+
+function safeNonNegativeNumber(value: unknown) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) throw new Error("Supabase retornou uma métrica de capacidade inválida.");
+  return number;
+}
+
+function usagePercent(usedBytes: number, totalBytes: number) {
+  return Math.min(Number(((usedBytes / totalBytes) * 100).toFixed(2)), 100);
+}
+
+function capacityState(percent: number | null): ServiceState {
+  if (percent === null) return "degraded";
+  return percent <= 70 ? "operational" : percent <= 90 ? "degraded" : "offline";
+}
+
+function capacityLimitBytes(gigabytesEnv: string, bytesEnv: string, fallbackGigabytes: number) {
+  const gigabytes = Number(process.env[gigabytesEnv]);
+  if (Number.isFinite(gigabytes) && gigabytes > 0) return gigabytes * 1024 ** 3;
+  const bytes = Number(process.env[bytesEnv]);
+  if (Number.isFinite(bytes) && bytes > 0) return bytes;
+  return fallbackGigabytes * 1024 ** 3;
 }
 
 function daysLeft(value: string | null) {

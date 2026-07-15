@@ -1,9 +1,11 @@
 ﻿import { randomBytes, randomUUID } from "crypto";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { canUseContactFeatures, verifiedAccountRequiredMessage } from "@/lib/account-requirements";
 import { onlyDigits } from "@/lib/formatters";
 import { errorResponse, json } from "@/lib/http";
 import { validateContactMessageSafety } from "@/lib/message-safety";
+import { createUserMessageAndNotify } from "@/lib/messages";
 import { deliverUserNotice } from "@/lib/notifications";
 import { isServicePublicContactEnabled, serviceContactPreferenceFromComplement } from "@/lib/service-contact-disclosure";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -28,6 +30,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const user = await getCurrentUser();
     if (!user) return json({ error: "Entre ou crie sua conta para ver o contato deste profissional." }, 401);
     if (user.accountBlockedAt) return json({ error: "Sua conta está temporariamente impedida de ver contatos. Entre em contato com o suporte do Achei X." }, 403);
+    if (!canUseContactFeatures(user)) return json({ error: verifiedAccountRequiredMessage }, 403);
     const { data: profile, error } = await supabase
       .from("service_profiles")
       .select("id,user_id,telefone_privado,whatsapp_privado,email_privado,complemento,active,status")
@@ -80,7 +83,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
   try {
     const supabase = getSupabaseAdmin();
     const user = await getCurrentUser();
+    if (!user) return json({ error: "Entre ou crie sua conta e valide seu cadastro para falar com este profissional." }, 401);
     if (user?.accountBlockedAt) return json({ error: "Sua conta está temporariamente impedida de enviar interesses. Entre em contato com o suporte do Achei X." }, 403);
+    if (!canUseContactFeatures(user)) return json({ error: verifiedAccountRequiredMessage }, 403);
     const data = contactSchema.parse(await request.json());
 
     const { data: profile, error: profileError } = await supabase
@@ -142,14 +147,30 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
       const title = profile.nome_fantasia ?? profile.name ?? "Serviço";
       const appUrl = getAppBaseUrl(request);
-      const responseUrl = `${appUrl}/dashboard?serviceContact=${created.id}#interesses`;
+      const responseUrl = `${appUrl}/dashboard?serviceContact=${created.id}#mensagens`;
       const notificationMessage = `${created.name ?? "Um usuário"} quer falar sobre ${title}.`;
       await deliverUserNotice(provider as any, "Novo interessado em serviço", notificationMessage, {
         linkLabel: title,
         linkUrl: responseUrl,
         primaryActionLabel: "Ver interessado",
         primaryActionUrl: responseUrl,
-        contactLeadId: created.id
+        contactLeadId: created.id,
+        suppressPush: true
+      });
+
+      await createUserMessageAndNotify({
+        category: "SERVICES",
+        serviceProfileId: profile.id,
+        sourceType: "SERVICE_CONTACT",
+        sourceId: created.id,
+        senderId: user.id,
+        recipientId: profile.user_id,
+        body: data.message ?? "Tenho interesse neste serviço.",
+        push: {
+          title: "Nova mensagem no Achei X",
+          body: "Você recebeu uma nova mensagem em Serviços.",
+          url: responseUrl
+        }
       });
 
       return json({ ok: true, message: "Interesse enviado. O prestador recebeu seu contato e em breve poderá retornar." });

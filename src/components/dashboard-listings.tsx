@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Clock, MapPin } from "lucide-react";
-import { daysUntil } from "@/lib/expiration-policy";
+import { AlertTriangle, ArrowLeft, Clock, MapPin, X } from "lucide-react";
+import { daysUntil, pendingPaymentDraftDays } from "@/lib/expiration-policy";
 import { planCatalog } from "@/lib/constants";
 import { formatCurrencyBRL, formatPlanCurrencyBRL } from "@/lib/formatters";
 import { normalizeImageUrl } from "@/lib/image-url";
 import { PlanIcon } from "@/components/plan-icon";
-import { isCnpjAccount, isProfessionalPlanCode } from "@/lib/plan-rules";
+import { isCnpjAccount, isPlanAllowedForCategory, isProductPlanAvailableForPrice, isProfessionalPlanCode } from "@/lib/plan-rules";
 
 type DashboardListing = {
   id: string;
@@ -27,6 +27,8 @@ type DashboardListing = {
   shareCount: number;
   favoritesCount: number;
   leadsCount: number;
+  pendingPaymentId?: string | null;
+  pendingPaymentCreatedAt?: Date | string | null;
   plan: { code: string; name: string };
   photos: Array<{ url: string; alt: string | null }>;
 };
@@ -53,8 +55,10 @@ export function DashboardListings({ listings, accountType, cnpj, initialFilter =
   const [items, setItems] = useState(listings);
   const [filter, setFilter] = useState(filters.some((item) => item.value === initialFilter) ? initialFilter : "ALL");
   const [message, setMessage] = useState("");
+  const [showPendingPaymentNotice, setShowPendingPaymentNotice] = useState(false);
   const [renewingSlug, setRenewingSlug] = useState<string | null>(null);
   const [pendingDowngrade, setPendingDowngrade] = useState<PendingDowngrade | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
   const renewMenuRef = useRef<HTMLDivElement | null>(null);
   const filtered = useMemo(() => {
     if (filter === "ALL") return items;
@@ -66,6 +70,7 @@ export function DashboardListings({ listings, accountType, cnpj, initialFilter =
     return items.filter((listing) => listing.status === filter);
   }, [filter, items]);
   const currentFilter = filters.find((item) => item.value === filter) ?? filters[0];
+  const pendingPaymentItems = useMemo(() => items.filter((listing) => listing.status === "DRAFT" && listing.pendingPaymentId), [items]);
   const filterCounts = useMemo(() => {
     const counts = new Map<string, number>(filters.map((item) => [item.value, 0]));
     const expiringLimit = Date.now() + 3 * 86400000;
@@ -81,6 +86,17 @@ export function DashboardListings({ listings, accountType, cnpj, initialFilter =
   useEffect(() => {
     setItems(listings);
   }, [listings]);
+
+  useEffect(() => {
+    setShowPendingPaymentNotice(pendingPaymentItems.length > 0);
+  }, [pendingPaymentItems.length]);
+
+  useEffect(() => {
+    if (window.location.hash !== "#meus-anuncios") return;
+    window.setTimeout(() => {
+      sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,7 +175,7 @@ export function DashboardListings({ listings, accountType, cnpj, initialFilter =
   }
 
   return (
-    <section id="meus-anuncios" className="mt-8 scroll-mt-24">
+    <section ref={sectionRef} id="meus-anuncios" className="mt-8 scroll-mt-24">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-black">Meus Anúncios</h2>
@@ -187,6 +203,14 @@ export function DashboardListings({ listings, accountType, cnpj, initialFilter =
         </div>
       ) : null}
       {message && <p className="mt-3 text-sm text-yellow-300">{message}</p>}
+      {pendingPaymentItems.length ? (
+        <div className="mt-3 rounded-xl border border-yellow-300/35 bg-yellow-300/10 p-3 text-sm text-yellow-50">
+          <p className="font-black">Pagamento pendente</p>
+          <p className="mt-1 text-yellow-100/90">
+            Anúncios não pagos ficam disponíveis para pagamento por {pendingPaymentDraftDays} dias. Depois disso, são removidos automaticamente.
+          </p>
+        </div>
+      ) : null}
       <div className="mt-4 overflow-hidden rounded-lg border border-black/10 bg-white dark:border-white/10 dark:bg-neutral-900">
         <div className="hidden grid-cols-[minmax(260px,1fr)_110px_130px_190px_190px] border-b border-black/10 p-3 text-sm font-bold dark:border-white/10 lg:grid">
           <span>Anúncio</span><span>Status</span><span>Vencimento</span><span>Indicadores</span><span>Ações</span>
@@ -200,7 +224,7 @@ export function DashboardListings({ listings, accountType, cnpj, initialFilter =
                 <small className="text-neutral-500">Publicado em {new Date(listing.createdAt).toLocaleDateString("pt-BR")}</small>
               </span>
               <span><b className="lg:hidden">Status: </b>{translateStatus(listing.status)}</span>
-              <span><b className="lg:hidden">Vencimento: </b>{new Date(listing.expiresAt).toLocaleDateString("pt-BR")}<br /><small>{remaining > 0 ? `${remaining} dias` : "Expirado"}</small></span>
+              <span><b className="lg:hidden">Vencimento: </b>{new Date(listing.expiresAt).toLocaleDateString("pt-BR")}<br /><small>{listing.status === "DRAFT" ? (remaining > 0 ? `Pagar em até ${remaining} dias` : "Pendente vencido") : remaining > 0 ? `${remaining} dias` : "Expirado"}</small></span>
               <span className="grid grid-cols-3 gap-1 text-center text-[11px]">
                 <Metric label="Visualizações" value={listing.viewCount} />
                 <Metric label="Cliques" value={listing.contactClickCount} />
@@ -210,21 +234,26 @@ export function DashboardListings({ listings, accountType, cnpj, initialFilter =
                 <Metric label="Dias" value={Math.max(remaining, 0)} />
               </span>
               <span className="grid gap-2">
+                {listing.status === "DRAFT" && listing.pendingPaymentId ? (
+                  <a href={`/pagamento?paymentId=${listing.pendingPaymentId}`} className="rounded-md bg-[#22C55E] px-3 py-2 text-center font-black text-black hover:bg-[#34D399]">Pagar</a>
+                ) : null}
                 <a href={`/dashboard/anuncios/${listing.slug}/editar`} className="rounded-md border border-emerald-400/30 px-3 py-2 font-bold text-emerald-200 hover:bg-[#22C55E]/10">Editar</a>
-                <div ref={renewingSlug === listing.slug ? renewMenuRef : null} className="grid gap-2">
-                  <button type="button" onClick={() => setRenewingSlug((current) => current === listing.slug ? null : listing.slug)} className="rounded-md px-3 py-2 btn-gold">
-                    {remaining > 7 ? "Ver Renovação" : "Renovar Plano"}
-                  </button>
-                  {renewingSlug === listing.slug && (
-                    <div className="grid gap-1 rounded-md border border-yellow-300/25 bg-yellow-300/10 p-2">
-                    {paidPlans.map((plan) => (
-                      <button key={plan.code} type="button" onClick={() => handleRenewClick(listing, plan)} className="rounded-md border border-white/10 px-2 py-1.5 text-left text-xs font-black text-white hover:border-yellow-300/50">
-                        {plan.name} - {formatPlanCurrencyBRL(plan.priceCents)}
-                      </button>
-                    ))}
-                    </div>
-                  )}
-                </div>
+                {listing.status !== "DRAFT" ? (
+                  <div ref={renewingSlug === listing.slug ? renewMenuRef : null} className="grid gap-2">
+                    <button type="button" onClick={() => setRenewingSlug((current) => current === listing.slug ? null : listing.slug)} className="rounded-md px-3 py-2 btn-gold">
+                      {remaining > 7 ? "Ver Renovação" : "Renovar Plano"}
+                    </button>
+                    {renewingSlug === listing.slug && (
+                      <div className="grid gap-1 rounded-md border border-yellow-300/25 bg-yellow-300/10 p-2">
+                      {paidPlans.filter((plan) => isPlanAllowedForCategory(plan.code, listing.category as any) && (listing.category !== "PRODUCT" || isProductPlanAvailableForPrice(plan.code, listing.priceCents))).map((plan) => (
+                        <button key={plan.code} type="button" onClick={() => handleRenewClick(listing, plan)} className="rounded-md border border-white/10 px-2 py-1.5 text-left text-xs font-black text-white hover:border-yellow-300/50">
+                          {plan.name} - {formatPlanCurrencyBRL(plan.priceCents)}
+                        </button>
+                      ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
                 <button type="button" onClick={() => remove(listing.slug)} className="rounded-md border border-red-400/30 px-3 py-2 font-bold text-red-200">Excluir</button>
               </span>
             </div>
@@ -268,6 +297,32 @@ export function DashboardListings({ listings, accountType, cnpj, initialFilter =
           </div>
         </div>
       ) : null}
+      {showPendingPaymentNotice && pendingPaymentItems.length ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4 py-6">
+          <div className="w-full max-w-md rounded-2xl border border-yellow-300/35 bg-neutral-950 p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase text-yellow-300">Aviso importante</p>
+                <h3 className="mt-1 text-xl font-black text-white">Você tem Pagamento Pendente !!!</h3>
+              </div>
+              <button type="button" onClick={() => setShowPendingPaymentNotice(false)} className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-white hover:border-yellow-300/50" aria-label="Fechar aviso">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-neutral-300">
+              Se sair da tela de pagamento, você pode voltar por aqui em <strong className="text-yellow-200">Meus Anúncios</strong> e tocar em <strong className="text-yellow-200">Pagar</strong>. Anúncios não pagos são apagados automaticamente após {pendingPaymentDraftDays} dias.
+            </p>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button type="button" onClick={() => setShowPendingPaymentNotice(false)} className="h-11 rounded-full border border-white/10 px-4 text-sm font-black text-white hover:border-yellow-300/50">
+                Entendi
+              </button>
+              <a href={`/pagamento?paymentId=${pendingPaymentItems[0].pendingPaymentId}`} className="inline-flex h-11 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">
+                Pagar
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -279,11 +334,14 @@ function isPlanDowngrade(currentCode: string, nextCode: string) {
 function planRank(code: string) {
   const ranks: Record<string, number> = {
     FREE: 0,
-    BRONZE: 1,
-    SILVER: 2,
-    GOLD: 3,
-    X6: 4,
-    X12: 5
+    PRODUCT_MINI: 1,
+    PRODUCT_START: 2,
+    PRODUCT_BASIC: 3,
+    BRONZE: 4,
+    SILVER: 5,
+    GOLD: 6,
+    X6: 7,
+    X12: 8
   };
   return ranks[code] ?? 0;
 }
@@ -300,19 +358,21 @@ function ListingMini({ listing, remaining }: { listing: DashboardListing; remain
         ) : (
           <div className="grid h-full place-items-center text-[10px] font-bold text-neutral-400">Sem foto</div>
         )}
-        <div className="absolute left-1 top-1 flex max-w-[calc(100%-0.5rem)] flex-col items-start gap-0.5 rounded-lg bg-black/75 px-1.5 py-1 text-[9px] font-black text-white">
-          <span className="flex items-center gap-1">
-            <PlanIcon code={listing.plan.code} name={listing.plan.name} size={10} />
-            <span className={planClassName}>{listing.plan.name}</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock size={10} className="text-yellow-300" />
-            <span>{remaining > 0 ? `${remaining} dias` : "Expirado"}</span>
-          </span>
-        </div>
       </a>
-      <div className="min-w-0 py-0.5">
-        <a href={`/anuncios/${listing.slug}`} className="line-clamp-2 text-sm font-bold hover:text-yellow-300">{listing.title}</a>
+      <div className="min-w-0 flex-1 py-0.5">
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <a href={`/anuncios/${listing.slug}`} className="min-w-0 line-clamp-2 text-sm font-bold hover:text-yellow-300">{listing.title}</a>
+          <div className="shrink-0 rounded-lg border border-yellow-300/20 bg-black/75 px-2 py-1 text-[9px] font-black text-white">
+            <span className="flex items-center justify-end gap-1">
+              <PlanIcon code={listing.plan.code} name={listing.plan.name} size={10} />
+              <span className={planClassName}>{listing.plan.name}</span>
+            </span>
+            <span className="mt-0.5 flex items-center justify-end gap-1">
+              <Clock size={10} className="text-yellow-300" />
+              <span>{remaining > 0 ? `${remaining} dias` : "Expirado"}</span>
+            </span>
+          </div>
+        </div>
         <p className="mt-1 font-black text-yellow-300">{formatCurrencyBRL(listing.priceCents)}</p>
         <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-neutral-400">
           <MapPin size={12} className="shrink-0" />

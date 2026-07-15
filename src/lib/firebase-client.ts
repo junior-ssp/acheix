@@ -2,7 +2,6 @@
 
 import { getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
 import { getMessaging, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
@@ -22,14 +21,10 @@ export function getFirebaseApp() {
   return getApps()[0] ?? initializeApp(firebaseConfig);
 }
 
-export function getFirebaseAuth() {
+export function getFirebaseAuthClient() {
   const app = getFirebaseApp();
-  return app ? getAuth(app) : null;
-}
-
-export function getFirebaseDb() {
-  const app = getFirebaseApp();
-  return app ? getFirestore(app) : null;
+  if (!app) return null;
+  return getAuth(app);
 }
 
 export async function getFirebaseMessaging() {

@@ -14,12 +14,13 @@ type ServiceCheck = {
 };
 
 type Capacity = {
+  available: boolean;
   totalBytes: number;
-  usedBytes: number;
-  freeBytes: number;
-  usagePercent: number;
-  imageCount?: number;
-  fileCount?: number;
+  usedBytes: number | null;
+  freeBytes: number | null;
+  usagePercent: number | null;
+  imageCount?: number | null;
+  fileCount?: number | null;
 };
 
 type SystemStatus = {
@@ -74,6 +75,7 @@ export function AdminSystemMonitor() {
 
   async function load() {
     try {
+      setLoading(true);
       setError("");
       const response = await fetch("/api/admin/system-status", { cache: "no-store" });
       if (!response.ok) throw new Error("Falha ao carregar monitoramento.");
@@ -88,7 +90,16 @@ export function AdminSystemMonitor() {
   useEffect(() => {
     load();
     const timer = window.setInterval(load, 30000);
-    return () => window.clearInterval(timer);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
 
   const summary = useMemo(() => {
@@ -131,7 +142,7 @@ export function AdminSystemMonitor() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <CapacityPanel title="Banco de Dados" data={data.database} />
-            <CapacityPanel title="Storage" data={data.storage} fileLabel={`${data.storage.fileCount ?? 0} arquivos · ${data.storage.imageCount ?? 0} imagens`} />
+            <CapacityPanel title="Storage" data={data.storage} fileLabel={data.storage.available ? `${data.storage.fileCount ?? 0} arquivos · ${data.storage.imageCount ?? 0} imagens` : "Indisponível"} />
           </div>
 
           <div>
@@ -215,14 +226,15 @@ function formatEnvironment(environment: string) {
 }
 
 function CapacityPanel({ title, data, fileLabel }: { title: string; data: Capacity; fileLabel?: string }) {
-  const color = data.usagePercent <= 70 ? "#22c55e" : data.usagePercent <= 90 ? "#facc15" : "#ef4444";
+  const percent = data.usagePercent;
+  const color = percent === null ? "#737373" : percent <= 70 ? "#22c55e" : percent <= 90 ? "#facc15" : "#ef4444";
   return (
     <div className="rounded-lg border border-white/10 bg-black/30 p-4">
       <div className="flex flex-wrap items-center gap-4">
-        <div className="relative grid h-32 w-32 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${color} ${data.usagePercent * 3.6}deg, rgb(255 255 255 / 0.12) 0deg)` }}>
+        <div className="relative grid h-32 w-32 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${color} ${(percent ?? 0) * 3.6}deg, rgb(255 255 255 / 0.12) 0deg)` }}>
           <div className="grid h-24 w-24 place-items-center rounded-full bg-neutral-950">
             <div className="text-center">
-              <strong className="block text-2xl">{data.usagePercent}%</strong>
+              <strong className="block text-2xl">{percent === null ? "—" : `${percent}%`}</strong>
               <span className="text-xs text-neutral-400">Uso</span>
             </div>
           </div>
@@ -254,7 +266,8 @@ function formatMs(value: number | null) {
   return value === null ? "Não Informado" : `${value} ms`;
 }
 
-function formatBytes(value: number) {
+function formatBytes(value: number | null) {
+  if (value === null) return "Indisponível";
   if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GB`;
   if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MB`;
   return `${Math.round(value / 1024)} KB`;

@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { ensureAsaasPixCharge, isAsaasConfigured } from "@/lib/asaas";
+import { ensureAsaasPixCharge, isAsaasConfigured, selectAsaasCustomerDocument } from "@/lib/asaas";
 import { formatCurrencyBRL } from "@/lib/formatters";
 import { errorResponse, json } from "@/lib/http";
 import { db, throwDbError } from "@/lib/supabase-db";
@@ -36,7 +36,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
         customer: {
           name: user.name,
           email: user.email,
-          cpfCnpj: user.cnpj ?? user.cpf,
+          cpfCnpj: selectAsaasCustomerDocument(user),
           phone: user.whatsapp ?? user.phone
         }
       });

@@ -1,12 +1,12 @@
 import { hashPassword } from "@/lib/auth";
 import { getPublicAppBaseUrl } from "@/lib/app-url";
-import { completeLocationFromUserAndDdd } from "@/lib/ddd-autocomplete";
+import { canShareCpfBetween } from "@/lib/cpf-sharing-exceptions";
 import { validateCpfWithProviders } from "@/lib/cpf-validation";
 import { onlyDigits } from "@/lib/formatters";
-import { errorResponse, json } from "@/lib/http";
-import { validateFreeIdentityFields } from "@/lib/identity-verification";
+import { json } from "@/lib/http";
+import { identityNameMatches, identityNameMismatchMessage } from "@/lib/identity-name-match";
 import { getSupabaseAdminClient } from "@/lib/supabase-auth";
-import { db, isUniqueViolation, throwDbError, uniqueViolationFields } from "@/lib/supabase-db";
+import { db, isUniqueViolation, newDbId, throwDbError, uniqueViolationFields } from "@/lib/supabase-db";
 import { registerSchema } from "@/lib/validators";
 
 export async function POST(request: Request) {
@@ -14,30 +14,25 @@ export async function POST(request: Request) {
 
   try {
     const data = registerSchema.parse(await request.json());
-    const cpf = onlyDigits(data.cpf);
+    const cpf = data.accountType === "CPF" ? onlyDigits(data.cpf ?? "") : null;
     const cnpj = data.accountType === "CNPJ" ? onlyDigits(data.cnpj ?? "") : null;
-    const phone = onlyDigits(data.phone);
-    const whatsapp = onlyDigits(data.whatsapp);
     const email = data.email.toLowerCase();
     const appBaseUrl = getPublicAppBaseUrl(request);
-    const location = await completeLocationFromUserAndDdd({ cep: data.cep, state: data.state, city: data.city, district: data.district }, { phone, whatsapp });
 
-    const cpfValidation = await validateCpfWithProviders(cpf);
-    if (!cpfValidation.valid) {
-      return json({ error: cpfValidation.error ?? "Informe um CPF válido." }, 422);
-    }
-    const identityErrors = validateFreeIdentityFields({ cpf, name: data.name, birthDate: data.birthDate, phone, whatsapp });
-    if (identityErrors.length) return json({ error: identityErrors.join(" ") }, 422);
-
-    const existingUser = await findExistingUser({ cpf, cnpj, email });
-    if (existingUser?.email === email) {
-      if (existingUser.supabaseUid) {
-        await getSupabaseAdminClient()?.auth.admin.updateUserById(existingUser.supabaseUid, { email_confirm: true }).catch(() => null);
+    if (cpf) {
+      const cpfValidation = await validateCpfWithProviders(cpf);
+      if (!cpfValidation.valid) {
+        return json({ error: cpfValidation.error ?? "Informe um CPF válido." }, 422);
       }
-      return json({ error: "Este e-mail já está cadastrado. Use outro e-mail ou entre na sua conta." }, 409);
+      if (cpfValidation.name && !identityNameMatches(data.name, cpfValidation.name)) {
+        return json({ error: identityNameMismatchMessage() }, 422);
+      }
     }
-    if (existingUser?.cpf === cpf) return json({ error: "Este CPF já está cadastrado. Use outro CPF ou entre na sua conta." }, 409);
-    if (cnpj && existingUser?.cnpj === cnpj) return json({ error: "Este CNPJ já está cadastrado. Use outro CNPJ ou entre na sua conta." }, 409);
+
+    const existingUsers = await findExistingUsers({ cpf, cnpj, email });
+    if (existingUsers.some((user) => user.email === email)) return json({ error: "Este e-mail já está cadastrado. Use outro e-mail ou entre na sua conta." }, 409);
+    if (cpf && existingUsers.some((user) => user.cpf === cpf && !canShareCpfBetween(email, user.email))) return json({ error: "Este CPF já está cadastrado. Use outro CPF ou entre na sua conta." }, 409);
+    if (cnpj && existingUsers.some((user) => user.cnpj === cnpj)) return json({ error: "Este CNPJ já está cadastrado. Use outro CNPJ ou entre na sua conta." }, 409);
 
     const supabase = getSupabaseAdminClient();
     if (!supabase) return json({ error: "Supabase Auth ainda não está configurado no servidor." }, 500);
@@ -51,9 +46,6 @@ export async function POST(request: Request) {
         accountType: data.accountType,
         cpf,
         cnpj,
-        birthDate: data.birthDate.toISOString().slice(0, 10),
-        phone,
-        whatsapp,
         appUrl: appBaseUrl
       }
     });
@@ -63,35 +55,55 @@ export async function POST(request: Request) {
     }
 
     supabaseUserId = authData.user.id;
+    const now = new Date().toISOString();
+    const userId = newDbId();
+    if (!userId) {
+      console.error("auth.register.invalid_user_id", { email, accountType: data.accountType });
+      return json({ error: registerGenericErrorMessage }, 500);
+    }
+
     const { data: user, error: insertError } = await db()
       .from("User")
       .insert({
+        id: userId,
         name: data.name,
         accountType: data.accountType,
         cpf,
         cnpj,
-        birthDate: data.birthDate.toISOString(),
+        birthDate: data.birthDate ?? null,
         email,
+        emailVerifiedAt: now,
         supabaseUid: supabaseUserId,
         passwordHash: await hashPassword(data.password),
-        phone,
-        whatsapp,
-        cep: data.cep ? onlyDigits(data.cep) : null,
-        address: data.address || null,
-        number: data.number || null,
-        complement: data.complement || null,
-        district: location.district ?? data.district ?? null,
-        city: location.city || data.city || null,
-        state: location.state || data.state || null,
+        phone: null,
+        whatsapp: null,
+        cep: null,
+        address: null,
+        number: null,
+        complement: null,
+        district: null,
+        city: null,
+        state: null,
         notificationChannel: "IN_APP",
-        notificationChannels: ["IN_APP", "PUSH", "EMAIL", "WHATSAPP"],
-        acceptedTermsAt: new Date().toISOString()
+        notificationChannels: ["IN_APP", "PUSH", "EMAIL"],
+        acceptedTermsAt: now,
+        updatedAt: now
       })
       .select("id,name,email,role")
       .single();
-    throwDbError(insertError);
+    if (insertError) {
+      console.error("auth.register.user_insert_failed", {
+        code: typeof insertError === "object" && insertError && "code" in insertError ? insertError.code : undefined,
+        message: typeof insertError === "object" && insertError && "message" in insertError ? insertError.message : undefined,
+        details: typeof insertError === "object" && insertError && "details" in insertError ? insertError.details : undefined,
+        email,
+        accountType: data.accountType,
+        hasUserId: Boolean(userId)
+      });
+      throwDbError(insertError);
+    }
 
-    return json({ user, message: "Cadastro criado com sucesso. Agora você já pode entrar na sua conta." }, 201);
+    return json({ user, message: "Cadastro criado com sucesso. Seu e-mail foi registrado e validado no Achei X. Entre para completar seu perfil com telefone celular ou WhatsApp." }, 201);
   } catch (error) {
     if (supabaseUserId) {
       await getSupabaseAdminClient()?.auth.admin.deleteUser(supabaseUserId).catch(() => null);
@@ -105,21 +117,24 @@ export async function POST(request: Request) {
       return json({ error: "Já existe um cadastro com esses dados." }, 409);
     }
 
-    return errorResponse(error);
+    console.error("auth.register.unexpected_error", error);
+    return json({ error: registerGenericErrorMessage }, 400);
   }
 }
 
-async function findExistingUser(input: { cpf: string; cnpj: string | null; email: string }) {
-  const filters = [`cpf.eq.${input.cpf}`, `email.eq.${input.email}`];
+const registerGenericErrorMessage = "Não foi possível criar sua conta. Tente novamente.";
+
+async function findExistingUsers(input: { cpf: string | null; cnpj: string | null; email: string }) {
+  const filters = [`email.eq.${input.email}`];
+  if (input.cpf) filters.push(`cpf.eq.${input.cpf}`);
   if (input.cnpj) filters.push(`cnpj.eq.${input.cnpj}`);
   const { data, error } = await db()
     .from("User")
     .select("cpf,cnpj,email,supabaseUid")
     .or(filters.join(","))
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
   throwDbError(error);
-  return data;
+  return data ?? [];
 }
 
 function supabaseAuthErrorMessage(message?: string) {
@@ -132,4 +147,3 @@ function supabaseAuthErrorMessage(message?: string) {
   if (text.includes("password")) return "Senha fraca. Use pelo menos 6 caracteres.";
   return "Não foi possível criar o usuário no Supabase Auth.";
 }
-

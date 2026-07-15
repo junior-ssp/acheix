@@ -13,12 +13,16 @@ const reportReasons = [
 
 export function ReportListingButton({
   slug,
+  listingId,
   authenticated = false,
-  canReport = true
+  canReport = true,
+  disabledReason
 }: {
   slug: string;
+  listingId?: string | null;
   authenticated?: boolean;
   canReport?: boolean;
+  disabledReason?: string;
   ownerId?: string | null;
   canBlock?: boolean;
 }) {
@@ -33,7 +37,7 @@ export function ReportListingButton({
       return;
     }
     if (!canReport) {
-      setMessage("Você não pode reportar seu próprio anúncio.");
+      setMessage(disabledReason ?? "Você não pode reportar este anúncio.");
       return;
     }
     if (busy) return;
@@ -48,6 +52,7 @@ export function ReportListingButton({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          listingId,
           publicReason: selectedReason?.publicReason,
           reason: selectedReason?.reason,
           description: formData.get("description"),
@@ -96,7 +101,7 @@ export function ReportListingButton({
         </p>
       ) : !canReport ? (
         <p className="mt-3 rounded-xl border border-white/25 bg-black/20 p-3 text-xs font-bold text-white">
-          Você não pode reportar seu próprio anúncio.
+          {disabledReason ?? "Você não pode reportar este anúncio."}
         </p>
       ) : open ? (
         <form onSubmit={report} className="mt-3 grid gap-3">

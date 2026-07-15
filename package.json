@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run check:portuguese && next build",
+    "build": "npm run check:email-delivery && npm run check:registration && npm run check:listing-preview && npm run check:home-grid && npm run check:admin-render && npm run check:portuguese && next build",
     "start": "next start",
     "lint": "next lint",
     "cap:sync": "cap sync android",
@@ -15,7 +15,12 @@
     "apk:publish-latest": "tsx scripts/publish-latest-apk.ts",
     "test:expiration": "tsx scripts/verify-expiration-policy.ts",
     "jobs:service-profile-activity": "tsx scripts/apply-service-profile-activity-policy.ts",
-    "check:portuguese": "tsx scripts/check-portuguese.ts"
+    "check:portuguese": "tsx scripts/check-portuguese.ts",
+    "check:registration": "tsx scripts/check-registration-safety.ts",
+    "check:listing-preview": "tsx scripts/check-listing-preview-safety.ts",
+    "check:home-grid": "tsx scripts/check-home-grid-safety.ts",
+    "check:admin-render": "tsx scripts/check-admin-render-safety.ts",
+    "check:email-delivery": "tsx scripts/check-email-delivery-config.ts"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.0",

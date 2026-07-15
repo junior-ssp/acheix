@@ -1,4 +1,5 @@
 import { db, newDbId, throwDbError } from "@/lib/supabase-db";
+import { isMessagingBlockedBetween } from "@/lib/user-blocks";
 
 export const messageSafetyConfigAction = "admin.message_safety_keywords.updated";
 
@@ -24,6 +25,9 @@ export const defaultBlockedMessageTerms = [
 export const captationBlockedMessage =
   "Para proteger nossos anunciantes, o Achei X não permite contatos de captação, prospecção comercial, oferta de divulgação em outras plataformas ou links externos. Use este canal apenas para interesse real no anúncio ou serviço.";
 
+export const chatLinksBlockedMessage =
+  "Por segurança, o chat do Achei X não permite envio de links. Escreva sua mensagem sem links.";
+
 type SafetyUser = {
   id: string;
   name?: string | null;
@@ -39,6 +43,7 @@ type MessageSafetyInput = {
   message: string;
   context:
     | { type: "LISTING"; listingId: string }
+    | { type: "LISTING_CHAT"; listingId: string }
     | { type: "SERVICE"; profileId: string };
 };
 
@@ -90,16 +95,21 @@ export async function validateContactMessageSafety(input: MessageSafetyInput): P
     return { allowed: false, status: 403, reason: "blocked_account", message: "Sua conta está temporariamente impedida de enviar interesses. Entre em contato com o suporte do Achei X." };
   }
 
-  if (input.sender && await isUserBlockedByTarget(input.targetUserId, input.sender.id)) {
+  if (input.sender && await isMessagingBlockedBetween(input.targetUserId, input.sender.id)) {
     await insertSafetyAudit(input.sender.id, "message_safety.blocked_by_target", baseMetadata);
-    return { allowed: false, status: 403, reason: "blocked_by_target", message: "Este anunciante não está recebendo novos interesses da sua conta." };
+    return { allowed: false, status: 403, reason: "blocked_contact", message: "O contato entre estas contas foi bloqueado. Não é possível enviar novas mensagens." };
   }
 
-  const externalLinks = findExternalLinks(input.message);
-  if (externalLinks.length) {
-    await insertSafetyAudit(input.sender?.id ?? null, "message_safety.external_link_blocked", { ...baseMetadata, externalLinks });
-    await createMessageSafetyTrustCase(input, "external_link", { externalLinks });
-    return { allowed: false, status: 403, reason: "external_link", message: captationBlockedMessage };
+  const blockedLinks = input.context.type === "LISTING_CHAT" ? findAnyLinks(input.message) : findExternalLinks(input.message);
+  if (blockedLinks.length) {
+    await insertSafetyAudit(input.sender?.id ?? null, "message_safety.external_link_blocked", { ...baseMetadata, externalLinks: blockedLinks });
+    await createMessageSafetyTrustCase(input, "external_link", { externalLinks: blockedLinks });
+    return {
+      allowed: false,
+      status: 403,
+      reason: "external_link",
+      message: input.context.type === "LISTING_CHAT" ? chatLinksBlockedMessage : captationBlockedMessage
+    };
   }
 
   const matchedTerms = matchBlockedTerms(input.message, await getBlockedMessageTerms());
@@ -122,6 +132,10 @@ export async function validateContactMessageSafety(input: MessageSafetyInput): P
 
 export function parseBlockedTermsText(text: string) {
   return normalizeTerms(text.split(/\r?\n|,/g));
+}
+
+export function containsBlockedChatLink(message: string) {
+  return findAnyLinks(message).length > 0;
 }
 
 function normalizeTerms(values: unknown[] | undefined) {
@@ -158,23 +172,31 @@ function findExternalLinks(message: string) {
   });
 }
 
-async function isUserBlockedByTarget(targetUserId: string, senderUserId: string) {
-  const { data, error } = await db()
-    .from("AuditLog")
-    .select("id")
-    .eq("userId", targetUserId)
-    .eq("action", "user.blocked")
-    .contains("metadata", { blockedUserId: senderUserId })
-    .limit(1)
-    .maybeSingle();
-  throwDbError(error);
-  return Boolean(data);
+function findAnyLinks(message: string) {
+  return message.match(/(?:[a-z][a-z0-9+.-]*:\/\/|www\.)[^\s<>"')]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?:\/[^\s<>"')]+)?|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:\/[^\s<>"')]+)?/gi) ?? [];
 }
 
 async function checkSenderLimits(senderUserId: string, context: MessageSafetyInput["context"]) {
   const now = Date.now();
   const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
   const sinceDay = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+
+  if (context.type === "LISTING_CHAT") {
+    const sinceMinute = new Date(now - 60 * 1000).toISOString();
+    const { count, error } = await db()
+      .from("ListingChatMessage")
+      .select("id", { count: "exact", head: true })
+      .eq("senderId", senderUserId)
+      .gte("createdAt", sinceMinute);
+    throwDbError(error);
+    if ((count ?? 0) >= 12) {
+      return {
+        allowed: false,
+        message: "Muitas mensagens foram enviadas em pouco tempo. Aguarde um minuto para continuar.",
+        metadata: { chatMessagesLastMinute: count }
+      };
+    }
+  }
 
   if (context.type === "LISTING") {
     const { count: sameListingCount, error: sameListingError } = await db()
@@ -227,7 +249,9 @@ function requestIp(request: Request) {
 function contextMetadata(context: MessageSafetyInput["context"]) {
   return context.type === "LISTING"
     ? { contactType: "LISTING", listingId: context.listingId }
-    : { contactType: "SERVICE", profileId: context.profileId };
+    : context.type === "LISTING_CHAT"
+      ? { contactType: "LISTING_CHAT", listingId: context.listingId }
+      : { contactType: "SERVICE", profileId: context.profileId };
 }
 
 async function insertSafetyAudit(userId: string | null, action: string, metadata: Record<string, unknown>) {
@@ -240,7 +264,7 @@ async function createMessageSafetyTrustCase(input: MessageSafetyInput, reason: s
   const values = {
     id: newDbId(),
     targetType: input.context.type,
-    listingId: input.context.type === "LISTING" ? input.context.listingId : null,
+    listingId: input.context.type === "LISTING" || input.context.type === "LISTING_CHAT" ? input.context.listingId : null,
     serviceId: input.context.type === "SERVICE" ? input.context.profileId : null,
     targetUserId: input.targetUserId,
     riskScore: 85,

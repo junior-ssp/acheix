@@ -16,9 +16,24 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const data = tokenSchema.parse(await request.json().catch(() => ({})));
     const now = new Date().toISOString();
-    const { data: pushToken, error } = await db()
+    const existing = await db()
       .from("PushToken")
-      .upsert({ id: newDbId(), userId: user.id, token: data.token, platform: data.platform, deviceLabel: data.deviceLabel ?? null, active: true, lastSeenAt: now }, { onConflict: "token" })
+      .select("id")
+      .eq("token", data.token)
+      .maybeSingle();
+    throwDbError(existing.error);
+
+    const writePayload = { userId: user.id, platform: data.platform, deviceLabel: data.deviceLabel ?? null, active: true, lastSeenAt: now, updatedAt: now };
+    const query = existing.data?.id
+      ? db()
+        .from("PushToken")
+        .update(writePayload)
+        .eq("id", existing.data.id)
+      : db()
+        .from("PushToken")
+        .insert({ id: newDbId(), token: data.token, ...writePayload });
+
+    const { data: pushToken, error } = await query
       .select("id")
       .single();
     throwDbError(error);

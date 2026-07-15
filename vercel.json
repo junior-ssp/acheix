@@ -3,6 +3,22 @@
     {
       "path": "/api/cron/service-profile-activity",
       "schedule": "20 6 * * *"
+    },
+    {
+      "path": "/api/cron/wanted-requests-expiration",
+      "schedule": "15 5 * * *"
+    },
+    {
+      "path": "/api/cron/listing-top-refresh",
+      "schedule": "10 5 * * *"
+    },
+    {
+      "path": "/api/cron/manual-listings-expiration",
+      "schedule": "25 5 * * *"
+    },
+    {
+      "path": "/api/cron/pending-payment-listings-expiration",
+      "schedule": "35 5 * * *"
     }
   ]
 }

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -6,8 +6,8 @@ import { FileText, Image as ImageIcon, MapPin, Plus, Search, Trash2, X } from "l
 import { brazilStates, citiesByState } from "@/lib/constants";
 import { formatCep, formatCnpj, formatPhone, onlyDigits } from "@/lib/formatters";
 import { isPublicServiceContactPreference, serviceContactDisclosureItems, serviceContactDisclosureTitle, serviceContactDisclosureVersion, type ServiceContactPreference } from "@/lib/service-contact-disclosure";
-import { audienceForService, defaultServiceCategories, serviceAudiences, type ServiceAudience } from "@/lib/service-catalog";
-import { getServicePlan, type ServicePlanCode } from "@/lib/service-plans";
+import { audienceForService, defaultServiceCategories, isServiceAudience, professionalCouncilOptions, requiresProfessionalCredentials, serviceAudiences, type ServiceAudience } from "@/lib/service-catalog";
+import { getServicePlan, isPaidServicePlanCode, type ServicePlanCode } from "@/lib/service-plans";
 import { isSupabaseStorageConfigured, uploadListingPhoto } from "@/lib/supabase-client";
 import { ServiceCategoryIcon } from "@/components/service-category-icon";
 
@@ -52,6 +52,7 @@ type InitialServiceProfile = {
   contactDisclosureAcceptedAt?: string | null;
   contactPreference?: ServiceContactPreference;
   companyLogo?: string | null;
+  serviceImages?: string[];
 };
 
 const emptyLocation: ServiceLocation = { cep: "", state: "", city: "", district: "", address: "", number: "" };
@@ -62,6 +63,7 @@ const contactPreferenceOptions: Array<{ value: ServiceContactPreference; label: 
   { value: "WHATSAPP", label: "Mostrar WhatsApp", description: "Visitantes podem abrir conversa pelo WhatsApp cadastrado." },
   { value: "BOTH", label: "Telefone e WhatsApp", description: "Mostra os dois canais e também mantém solicitações de interesse." }
 ];
+const professionalDeclarationText = "Declaro que possuo todas as autorizações e registros exigidos pela legislação para exercer minha atividade profissional, assumindo integral responsabilidade pelas informações fornecidas e pelos serviços prestados.";
 
 export function ServiceForm({
   initialEnabled = false,
@@ -89,7 +91,14 @@ export function ServiceForm({
   const canUsePublicContact = user.accountType === "CNPJ" || Boolean(user.cnpj);
   const initialContactPreference = canUsePublicContact ? initialProfile?.contactPreference ?? (initialProfile?.contactPublicEnabled ? "BOTH" : "LEADS_ONLY") : "LEADS_ONLY";
   const initialPublicContactEnabled = Boolean(isPublicServiceContactPreference(initialContactPreference) && initialProfile?.contactDisclosureAcceptedAt);
-  const canUseLogo = servicePlan.code === "SERVICE_PRO";
+  const serviceImageLimit = servicePlan.imageLimit;
+  const isPaidServicePlan = isPaidServicePlanCode(servicePlan.code);
+  const initialServiceImages = initialProfile?.serviceImages?.length
+    ? initialProfile.serviceImages.slice(0, serviceImageLimit)
+    : initialProfile?.companyLogo
+      ? [initialProfile.companyLogo].slice(0, serviceImageLimit)
+      : [];
+  const initialProfessionalCredentials = parseProfessionalCredentials(initialProfile?.complement);
   const [enabled, setEnabled] = useState(initialEnabled);
   const [contactPreference, setContactPreference] = useState<ServiceContactPreference>(initialContactPreference);
   const [contactDisclosureAccepted, setContactDisclosureAccepted] = useState(initialPublicContactEnabled);
@@ -109,7 +118,10 @@ export function ServiceForm({
   const [companyLookupTradeName, setCompanyLookupTradeName] = useState(initialProfile?.type === "COMPANY" ? initialProfile.companyTradeName ?? "" : "");
   const [showProviderName, setShowProviderName] = useState(initialProfile?.type === "COMPANY" ? Boolean(initialProfile.name) : false);
   const [providerName, setProviderName] = useState(initialProviderName);
-  const [companyLogo, setCompanyLogo] = useState(canUseLogo ? initialProfile?.companyLogo ?? "" : "");
+  const [serviceImages, setServiceImages] = useState<string[]>(initialServiceImages);
+  const [professionalCouncil, setProfessionalCouncil] = useState(initialProfessionalCredentials.professionalCouncil);
+  const [professionalCouncilOther, setProfessionalCouncilOther] = useState(initialProfessionalCredentials.professionalCouncilOther);
+  const [professionalDeclarationAccepted, setProfessionalDeclarationAccepted] = useState(initialProfessionalCredentials.declarationAccepted);
   const [logoUploading, setLogoUploading] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
 
@@ -143,10 +155,13 @@ export function ServiceForm({
         providerName: string;
         cnpjValue: string;
         contactPreference: ServiceContactPreference;
+        professionalCouncil: string;
+        professionalCouncilOther: string;
+        professionalDeclarationAccepted: boolean;
       }>;
       if (typeof draft.enabled === "boolean") setEnabled(draft.enabled);
       if (draft.type === "INDIVIDUAL" || draft.type === "COMPANY") setType(draft.type);
-      if (draft.audience === "VEHICLE" || draft.audience === "REAL_ESTATE") setAudience(draft.audience);
+      if (isServiceAudience(draft.audience)) setAudience(draft.audience);
       if (Array.isArray(draft.selectedCategories)) setSelectedCategories(draft.selectedCategories.slice(0, servicePlan.maxCategories));
       if (Array.isArray(draft.locations) && draft.locations.length) setLocations(draft.locations.slice(0, 5));
       if (typeof draft.companyName === "string") setCompanyName(draft.companyName);
@@ -156,6 +171,9 @@ export function ServiceForm({
       if (typeof draft.providerName === "string") setProviderName(draft.providerName);
       if (typeof draft.cnpjValue === "string" && isValidCnpjValue(draft.cnpjValue)) setCnpjValue(formatCnpj(draft.cnpjValue));
       if (!initialPublicContactEnabled && isContactPreference(draft.contactPreference)) setContactPreference(canUsePublicContact ? draft.contactPreference : "LEADS_ONLY");
+      if (typeof draft.professionalCouncil === "string") setProfessionalCouncil(draft.professionalCouncil);
+      if (typeof draft.professionalCouncilOther === "string") setProfessionalCouncilOther(draft.professionalCouncilOther);
+      if (typeof draft.professionalDeclarationAccepted === "boolean") setProfessionalDeclarationAccepted(draft.professionalDeclarationAccepted);
     } catch {
       localStorage.removeItem(draftKey);
     } finally {
@@ -166,7 +184,7 @@ export function ServiceForm({
   useEffect(() => {
     if (!draftReady) return;
     saveDraft(false);
-  }, [draftReady, enabled, type, audience, selectedCategories, locations, companyName, companyLegalName, companyLookupTradeName, showProviderName, providerName, cnpjValue, contactPreference]);
+  }, [draftReady, enabled, type, audience, selectedCategories, locations, companyName, companyLegalName, companyLookupTradeName, showProviderName, providerName, cnpjValue, contactPreference, professionalCouncil, professionalCouncilOther, professionalDeclarationAccepted]);
 
   const filteredCategories = useMemo(() => {
     return categories
@@ -174,6 +192,7 @@ export function ServiceForm({
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   }, [audience, categories]);
+  const needsProfessionalCredentials = useMemo(() => requiresProfessionalCredentials(selectedCategories), [selectedCategories]);
 
   function saveDraft(
     showFeedback = true,
@@ -190,6 +209,9 @@ export function ServiceForm({
       providerName: string;
       cnpjValue: string;
       contactPreference: ServiceContactPreference;
+      professionalCouncil: string;
+      professionalCouncilOther: string;
+      professionalDeclarationAccepted: boolean;
     }> = {}
   ) {
     localStorage.setItem(draftKey, JSON.stringify({
@@ -205,6 +227,9 @@ export function ServiceForm({
       providerName,
       cnpjValue,
       contactPreference,
+      professionalCouncil,
+      professionalCouncilOther,
+      professionalDeclarationAccepted,
       ...overrides,
       savedAt: new Date().toISOString()
     }));
@@ -282,20 +307,26 @@ export function ServiceForm({
     });
   }
 
-  async function uploadLogo(files: FileList | null) {
-    const file = files?.[0];
-    if (!file || !canUseLogo) return;
+  async function uploadServiceImages(files: FileList | null) {
+    const selectedFiles = Array.from(files ?? []).slice(0, Math.max(0, serviceImageLimit - serviceImages.length));
+    if (!selectedFiles.length) return;
     setLogoUploading(true);
     setMessage("");
     try {
-      const uploaded = await uploadListingPhoto(file);
-      setCompanyLogo(uploaded.url);
-      setMessage("Logotipo enviado. Ele aparecerá no CARD do Plano PRO.");
+      for (const file of selectedFiles) {
+        const uploaded = await uploadListingPhoto(file);
+        setServiceImages((current) => [...current, uploaded.url].slice(0, serviceImageLimit));
+      }
+      setMessage(`Imagem enviada. Este plano permite até ${serviceImageLimit} imagem${serviceImageLimit === 1 ? "" : "s"}.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Não foi possível enviar o logotipo.");
+      setMessage(error instanceof Error ? error.message : "Não foi possível enviar a imagem.");
     } finally {
       setLogoUploading(false);
     }
+  }
+
+  function removeServiceImage(index: number) {
+    setServiceImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
   }
 
   function removeLocation(index: number) {
@@ -376,9 +407,10 @@ export function ServiceForm({
     const firstLocation = locations[0] ?? emptyLocation;
     const name = String(formData.get("name") ?? "").trim();
     const phone = String(formData.get("privatePhone") ?? "").trim();
+    const whatsapp = String(formData.get("privateWhatsapp") ?? "").trim();
     const cnpj = cnpjValue.trim();
     const wantsPublicContact = isPublicServiceContactPreference(contactPreference);
-    const missing = validateBeforeSubmit(name, phone, firstLocation, selectedCategories, type, cnpj, servicePlan.maxCategories);
+    const missing = validateBeforeSubmit(name, phone, whatsapp, firstLocation, selectedCategories, type, cnpj, servicePlan.maxCategories);
     if (missing) {
       setBusy(false);
       setMessage(missing);
@@ -389,6 +421,23 @@ export function ServiceForm({
       setBusy(false);
       setMessage("Leia e aceite o Termo de Responsabilidade para exibir telefone e WhatsApp aos visitantes.");
       return;
+    }
+    if (needsProfessionalCredentials) {
+      if (!professionalCouncil) {
+        setBusy(false);
+        setMessage("Selecione o Conselho da Profissão.");
+        return;
+      }
+      if (professionalCouncil === "Outro" && !professionalCouncilOther.trim()) {
+        setBusy(false);
+        setMessage("Informe o conselho, registro ou órgão profissional.");
+        return;
+      }
+      if (!professionalDeclarationAccepted) {
+        setBusy(false);
+        setMessage("Aceite a declaração obrigatória para anunciar nesta categoria profissional.");
+        return;
+      }
     }
     const payload = {
       type,
@@ -408,13 +457,17 @@ export function ServiceForm({
       number: firstLocation.number,
       complement: JSON.stringify({ serviceLocations: locations }),
       privatePhone: phone,
-      privateWhatsapp: phone,
-      companyLogo: canUseLogo ? companyLogo : "",
+      privateWhatsapp: whatsapp,
+      companyLogo: serviceImages[0] ?? "",
+      serviceImages: serviceImages.slice(0, serviceImageLimit),
       servicePlanCode,
       locations,
       contactPreference,
       publicContactEnabled: wantsPublicContact,
-      contactDisclosureAccepted: wantsPublicContact ? contactDisclosureAccepted : false
+      contactDisclosureAccepted: wantsPublicContact ? contactDisclosureAccepted : false,
+      professionalCouncil: needsProfessionalCredentials ? professionalCouncil : "",
+      professionalCouncilOther: needsProfessionalCredentials && professionalCouncil === "Outro" ? professionalCouncilOther.trim() : "",
+      professionalDeclarationAccepted: needsProfessionalCredentials ? professionalDeclarationAccepted : false
     };
     const response = await fetch("/api/services", {
       method: "POST",
@@ -460,42 +513,51 @@ export function ServiceForm({
             </button>
           </div>
 
-          {canUseLogo ? (
-            <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 p-3">
-              <div className="flex items-center gap-2 text-emerald-200">
-                <ImageIcon size={16} />
-                <strong>Logotipo do CARD</strong>
-              </div>
-              <p className="mt-1 text-xs text-neutral-300">Benefício do Plano PRO. Envie uma imagem quadrada ou com fundo transparente, se tiver.</p>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-black/35">
-                  {companyLogo ? <img src={companyLogo} alt="Logotipo do CARD" className="h-full w-full object-contain p-2" /> : <ImageIcon size={26} className="text-emerald-200" />}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <label className={`inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399] ${!isSupabaseStorageConfigured() || logoUploading ? "pointer-events-none opacity-50" : ""}`}>
-                    {logoUploading ? "Enviando..." : "Carregar Logotipo"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="sr-only"
-                      disabled={!isSupabaseStorageConfigured() || logoUploading}
-                      onChange={(event) => {
-                        uploadLogo(event.currentTarget.files);
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                  {companyLogo ? (
-                    <button type="button" onClick={() => setCompanyLogo("")} className="inline-flex h-10 items-center gap-2 rounded-full border border-red-300/30 px-4 text-sm font-black text-red-100">
-                      <X size={15} />
-                      Remover
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              {!isSupabaseStorageConfigured() ? <p className="mt-2 text-xs text-yellow-300">Configure Supabase Storage no servidor para enviar logotipo.</p> : null}
+          <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 p-3">
+            <div className="flex items-center gap-2 text-emerald-200">
+              <ImageIcon size={16} />
+              <strong>Imagens do perfil</strong>
             </div>
-          ) : null}
+            <p className="mt-1 text-xs text-neutral-300">
+              Plano {servicePlan.name}: envie até {serviceImageLimit} imagem{serviceImageLimit === 1 ? "" : "s"} para valorizar seu perfil no feed.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap gap-2">
+                {serviceImages.map((image, index) => (
+                  <div key={`${image}-${index}`} className="relative h-20 w-20 overflow-hidden rounded-xl border border-white/10 bg-black/35">
+                    <img src={image} alt={`Imagem ${index + 1} do perfil`} className="h-full w-full object-cover" />
+                    <button type="button" onClick={() => removeServiceImage(index)} className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/70 text-white" aria-label="Remover imagem">
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+                {serviceImages.length < serviceImageLimit ? (
+                  <div className="grid h-20 w-20 place-items-center rounded-xl border border-dashed border-emerald-300/35 bg-black/35 text-emerald-200">
+                    <ImageIcon size={26} />
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <label className={`inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399] ${!isSupabaseStorageConfigured() || logoUploading || serviceImages.length >= serviceImageLimit ? "pointer-events-none opacity-50" : ""}`}>
+                  {logoUploading ? "Enviando..." : "Carregar Imagem"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple={serviceImageLimit > 1}
+                    className="sr-only"
+                    disabled={!isSupabaseStorageConfigured() || logoUploading || serviceImages.length >= serviceImageLimit}
+                    onChange={(event) => {
+                      uploadServiceImages(event.currentTarget.files);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-neutral-400">{serviceImages.length}/{serviceImageLimit} imagem{serviceImageLimit === 1 ? "" : "s"} selecionada{serviceImages.length === 1 ? "" : "s"}.</p>
+            {!isSupabaseStorageConfigured() ? <p className="mt-2 text-xs text-yellow-300">Configure Supabase Storage no servidor para enviar imagens.</p> : null}
+          </div>
+
 
           <div className="rounded-lg border border-white/10 bg-black/30 p-3">
             <div className="flex items-center gap-2 text-yellow-300">
@@ -525,6 +587,60 @@ export function ServiceForm({
               <button type="button" onClick={() => { saveDraft(false, { selectedCategories }); setMessage("Seleção de serviços salva neste aparelho."); }} className="rounded-full border border-yellow-300/30 px-3 py-1 text-xs font-black text-yellow-300">Salvar seleção</button>
             </div>
           </div>
+
+          {needsProfessionalCredentials ? (
+            <div className="rounded-lg border border-yellow-300/25 bg-yellow-300/10 p-3 text-sm text-neutral-100">
+              <div className="flex items-center gap-2 text-yellow-200">
+                <FileText size={16} />
+                <strong>Registro profissional obrigatório</strong>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-neutral-300">
+                Esta profissão pode exigir registro, licença, certificação ou autorização por conselho/órgão competente. Informe o conselho aplicável e aceite a declaração para continuar.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-black uppercase text-yellow-300">Conselho da Profissão</span>
+                  <select
+                    value={professionalCouncil}
+                    onChange={(event) => {
+                      setProfessionalCouncil(event.currentTarget.value);
+                      saveDraft(false, { professionalCouncil: event.currentTarget.value });
+                    }}
+                    className="input"
+                  >
+                    <option value="">Selecione</option>
+                    {professionalCouncilOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </label>
+                {professionalCouncil === "Outro" ? (
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-black uppercase text-yellow-300">Informe o conselho/órgão</span>
+                    <input
+                      value={professionalCouncilOther}
+                      onChange={(event) => {
+                        setProfessionalCouncilOther(event.currentTarget.value);
+                        saveDraft(false, { professionalCouncilOther: event.currentTarget.value });
+                      }}
+                      placeholder="Ex.: órgão, conselho ou certificação"
+                      className="input"
+                    />
+                  </label>
+                ) : null}
+              </div>
+              <label className="mt-3 flex gap-3 rounded-md border border-emerald-400/25 bg-emerald-400/10 p-3 text-sm text-emerald-50">
+                <input
+                  type="checkbox"
+                  checked={professionalDeclarationAccepted}
+                  onChange={(event) => {
+                    setProfessionalDeclarationAccepted(event.currentTarget.checked);
+                    saveDraft(false, { professionalDeclarationAccepted: event.currentTarget.checked });
+                  }}
+                  className="mt-1 h-5 w-5 shrink-0 accent-emerald-500"
+                />
+                <span>{professionalDeclarationText}</span>
+              </label>
+            </div>
+          ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2">
             {type === "COMPANY" ? (
@@ -585,7 +701,8 @@ export function ServiceForm({
             ) : (
               <input name="name" required placeholder="Nome" defaultValue={initialPersonName} className="input" />
             )}
-            <input name="privatePhone" required inputMode="numeric" maxLength={15} placeholder="Telefone" defaultValue={initialPhone} onChange={(event) => { event.currentTarget.value = formatPhone(event.currentTarget.value); }} className="input" />
+            <input name="privatePhone" inputMode="numeric" maxLength={15} placeholder="Telefone fixo (opcional)" defaultValue={initialProfile?.privatePhone ? formatPhone(initialProfile.privatePhone) : ""} onChange={(event) => { event.currentTarget.value = formatPhone(event.currentTarget.value); }} className="input" />
+            <input name="privateWhatsapp" inputMode="numeric" maxLength={15} placeholder="Celular / WhatsApp (opcional)" defaultValue={initialProfile?.privateWhatsapp ? formatPhone(initialProfile.privateWhatsapp) : initialPhone} onChange={(event) => { event.currentTarget.value = formatPhone(event.currentTarget.value); }} className="input" />
           </div>
 
           <div className="rounded-lg border border-white/10 bg-black/30 p-3">
@@ -612,11 +729,7 @@ export function ServiceForm({
                         <option value="">Estado</option>
                         {brazilStates.map((state) => <option key={state.code} value={state.code}>{state.code} - {state.name}</option>)}
                       </select>
-                      <select value={location.city} onChange={(event) => updateLocation(index, { city: event.currentTarget.value, district: "" })} className="input">
-                        <option value="">Cidade</option>
-                        {cities.map((city) => <option key={city} value={city}>{city}</option>)}
-                        {location.city && !cities.includes(location.city) ? <option value={location.city}>{location.city}</option> : null}
-                      </select>
+                      <ServiceCityField state={location.state} value={location.city} fallbackCities={cities} onChange={(city) => updateLocation(index, { city, district: "" })} />
                       <input value={location.district} placeholder="Bairro" onChange={(event) => updateLocation(index, { district: event.currentTarget.value })} className="input" />
                       {type === "COMPANY" ? <input value={location.address} placeholder="Endereço" onChange={(event) => updateLocation(index, { address: event.currentTarget.value })} className="input" /> : null}
                       {type === "COMPANY" ? <input value={location.number} placeholder="Número" onChange={(event) => updateLocation(index, { number: event.currentTarget.value })} className="input" /> : null}
@@ -695,7 +808,7 @@ export function ServiceForm({
 
           <div className="flex flex-wrap items-center gap-3">
             <button disabled={busy || logoUploading || selectedCategories.length === 0} className="h-11 rounded-md px-4 btn-gold disabled:opacity-60">
-              {busy ? "Salvando..." : logoUploading ? "Aguarde o logotipo" : servicePlan.code === "SERVICE_PRO" ? "Salvar e Gerar PIX" : "Salvar Perfil de Serviços"}
+              {busy ? "Salvando..." : logoUploading ? "Aguarde o logotipo" : isPaidServicePlan ? "Salvar e Gerar PIX" : "Salvar Perfil de Serviços"}
             </button>
             {message ? <p className="text-sm text-yellow-300">{message}</p> : null}
           </div>
@@ -735,6 +848,26 @@ function buildInitialLocations(initialProfile: InitialServiceProfile | null | un
   return [fallback];
 }
 
+function parseProfessionalCredentials(complement: string | null | undefined) {
+  try {
+    const parsed = JSON.parse(String(complement || "{}")) as {
+      professionalCredentials?: {
+        council?: unknown;
+        councilOther?: unknown;
+        declarationAccepted?: unknown;
+      };
+    };
+    const credentials = parsed.professionalCredentials;
+    return {
+      professionalCouncil: typeof credentials?.council === "string" ? credentials.council : "",
+      professionalCouncilOther: typeof credentials?.councilOther === "string" ? credentials.councilOther : "",
+      declarationAccepted: Boolean(credentials?.declarationAccepted)
+    };
+  } catch {
+    return { professionalCouncil: "", professionalCouncilOther: "", declarationAccepted: false };
+  }
+}
+
 function isValidCnpjValue(value: string | null | undefined) {
   const cnpj = onlyDigits(value);
   if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
@@ -749,17 +882,49 @@ function isValidCnpjValue(value: string | null | undefined) {
   );
 }
 
-function validateBeforeSubmit(name: string, phone: string, firstLocation: ServiceLocation, selectedCategories: string[], type: "INDIVIDUAL" | "COMPANY", cnpj: string, maxCategories: number) {
+function validateBeforeSubmit(name: string, phone: string, whatsapp: string, firstLocation: ServiceLocation, selectedCategories: string[], type: "INDIVIDUAL" | "COMPANY", cnpj: string, maxCategories: number) {
   if (!selectedCategories.length) return "Selecione pelo menos um serviço.";
   if (selectedCategories.length > maxCategories) return `Este plano permite no máximo ${maxCategories} atividades.`;
   if (!name) return "Informe o nome do prestador.";
-  if (phone.replace(/\D/g, "").length !== 11) return "Informe o telefone no formato (xx) XXXXX-XXXX.";
+  const phoneDigits = phone.replace(/\D/g, "");
+  const whatsappDigits = whatsapp.replace(/\D/g, "");
+  if (phoneDigits && ![10, 11].includes(phoneDigits.length)) return "Informe um telefone fixo válido com DDD ou deixe o campo vazio.";
+  if (whatsappDigits && whatsappDigits.length !== 11) return "Informe um celular/WhatsApp válido com DDD ou deixe o campo vazio.";
   if (type === "COMPANY" && !/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(cnpj)) return "Informe o CNPJ no formato XX.XXX.XXX/XXXX-XX.";
   if (type === "COMPANY" && !isValidCnpjValue(cnpj)) return "Informe um CNPJ válido.";
   if (!firstLocation.state) return "Informe o Estado do local de atendimento.";
   if (!firstLocation.city) return "Informe a Cidade do local de atendimento.";
   if (!firstLocation.district) return "Informe o Bairro do local de atendimento.";
   return "";
+}
+
+function ServiceCityField({ state, value, fallbackCities, onChange }: { state: string; value: string; fallbackCities: string[]; onChange: (city: string) => void }) {
+  const [cities, setCities] = useState(() => includeServiceCity(fallbackCities, value));
+  const [manual, setManual] = useState(Boolean(value && !fallbackCities.includes(value)));
+
+  useEffect(() => {
+    let active = true;
+    setCities(includeServiceCity(fallbackCities, value));
+    if (!state) return () => { active = false; };
+    fetch(`/api/locations/cities/${state}`, { cache: "force-cache" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!active) return;
+        const complete = Array.isArray(data?.cities) ? data.cities.filter((city: unknown): city is string => typeof city === "string" && Boolean(city.trim())) : [];
+        setCities(includeServiceCity(complete.length ? complete : fallbackCities, value));
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [state, value, fallbackCities]);
+
+  if (manual) {
+    return <div className="grid gap-1"><input value={value} placeholder="Digite a cidade" onChange={(event) => onChange(event.currentTarget.value)} className="input" /><button type="button" onClick={() => { setManual(false); onChange(""); }} className="text-left text-xs font-bold text-yellow-300">Escolher na lista</button></div>;
+  }
+  return <select value={value} disabled={!state} onChange={(event) => { if (event.currentTarget.value === "__manual__") { setManual(true); onChange(""); } else onChange(event.currentTarget.value); }} className="input"><option value="">Cidade</option>{cities.map((city) => <option key={city} value={city}>{city}</option>)}<option value="__manual__">Outra cidade (digitar)</option></select>;
+}
+
+function includeServiceCity(cities: string[], current: string) {
+  return [...new Set([current, ...cities].map((city) => city.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 function isContactPreference(value: unknown): value is ServiceContactPreference {

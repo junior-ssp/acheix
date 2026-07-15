@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { brazilStates, citiesByState } from "@/lib/constants";
 
@@ -21,12 +21,41 @@ export function LocationFields({
 }) {
   const [state, setState] = useState(initialState ?? "");
   const [city, setCity] = useState(initialCity ?? "");
-  const cities = useMemo(() => citiesByState[state] ?? [], [state]);
+  const [cities, setCities] = useState<string[]>(() => includeCurrentCity(citiesByState[initialState ?? ""] ?? [], initialCity));
+  const [loadingCities, setLoadingCities] = useState(false);
 
   useEffect(() => {
     setState(initialState ?? "");
     setCity(initialCity ?? "");
   }, [initialState, initialCity]);
+
+  useEffect(() => {
+    let active = true;
+    if (!state) {
+      setCities([]);
+      setLoadingCities(false);
+      return () => { active = false; };
+    }
+
+    const fallback = includeCurrentCity(citiesByState[state] ?? [], city);
+    setCities(fallback);
+    setLoadingCities(true);
+    fetch(`/api/locations/cities/${state}`, { cache: "force-cache" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!active) return;
+        const completeList = Array.isArray(data?.cities) ? data.cities.filter((item: unknown): item is string => typeof item === "string" && Boolean(item.trim())) : [];
+        setCities(includeCurrentCity(completeList.length ? completeList : fallback, city));
+      })
+      .catch(() => {
+        if (active) setCities(fallback);
+      })
+      .finally(() => {
+        if (active) setLoadingCities(false);
+      });
+
+    return () => { active = false; };
+  }, [state]);
 
   function chooseState(value: string) {
     setState(value);
@@ -48,7 +77,7 @@ export function LocationFields({
       <Picker
         label="Cidade"
         value={city}
-        placeholder={state ? "Cidade" : "Escolha o estado"}
+        placeholder={loadingCities ? "Carregando cidades..." : state ? "Cidade" : "Escolha o estado"}
         options={cities.map((item) => ({ value: item, label: item }))}
         onChange={setCity}
         disabled={!state}
@@ -56,6 +85,13 @@ export function LocationFields({
       />
     </>
   );
+}
+
+function includeCurrentCity(cities: string[], currentCity: string | null | undefined) {
+  const current = String(currentCity ?? "").trim();
+  const unique = [...new Set(cities.map((item) => item.trim()).filter(Boolean))];
+  if (current && !unique.includes(current)) unique.unshift(current);
+  return unique.sort((left, right) => left.localeCompare(right, "pt-BR"));
 }
 
 function Picker({

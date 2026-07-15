@@ -1,5 +1,5 @@
 ﻿import { EmptyState } from "@/components/empty-state";
-import { ListingCard } from "@/components/listing-card";
+import { ListingResultsGrid } from "@/components/listing-results-grid";
 import { requireUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { withTimeout } from "@/lib/async";
@@ -17,9 +17,7 @@ export default async function FavoritesPage() {
       <h1 className="text-3xl font-black">Meus Favoritos</h1>
       <div className="mt-6">
         {favorites.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {favorites.map((favorite) => <ListingCard key={favorite.id} listing={favorite.listing} />)}
-          </div>
+          <ListingResultsGrid listings={JSON.parse(JSON.stringify(favorites.map((favorite) => favorite.listing)))} emptyTitle="Nenhum favorito salvo" resetHref="/favoritos" />
         ) : (
           <EmptyState title="Nenhum favorito salvo" description="Os anúncios favoritados ficam sincronizados com a sua conta." />
         )}

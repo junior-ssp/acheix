@@ -1,20 +1,30 @@
-﻿type ListingCategory = "VEHICLE" | "REAL_ESTATE";
+﻿type ListingCategory = "VEHICLE" | "REAL_ESTATE" | "PRODUCT";
 import { EmptyState } from "@/components/empty-state";
 import { ListingCard } from "@/components/listing-card";
+import { ListingResultsGrid } from "@/components/listing-results-grid";
 import { findActiveListings, type ListingSearchParams } from "@/lib/listing-search";
+import type { ManualListing } from "@/lib/manual-listings";
+import type { Route } from "next";
+import type { ComponentProps } from "react";
+
+type ListingCardItem = ComponentProps<typeof ListingCard>["listing"];
 
 export async function ListingResults({
   searchParams,
   category,
-  emptyTitle = "Nenhum anúncio encontrado."
+  emptyTitle = "Nenhum anúncio encontrado.",
+  listings: providedListings,
+  manualListings = []
 }: {
   searchParams: ListingSearchParams;
   category?: ListingCategory;
   emptyTitle?: string;
+  listings?: ListingCardItem[];
+  manualListings?: ManualListing[];
 }) {
-  const listings = await findActiveListings(searchParams, category);
+  const listings = providedListings ?? await findActiveListings(searchParams, category);
 
-  if (!listings.length) {
+  if (!listings.length && !manualListings.length) {
     return (
       <EmptyState
         title={emptyTitle}
@@ -23,13 +33,18 @@ export async function ListingResults({
     );
   }
 
+  const clientListings = JSON.parse(JSON.stringify(listings)) as ListingCardItem[];
+  const clientManualListings = JSON.parse(JSON.stringify(manualListings)) as ManualListing[];
+
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-      {listings.map((listing) => (
-        <ListingCard key={listing.id} listing={listing} />
-      ))}
-    </div>
+    <ListingResultsGrid listings={clientListings} manualListings={clientManualListings} emptyTitle={emptyTitle} resetHref={resetHrefFor(category)} />
   );
 }
 
+function resetHrefFor(category?: ListingCategory): Route {
+  if (category === "VEHICLE") return "/veiculos";
+  if (category === "REAL_ESTATE") return "/imoveis";
+  if (category === "PRODUCT") return "/produtos" as Route;
+  return "/buscar";
+}
 

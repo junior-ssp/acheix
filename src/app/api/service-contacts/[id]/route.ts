@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { errorResponse, json } from "@/lib/http";
+import { markMessagesRead } from "@/lib/messages";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       .select("*")
       .single();
     if (error) throw error;
+    await markMessagesRead({ userId: user.id, sourceId: contact.id });
 
     return json({ contact: updated });
   } catch (error) {
@@ -55,6 +57,7 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
 
     const { error } = await supabase.from("ServiceContact").delete().eq("id", contact.id);
     if (error) throw error;
+    await markMessagesRead({ userId: user.id, sourceId: contact.id });
     return json({ ok: true });
   } catch (error) {
     return errorResponse(error);

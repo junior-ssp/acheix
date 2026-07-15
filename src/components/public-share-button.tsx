@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, Copy, MessageCircle, Share2 } from "lucide-react";
 
 type ShareChannel = "whatsapp" | "copy" | "social";
@@ -12,19 +13,26 @@ const options: Array<{ channel: ShareChannel; label: string; icon: "whatsapp" | 
 ];
 
 export function PublicShareButton({ title, path, compact = false }: { title: string; path: string; compact?: boolean }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const url = useMemo(() => {
-    if (typeof window === "undefined") return path;
-    return `${window.location.origin}${path}`;
+    const sharePath = path.startsWith("/servicos/") ? versionedPath(path) : path;
+    if (typeof window === "undefined") return sharePath;
+    if (/^https?:\/\//i.test(sharePath)) return sharePath;
+    return `${window.location.origin}${sharePath}`;
   }, [path]);
 
   useEffect(() => {
     if (!open) return;
 
     function handlePointerDown(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      setOpen(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -36,6 +44,30 @@ export function PublicShareButton({ title, path, compact = false }: { title: str
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function updatePosition() {
+      const button = buttonRef.current;
+      if (!button) return;
+      const rect = button.getBoundingClientRect();
+      const width = 224;
+      const margin = 12;
+      setMenuPosition({
+        top: Math.min(window.innerHeight - margin, rect.bottom + 8),
+        left: Math.max(margin, Math.min(window.innerWidth - width - margin, rect.right - width))
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
   }, [open]);
 
@@ -62,23 +94,45 @@ export function PublicShareButton({ title, path, compact = false }: { title: str
   }
 
   return (
-    <div ref={menuRef} className="relative">
+    <div ref={rootRef} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         title="Compartilhar"
         aria-label="Compartilhar"
-        onClick={() => setOpen((current) => !current)}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+        onTouchStart={(event) => {
+          event.stopPropagation();
+        }}
         className={compact ? "grid h-10 w-10 place-items-center rounded-full bg-black/45 text-white shadow backdrop-blur" : "grid h-12 w-12 place-items-center rounded-full bg-black/45 text-white shadow backdrop-blur"}
       >
         <Share2 size={compact ? 20 : 24} />
       </button>
-      {open ? (
-        <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-lg border border-white/10 bg-neutral-950 p-1 text-white shadow-2xl">
+      {open && menuPosition && typeof document !== "undefined" ? createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] w-56 overflow-hidden rounded-lg border border-white/10 bg-neutral-950 p-1 text-white shadow-2xl"
+          style={{ top: menuPosition.top, left: menuPosition.left }}
+        >
           {options.map((option) => (
             <button
               key={option.channel}
               type="button"
-              onClick={() => void share(option.channel)}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void share(option.channel);
+              }}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
               className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-bold hover:bg-white/10"
             >
               <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${option.color}`}>
@@ -88,8 +142,14 @@ export function PublicShareButton({ title, path, compact = false }: { title: str
               {copied && option.channel === "copy" ? <Check className="ml-auto text-green-400" size={16} /> : null}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );
+}
+
+function versionedPath(path: string) {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}v=${Date.now().toString(36)}`;
 }

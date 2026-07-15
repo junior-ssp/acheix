@@ -1,9 +1,10 @@
 ﻿import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { spawnSync } from "node:child_process";
+import { rmSync } from "node:fs";
 
 const root = process.cwd();
-const adminUrl = "https://admin.acheix.com.br";
+const adminUrl = "https://admin.acheix.com.br/admin";
 const normalUrl = "https://acheix.com.br";
 const adminApkSource = join(root, "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk");
 const adminApkTarget = join(root, "public", "acesso-admin-ax-9f4c2b71", "achei-x-admin-1.0.0-9f4c2b71.apk");
@@ -11,6 +12,12 @@ const androidBuildGradle = join(root, "android", "app", "build.gradle");
 const androidStrings = join(root, "android", "app", "src", "main", "res", "values", "strings.xml");
 const publicDir = join(root, "public");
 const apkBuildCacheDir = join(root, ".tmp", "admin-apk-public-cache");
+const userIcon = join(root, "resources", "icon.png");
+const adminIcon = join(root, "resources", "admin-icon.png");
+const userIconBackup = join(root, ".tmp", "user-icon-before-admin-build.png");
+const androidResources = join(root, "android", "app", "src", "main", "res");
+const googleServices = join(root, "android", "app", "google-services.json");
+const googleServicesBackup = join(root, ".tmp", "google-services.user.json");
 
 type BuildEnv = Record<string, string>;
 type StashedApk = { from: string; to: string };
@@ -30,6 +37,19 @@ function run(command: string, args: string[], env: BuildEnv, cwd = root) {
 
 function sync(env: BuildEnv) {
   run("npx.cmd", ["cap", "sync", "android"], env);
+}
+
+function generateAndroidIcons() {
+  run("npx.cmd", ["capacitor-assets", "generate", "--android"], {});
+}
+
+function removeGeneratedSplashImages(dir = androidResources) {
+  if (!existsSync(dir)) return;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const entryPath = join(dir, entry.name);
+    if (entry.isDirectory()) removeGeneratedSplashImages(entryPath);
+    if (entry.isFile() && entry.name === "splash.png") rmSync(entryPath, { force: true });
+  }
 }
 
 function collectApks(dir: string, result: string[] = []) {
@@ -103,17 +123,29 @@ async function main() {
   };
 
   const stashedApks = stashPublicApks();
+  if (!existsSync(userIcon) || !existsSync(adminIcon)) throw new Error("Ícones de usuário ou Admin não encontrados.");
+  mkdirSync(dirname(userIconBackup), { recursive: true });
+  copyFileSync(userIcon, userIconBackup);
 
   try {
     try {
+      copyFileSync(adminIcon, userIcon);
+      generateAndroidIcons();
+      removeGeneratedSplashImages();
       sync(adminEnv);
       patchAndroidShell({ applicationId: "br.com.acheix.admin", appName: "Admin" });
+      if (existsSync(googleServices)) renameSync(googleServices, googleServicesBackup);
       run("cmd.exe", ["/c", "gradlew.bat", "assembleDebug"], adminEnv, join(root, "android"));
     } finally {
+      if (existsSync(googleServicesBackup)) renameSync(googleServicesBackup, googleServices);
+      copyFileSync(userIconBackup, userIcon);
+      generateAndroidIcons();
+      removeGeneratedSplashImages();
       sync(normalEnv);
       patchAndroidShell({ applicationId: "br.com.acheix.app", appName: "Achei X" });
     }
   } finally {
+    if (existsSync(userIconBackup)) rmSync(userIconBackup, { force: true });
     restorePublicApks(stashedApks);
   }
 

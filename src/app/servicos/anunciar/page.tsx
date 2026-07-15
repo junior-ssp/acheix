@@ -2,7 +2,7 @@ import { PublishLoginPrompt } from "@/components/publish-login-prompt";
 import { ServiceForm } from "@/components/service-form";
 import { requireUser } from "@/lib/auth";
 import { parseServiceComplement, serviceContactPreferenceFromComplement } from "@/lib/service-contact-disclosure";
-import { isServicePlanCode, type ServicePlanCode } from "@/lib/service-plans";
+import { isPaidServicePlanCode, isServicePlanCode, type ServicePlanCode } from "@/lib/service-plans";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { redirect } from "next/navigation";
 
@@ -30,7 +30,7 @@ export default async function NewServicePage({ searchParams }: { searchParams?: 
   const hasExistingServiceProfile = Boolean(profile?.id && profile.status !== "CLOSED");
   const complement = parseServiceComplement(profile?.complemento);
   if (!hasExistingServiceProfile && !isServicePlanCode(searchParams?.servicePlan)) redirect("/servicos/planos");
-  const currentBillingPlan = complement.serviceBilling?.planCode === "SERVICE_PRO" ? "SERVICE_PRO" : null;
+  const currentBillingPlan = isPaidServicePlanCode(complement.serviceBilling?.planCode) ? complement.serviceBilling.planCode : null;
   const servicePlanCode: ServicePlanCode = currentBillingPlan ?? (isServicePlanCode(searchParams?.servicePlan) ? searchParams.servicePlan : "SERVICE_FREE");
   const contactDisclosure = complement.contactDisclosure;
   const initialProfile = profile && profile.status !== "CLOSED" ? {
@@ -53,6 +53,7 @@ export default async function NewServicePage({ searchParams }: { searchParams?: 
     contactDisclosureAcceptedAt: contactDisclosure?.acceptedAt ?? null,
     contactPreference: serviceContactPreferenceFromComplement(profile.complemento),
     companyLogo: profile.logo_empresa,
+    serviceImages: Array.isArray((complement as any).serviceImages) ? (complement as any).serviceImages.filter((item: unknown): item is string => typeof item === "string").slice(0, 3) : []
   } : null;
 
   return (

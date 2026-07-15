@@ -1,5 +1,6 @@
 ﻿import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
+import { checkProductionRegressions } from "./check-production-regressions";
 
 type Finding = {
   file: string;
@@ -66,6 +67,7 @@ if (findings.length) {
   process.exit(1);
 }
 
+checkProductionRegressions();
 console.log("Portuguese/encoding OK.");
 
 function scanPath(path: string) {

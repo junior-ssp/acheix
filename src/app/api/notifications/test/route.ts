@@ -10,12 +10,12 @@ export async function POST() {
     const notification = await createNotification(
       user.id,
       "Teste de notificação Achei X",
-      "Este é um teste de push com badge. Abra seus interesses para conferir.",
+      "Este é um teste de push com badge. Abra suas mensagens para conferir.",
       {
-        linkLabel: "Interesses",
-        linkUrl: "/dashboard#interesses",
-        primaryActionLabel: "Abrir interesses",
-        primaryActionUrl: "/dashboard#interesses"
+        linkLabel: "Mensagens",
+        linkUrl: "/mensagens",
+        primaryActionLabel: "Abrir mensagens",
+        primaryActionUrl: "/mensagens"
       }
     );
     const push = await queuePush(user.id, notification.title, notification.message, {

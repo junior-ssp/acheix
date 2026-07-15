@@ -13,6 +13,7 @@ export function PaymentStatusPoller({ paymentId, initialStatus }: PaymentStatusP
   const [status, setStatus] = useState(initialStatus);
   const [listing, setListing] = useState<{ slug: string; title: string; status: string } | null>(null);
   const [service, setService] = useState<{ id: string; title: string; status: string } | null>(null);
+  const [banner, setBanner] = useState<{ id: string; title: string; status: string } | null>(null);
   const paid = status === "PAID";
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export function PaymentStatusPoller({ paymentId, initialStatus }: PaymentStatusP
       if (typeof data?.payment?.status === "string") setStatus(data.payment.status);
       if (data?.listing?.slug) setListing(data.listing);
       if (data?.service?.id) setService(data.service);
+      if (data?.banner?.id) setBanner(data.banner);
     }, 4000);
 
     return () => {
@@ -53,7 +55,12 @@ export function PaymentStatusPoller({ paymentId, initialStatus }: PaymentStatusP
                   Ver serviço
                 </Link>
               ) : null}
-              <Link href={service?.id ? "/dashboard#meus-servicos" : "/dashboard?meus=ACTIVE#meus-anuncios"} className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">
+              {banner?.id ? (
+                <Link href="/dashboard#meus-banners" className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm btn-gold">
+                  Ver banner
+                </Link>
+              ) : null}
+              <Link href={banner?.id ? "/dashboard#meus-banners" : service?.id ? "/dashboard#meus-servicos" : "/dashboard?meus=ACTIVE#meus-anuncios"} className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 px-4 text-sm font-black text-white">
                 Minha Conta
               </Link>
             </div>

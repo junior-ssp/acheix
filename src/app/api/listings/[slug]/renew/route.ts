@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { planCatalog } from "@/lib/constants";
 import { errorResponse, json } from "@/lib/http";
-import { isCnpjAccount, isProfessionalPlanCode } from "@/lib/plan-rules";
+import { getProductValuePlanId, isCnpjAccount, isPlanAllowedForCategory, isProfessionalPlanCode, isProductPlanAvailableForPrice, productPlanPriceRangeMessage } from "@/lib/plan-rules";
 import { db, newDbId, throwDbError } from "@/lib/supabase-db";
 import { z } from "zod";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 const renewalWindowDays = 7;
 const renewSchema = z.object({
-  planCode: z.enum(["BRONZE", "SILVER", "GOLD", "X6", "X12"]),
+  planCode: z.enum(["PRODUCT_MINI", "PRODUCT_START", "PRODUCT_BASIC", "BRONZE", "SILVER", "GOLD", "X6", "X12"]),
   downgradeAccepted: z.boolean().optional().default(false)
 });
 
@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     const supabase = db();
     const { data: listing, error: listingError } = await supabase
       .from("Listing")
-      .select("id,ownerId,planId,status,expiresAt")
+      .select("id,ownerId,category,priceCents,planId,status,expiresAt")
       .eq("slug", params.slug)
       .maybeSingle();
     throwDbError(listingError);
@@ -44,10 +44,17 @@ export async function POST(request: Request, { params }: { params: { slug: strin
       .maybeSingle();
     throwDbError(planError);
     const catalogPlan = planCatalog.find((item) => item.code === data.planCode);
-    const plan = dbPlan && catalogPlan ? { ...dbPlan, ...catalogPlan, id: dbPlan.id } : dbPlan;
+    const fallbackProductPlanId = getProductValuePlanId(data.planCode);
+    const plan = dbPlan && catalogPlan ? { ...catalogPlan, ...dbPlan, id: dbPlan.id } : dbPlan ?? (catalogPlan && fallbackProductPlanId ? { ...catalogPlan, id: fallbackProductPlanId } : null);
     if (!plan) return json({ error: "Plano não encontrado" }, 400);
     if (isProfessionalPlanCode(plan.code) && !isCnpjAccount(user)) {
       return json({ error: "Plano X Profissional é exclusivo para conta com CNPJ." }, 403);
+    }
+    if (!isPlanAllowedForCategory(plan.code, listing.category as any)) {
+      return json({ error: "Este plano é exclusivo para anúncios de produtos." }, 422);
+    }
+    if (listing.category === "PRODUCT" && !isProductPlanAvailableForPrice(plan.code, listing.priceCents ?? 0)) {
+      return json({ error: productPlanPriceRangeMessage(plan.code) ?? "Escolha um plano compatível com o valor do produto." }, 422);
     }
 
     const { data: currentPlan, error: currentPlanError } = listing.planId
@@ -130,11 +137,14 @@ function daysUntilRenewal(expiresAt: string | null | undefined) {
 function planRank(code: string) {
   const ranks: Record<string, number> = {
     FREE: 0,
-    BRONZE: 1,
-    SILVER: 2,
-    GOLD: 3,
-    X6: 4,
-    X12: 5
+    PRODUCT_MINI: 1,
+    PRODUCT_START: 2,
+    PRODUCT_BASIC: 3,
+    BRONZE: 4,
+    SILVER: 5,
+    GOLD: 6,
+    X6: 7,
+    X12: 8
   };
   return ranks[code] ?? 0;
 }

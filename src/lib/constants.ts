@@ -9,14 +9,64 @@
     "Sala Comercial",
     "Galpão",
     "Kitnet"
+  ],
+  PRODUCT: [
+    "Celulares e Telefones",
+    "Eletrodomésticos",
+    "Móveis",
+    "Informática",
+    "Casa e Decoração",
+    "Peças e Acessórios",
+    "Eletrônicos",
+    "Games",
+    "Roupas e Calçados",
+    "Esporte e Lazer",
+    "Bebês e Crianças",
+    "Ferramentas",
+    "Beleza e Cuidados Pessoais",
+    "Pets",
+    "Música e Instrumentos",
+    "Câmeras e Drones",
+    "Materiais de Construção",
+    "Escritório e Home Office",
+    "Hobbies e Colecionáveis",
+    "Utilidades Domésticas",
+    "Outros Produtos"
   ]
 } as const;
 
+export const productSubcategories: Record<(typeof categories.PRODUCT)[number], readonly string[]> = {
+  "Celulares e Telefones": ["Smartphones", "Acessórios", "Peças", "Smartwatch", "Telefone Fixo"],
+  "Eletrodomésticos": ["Geladeira", "Fogão", "Máquina de Lavar", "Micro-ondas", "Ar-condicionado", "Pequenos Eletros"],
+  "Móveis": ["Sofás", "Mesas", "Cadeiras", "Guarda-roupas", "Camas", "Escritório"],
+  "Informática": ["Notebook", "Computador", "Monitor", "Impressora", "Peças", "Periféricos"],
+  "Casa e Decoração": ["Decoração", "Cama Mesa e Banho", "Iluminação", "Jardim", "Organização"],
+  "Peças e Acessórios": ["Veículos", "Motos", "Informática", "Celulares", "Casa"],
+  "Eletrônicos": ["TV", "Som", "Projetor", "Áudio", "Outros Eletrônicos"],
+  "Games": ["Consoles", "Jogos", "Controles", "Acessórios Gamer"],
+  "Roupas e Calçados": ["Feminino", "Masculino", "Infantil", "Tênis", "Bolsas", "Acessórios"],
+  "Esporte e Lazer": ["Bicicletas", "Academia", "Camping", "Pesca", "Hobbies"],
+  "Bebês e Crianças": ["Carrinhos", "Berços", "Brinquedos", "Roupas", "Acessórios"],
+  "Ferramentas": ["Elétricas", "Manuais", "Jardinagem", "Construção", "Oficina"],
+  "Beleza e Cuidados Pessoais": ["Perfumes", "Cosméticos", "Equipamentos", "Cuidados Pessoais"],
+  "Pets": ["Rações e Comedouros", "Casinhas", "Brinquedos", "Acessórios", "Aquários"],
+  "Música e Instrumentos": ["Violão", "Guitarra", "Teclado e Piano", "Bateria", "Microfones", "Equipamentos de Áudio"],
+  "Câmeras e Drones": ["Câmeras", "Lentes", "GoPro e Ação", "Drones", "Acessórios"],
+  "Materiais de Construção": ["Pisos", "Portas e Janelas", "Tintas", "Louças", "Ferragens"],
+  "Escritório e Home Office": ["Cadeiras", "Mesas", "Impressoras", "Monitores", "Arquivos"],
+  "Hobbies e Colecionáveis": ["LEGO", "Action Figures", "Moedas e Selos", "HQs", "Miniaturas"],
+  "Utilidades Domésticas": ["Panelas", "Talheres", "Organizadores", "Utensílios", "Limpeza"],
+  "Outros Produtos": ["Geral"]
+};
+
 export const planCatalog = [
-  { code: "FREE", name: "GRÁTIS", priceCents: 0, originalPriceCents: null, durationDays: 30, photoLimit: 3, listingLimit: 1, benefits: ["Publicação por 30 dias", "1 anúncio"] },
-  { code: "BRONZE", name: "BRONZE", priceCents: 990, originalPriceCents: null, durationDays: 60, photoLimit: 5, listingLimit: 1, benefits: ["Publicação por 60 dias", "Até 5 fotos", "1 anúncio"] },
-  { code: "SILVER", name: "PRATA", priceCents: 1990, originalPriceCents: null, durationDays: 90, photoLimit: 7, listingLimit: 1, benefits: ["Publicação por 90 dias", "Até 7 fotos", "1 anúncio"] },
-  { code: "GOLD", name: "OURO", priceCents: 2990, originalPriceCents: null, durationDays: 120, photoLimit: 10, listingLimit: 1, benefits: ["Publicação por 120 dias", "Até 10 fotos", "1 anúncio"] },
+  { code: "FREE", name: "GRÁTIS", priceCents: 0, originalPriceCents: null, durationDays: 90, photoLimit: 10, listingLimit: 2, benefits: ["Publicação por 90 dias", "1 anúncio por categoria", "Até 10 fotos", "Volta ao topo a cada 7 dias"] },
+  { code: "PRODUCT_MINI", name: "MINI", priceCents: 500, originalPriceCents: null, durationDays: 30, photoLimit: 3, listingLimit: 1, benefits: ["30 dias de validade", "Válido apenas para a Categoria PRODUTOS", "Produtos até R$ 30,00", "Até 3 fotos", "1 anúncio", "Volta ao topo a cada 3 dias"] },
+  { code: "PRODUCT_START", name: "START", priceCents: 699, originalPriceCents: null, durationDays: 30, photoLimit: 3, listingLimit: 1, benefits: ["30 dias de validade", "Válido apenas para a Categoria PRODUTOS", "Produtos de R$ 30,01 a R$ 50,00", "Até 3 fotos", "1 anúncio", "Volta ao topo a cada 3 dias"] },
+  { code: "PRODUCT_BASIC", name: "BÁSICO", priceCents: 899, originalPriceCents: null, durationDays: 30, photoLimit: 3, listingLimit: 1, benefits: ["30 dias de validade", "Válido apenas para a Categoria PRODUTOS", "Produtos de R$ 50,01 a R$ 100,00", "Até 3 fotos", "1 anúncio", "Volta ao topo a cada 3 dias"] },
+  { code: "BRONZE", name: "BRONZE", priceCents: 990, originalPriceCents: null, durationDays: 60, photoLimit: 5, listingLimit: 1, benefits: ["Publicação por 60 dias", "Até 5 fotos", "1 anúncio", "Volta ao topo a cada 5 dias"] },
+  { code: "SILVER", name: "PRATA", priceCents: 1990, originalPriceCents: null, durationDays: 90, photoLimit: 7, listingLimit: 1, benefits: ["Publicação por 90 dias", "Até 7 fotos", "1 anúncio", "Volta ao topo a cada 3 dias"] },
+  { code: "GOLD", name: "OURO", priceCents: 2990, originalPriceCents: null, durationDays: 120, photoLimit: 10, listingLimit: 1, benefits: ["Publicação por 120 dias", "Até 10 fotos", "1 anúncio", "Volta ao topo a cada 2 dias"] },
   {
     code: "X6",
     name: "X6 PROFISSIONAL",
@@ -35,6 +85,7 @@ export const planCatalog = [
       "Alteração de preços",
       "Alteração de descrição",
       "Alteração de informações do anúncio",
+      "Volta ao topo diariamente, com limites de diversidade",
       "Ideal para lojas de veículos, corretores, proprietários e pequenas imobiliárias"
     ]
   },
@@ -56,6 +107,7 @@ export const planCatalog = [
       "Alteração de preços",
       "Alteração de descrição",
       "Alteração de informações do anúncio",
+      "Volta ao topo diariamente, com limites de diversidade",
       "Ideal para revendas, imobiliárias, corretores com grande carteira e empresas do setor imobiliário"
     ]
   }
@@ -140,7 +192,7 @@ export const demoListings = [
     city: "Campinas",
     state: "SP",
     createdAt: demoCreatedAt,
-    expiresAt: demoExpiresIn(30),
+    expiresAt: demoExpiresIn(90),
     photos: [{ url: "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=900&q=80", alt: "Carro compacto em anúncio demonstrativo" }],
     plan: { code: "FREE", name: "GRÁTIS" }
   },
@@ -252,7 +304,7 @@ export const demoListings = [
     city: "Campinas",
     state: "SP",
     createdAt: demoCreatedAt,
-    expiresAt: demoExpiresIn(30),
+    expiresAt: demoExpiresIn(90),
     photos: [{ url: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=900&q=80", alt: "Bicicleta de pedal em anúncio demonstrativo" }],
     plan: { code: "FREE", name: "GRÁTIS" }
   },
@@ -294,7 +346,7 @@ export const demoListings = [
     city: "Santos",
     state: "SP",
     createdAt: demoCreatedAt,
-    expiresAt: demoExpiresIn(30),
+    expiresAt: demoExpiresIn(90),
     photos: [{ url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80", alt: "Kitnet mobiliada em anúncio demonstrativo" }],
     plan: { code: "FREE", name: "GRÁTIS" }
   },
@@ -341,4 +393,3 @@ export const demoListings = [
     plan: { code: "BRONZE", name: "BRONZE" }
   }
 ] as const;
-

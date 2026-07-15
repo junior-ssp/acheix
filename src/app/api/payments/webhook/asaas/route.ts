@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fetchAsaasPayment, findInternalPaymentIdByAsaasPaymentId, isAsaasConfigured } from "@/lib/asaas";
+import { fetchAsaasPayment, findInternalPaymentIdByAsaasPaymentId, isAsaasConfigured, isAsaasPaidStatus } from "@/lib/asaas";
 import { errorResponse, json } from "@/lib/http";
 import { confirmRenewalPayment, findPaymentForConfirmation } from "@/lib/payments";
 import { db, newDbId, throwDbError } from "@/lib/supabase-db";
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     if (isAsaasConfigured()) {
       const freshPayment = await fetchAsaasPayment(asaasPaymentId);
-      if (!isPaidStatus(freshPayment.status)) {
+      if (!isAsaasPaidStatus(freshPayment.status)) {
         return json({ ok: true, ignored: true, reason: "asaas_status_not_paid", status: freshPayment.status });
       }
       confirmedValue = freshPayment.value ?? confirmedValue;
@@ -79,16 +79,14 @@ function validateWebhookSecret(request: Request) {
   if (!secret) return;
   const received = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "")
     || request.headers.get("x-asaas-webhook-token")
+    || request.headers.get("asaas-access-token")
+    || request.headers.get("access-token")
     || request.headers.get("x-webhook-token");
   if (received !== secret) throw new Response(JSON.stringify({ error: "Webhook não autorizado." }), { status: 401 });
 }
 
 function isPaidEvent(event: string, status: string | undefined) {
-  return ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"].includes(event) || isPaidStatus(status);
-}
-
-function isPaidStatus(status: string | undefined) {
-  return ["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"].includes(String(status ?? "").toUpperCase());
+  return ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"].includes(event) || isAsaasPaidStatus(status);
 }
 
 function validatePaymentAmount(expectedAmountCents: number, providerValue: number | undefined) {

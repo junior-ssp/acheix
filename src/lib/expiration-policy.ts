@@ -1,9 +1,13 @@
 export const recoveryDays = 7;
 export const freeListingCooldownDays = 90;
+export const pendingPaymentDraftDays = 3;
 
 export function getListingDurationDays(input: { plan?: { durationDays: number } | null; planCode?: string }) {
   if (input.plan?.durationDays) return input.plan.durationDays;
-  if (input.planCode === "FREE") return 30;
+  if (input.planCode === "FREE") return 90;
+  if (input.planCode === "PRODUCT_MINI") return 30;
+  if (input.planCode === "PRODUCT_START") return 30;
+  if (input.planCode === "PRODUCT_BASIC") return 30;
   if (input.planCode === "BRONZE") return 60;
   if (input.planCode === "SILVER") return 90;
   if (input.planCode === "GOLD") return 120;

@@ -49,7 +49,7 @@ export function ListingPhotoGallery({ photos, title }: { photos: GalleryPhoto[];
     <>
       <div
         ref={scrollRef}
-        className="flex h-full snap-x snap-mandatory overflow-x-auto scroll-smooth overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="absolute inset-0 flex snap-x snap-mandatory overflow-x-auto scroll-smooth overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {photos.map((photo, index) => (
           <div key={`${photo.url}-${index}`} className="relative h-full w-full shrink-0 snap-center">

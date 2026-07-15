@@ -87,7 +87,7 @@ export function AppUpdatePrompt() {
       }
     }
 
-    const timer = window.setTimeout(checkForUpdate, 12000);
+    const timer = window.setTimeout(checkForUpdate, 3500);
 
     return () => {
       active = false;

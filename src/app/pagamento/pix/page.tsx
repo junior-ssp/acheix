@@ -3,7 +3,7 @@ import { QrCode } from "lucide-react";
 import { PaymentStatusPoller } from "@/components/payment-status-poller";
 import { PixCopyBox } from "@/components/pix-copy-box";
 import { requireUser } from "@/lib/auth";
-import { ensureAsaasPixCharge, isAsaasConfigured } from "@/lib/asaas";
+import { ensureAsaasPixCharge, isAsaasConfigured, selectAsaasCustomerDocument } from "@/lib/asaas";
 import { formatCurrencyBRL } from "@/lib/formatters";
 import { db, throwDbError } from "@/lib/supabase-db";
 
@@ -24,7 +24,7 @@ export default async function PixPaymentPage({ searchParams }: { searchParams: {
         customer: {
           name: user.name,
           email: user.email,
-          cpfCnpj: user.cnpj ?? user.cpf,
+          cpfCnpj: selectAsaasCustomerDocument(user),
           phone: user.whatsapp ?? user.phone
         }
       })

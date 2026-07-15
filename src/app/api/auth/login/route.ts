@@ -2,7 +2,7 @@
 import { errorResponse, json } from "@/lib/http";
 import { nextServiceConfirmationDue } from "@/lib/service-profile-activity-policy";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getSupabaseAdminClient, getSupabaseAuthClient } from "@/lib/supabase-auth";
+import { getSupabaseAuthClient } from "@/lib/supabase-auth";
 import { db, throwDbError } from "@/lib/supabase-db";
 import { loginSchema } from "@/lib/validators";
 
@@ -12,9 +12,10 @@ export async function POST(request: Request) {
     const data = loginSchema.parse(body);
     const email = data.email.toLowerCase();
     const wantsAdminSession = isAdminNextPath(typeof body?.nextPath === "string" ? body.nextPath : undefined);
+    const rememberLogin = !wantsAdminSession && (body?.remember === true || body?.remember === "true");
     const { data: account, error } = await db()
       .from("User")
-      .select("id,name,email,role,passwordHash,supabaseUid")
+      .select("id,name,email,emailVerifiedAt,role,passwordHash,supabaseUid,accountBlockedAt")
       .eq("email", email)
       .maybeSingle();
     throwDbError(error);
@@ -27,31 +28,33 @@ export async function POST(request: Request) {
     if (wantsAdminSession && account.role !== "ADMIN") {
       return json({ error: "Este login não tem permissão de administrador." }, 403);
     }
+    if (!wantsAdminSession && account.accountBlockedAt) {
+      return json({ error: "Conta suspensa. Entre em contato com o suporte." }, 403);
+    }
 
     const supabase = getSupabaseAuthClient();
-    let authResult = supabase
+    const authResult = supabase
       ? await supabase.auth.signInWithPassword({ email, password: data.password })
       : null;
 
-    if (supabase && authResult?.error && account.supabaseUid && isEmailNotConfirmed(authResult.error.message)) {
-      await getSupabaseAdminClient()?.auth.admin.updateUserById(account.supabaseUid, { email_confirm: true }).catch(() => null);
-      authResult = await supabase.auth.signInWithPassword({ email, password: data.password });
-    }
-
     const supabaseUid = authResult?.data.user?.id;
-    if (supabaseUid && !account.supabaseUid) {
-      const { error: updateError } = await db().from("User").update({ supabaseUid }).eq("id", account.id);
+    const accountUpdates: Record<string, string> = {};
+    if (supabaseUid && !account.supabaseUid) accountUpdates.supabaseUid = supabaseUid;
+    const emailAutoValidated = !account.emailVerifiedAt;
+    if (emailAutoValidated) accountUpdates.emailVerifiedAt = new Date().toISOString();
+    if (Object.keys(accountUpdates).length) {
+      const { error: updateError } = await db().from("User").update(accountUpdates).eq("id", account.id);
       throwDbError(updateError);
     }
 
     await markServiceProfileLoginActivity(account.id).catch(() => undefined);
 
-    setSessionCookie(signSession({ userId: account.id, role: account.role }));
+    setSessionCookie(signSession({ userId: account.id, role: account.role }), { remember: rememberLogin });
     if (wantsAdminSession) {
       setAdminSessionCookie(signAdminSession({ userId: account.id, role: "ADMIN" }));
     }
 
-    return json({ user: { id: account.id, name: account.name, email: account.email, role: account.role }, adminSession: wantsAdminSession });
+    return json({ user: { id: account.id, name: account.name, email: account.email, role: account.role }, adminSession: wantsAdminSession, emailAutoValidated });
   } catch (error) {
     return errorResponse(error);
   }
@@ -74,9 +77,4 @@ async function markServiceProfileLoginActivity(userId: string) {
 
 function isAdminNextPath(value?: string) {
   return value === "/admin" || Boolean(value?.startsWith("/admin/"));
-}
-
-function isEmailNotConfirmed(message?: string) {
-  const text = message?.toLowerCase() ?? "";
-  return text.includes("email not confirmed") || text.includes("not confirmed") || text.includes("confirm");
 }

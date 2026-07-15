@@ -1,11 +1,18 @@
 import { formatPhone, onlyDigits } from "@/lib/formatters";
 import { db, newDbId, throwDbError } from "@/lib/supabase-db";
+import { isValidCnpj, isValidCpf } from "@/lib/validators";
 
 type AsaasCustomerInput = {
   name: string;
   email: string;
   cpfCnpj: string | null;
   phone: string | null;
+};
+
+type AsaasCustomerDocumentInput = {
+  accountType?: string | null;
+  cpf?: string | null;
+  cnpj?: string | null;
 };
 
 type AsaasPaymentInput = {
@@ -32,6 +39,7 @@ type AsaasPixQrCode = {
 };
 
 const asaasCreatedAction = "payment.asaas.created";
+const asaasMinimumPixAmountCents = 500;
 
 export function isAsaasConfigured() {
   return Boolean(process.env.ASAAS_API_KEY);
@@ -80,7 +88,34 @@ export async function fetchAsaasPayment(asaasPaymentId: string) {
   return asaasRequest<AsaasPayment>(`/v3/payments/${encodeURIComponent(asaasPaymentId)}`);
 }
 
+export async function findAsaasPaymentByInternalPaymentId(paymentId: string) {
+  return findAsaasPaymentByInternalPaymentIdInternal(paymentId);
+}
+
+export function isAsaasPaidStatus(status: string | undefined) {
+  return ["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"].includes(String(status ?? "").toUpperCase());
+}
+
+export function selectAsaasCustomerDocument(input: AsaasCustomerDocumentInput) {
+  const cpf = onlyDigits(input.cpf);
+  const cnpj = onlyDigits(input.cnpj);
+
+  if (input.accountType === "CNPJ") {
+    if (isValidCnpj(cnpj)) return cnpj;
+    if (isValidCpf(cpf)) return cpf;
+    return null;
+  }
+
+  if (isValidCpf(cpf)) return cpf;
+  if (isValidCnpj(cnpj)) return cnpj;
+  return null;
+}
+
 async function createAsaasPayment(input: AsaasPaymentInput) {
+  if (input.amountCents < asaasMinimumPixAmountCents) {
+    throw new Error("O Asaas exige valor mínimo de R$ 5,00 para gerar PIX. Escolha um plano atualizado ou tente novamente em instantes.");
+  }
+
   const customerId = await createAsaasCustomer(input.customer);
   const dueDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const payment = await asaasRequest<AsaasPayment>("/v3/payments", {
@@ -137,14 +172,18 @@ function isPixNotAcceptedError(error: unknown) {
 }
 
 async function createAsaasCustomer(input: AsaasCustomerInput) {
-  const cpfCnpj = input.cpfCnpj ? onlyDigits(input.cpfCnpj) : "";
+  const cpfCnpj = sanitizeAsaasCustomerDocument(input.cpfCnpj);
+  if (!cpfCnpj) {
+    throw new Error("CPF/CNPJ do cadastro não é válido para gerar PIX no Asaas. Atualize seu perfil com um documento real e tente novamente.");
+  }
+
   const phone = input.phone ? onlyDigits(input.phone) : "";
   const customer = await asaasRequest<{ id: string }>("/v3/customers", {
     method: "POST",
     body: {
       name: input.name,
       email: input.email,
-      cpfCnpj: cpfCnpj.length === 11 || cpfCnpj.length === 14 ? cpfCnpj : undefined,
+      cpfCnpj,
       mobilePhone: phone.length === 11 ? phone : undefined,
       phone: phone.length >= 10 ? formatPhone(phone) : undefined
     }
@@ -152,11 +191,17 @@ async function createAsaasCustomer(input: AsaasCustomerInput) {
   return customer.id;
 }
 
+function sanitizeAsaasCustomerDocument(value: string | null | undefined) {
+  const digits = onlyDigits(value);
+  if (isValidCpf(digits) || isValidCnpj(digits)) return digits;
+  return null;
+}
+
 async function getAsaasPixQrCode(asaasPaymentId: string) {
   return asaasRequest<AsaasPixQrCode>(`/v3/payments/${encodeURIComponent(asaasPaymentId)}/pixQrCode`);
 }
 
-async function findAsaasPaymentByInternalPaymentId(paymentId: string) {
+async function findAsaasPaymentByInternalPaymentIdInternal(paymentId: string) {
   const { data: paymentRow, error: paymentError } = await db()
     .from("Payment")
     .select("asaasPaymentId")
@@ -210,9 +255,18 @@ async function asaasRequest<T>(path: string, options: { method?: string; body?: 
     const message = Array.isArray(data?.errors)
       ? data.errors.map((item: any) => item.description ?? item.message).filter(Boolean).join(" ")
       : data?.message;
-    throw new Error(message || `Asaas retornou HTTP ${response.status}.`);
+    throw new Error(formatAsaasErrorMessage(message, response.status));
   }
   return data as T;
+}
+
+function formatAsaasErrorMessage(message: string | null | undefined, status: number) {
+  const text = message || `Asaas retornou HTTP ${status}.`;
+  const normalized = normalize(text);
+  if (normalized.includes("cpf") || normalized.includes("cnpj")) {
+    return "CPF/CNPJ do cadastro não foi aceito pelo Asaas. Atualize seu perfil com um documento real e tente gerar o PIX novamente.";
+  }
+  return text;
 }
 
 function normalize(value: string) {

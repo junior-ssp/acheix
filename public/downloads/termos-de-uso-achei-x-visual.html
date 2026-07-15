@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Termos de Uso - Achei X</title>
+  <style>
+    :root {
+      --black: #050505;
+      --panel: #111411;
+      --panel-2: #171b17;
+      --green: #22c55e;
+      --yellow: #ffd600;
+      --text: #f7f7f7;
+      --muted: #c9c9c9;
+      --line: rgba(255, 255, 255, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--black);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+    }
+
+    .page {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      padding: 40px 28px 64px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 28px;
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at top right, rgba(34, 197, 94, 0.25), transparent 34%),
+        linear-gradient(135deg, #111 0%, #0a0a0a 56%, #132016 100%);
+    }
+
+    .hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 22px;
+    }
+
+    .logo {
+      width: 190px;
+      height: auto;
+      display: block;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: var(--yellow);
+      color: #111;
+      font-weight: 900;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 780px;
+      font-size: clamp(42px, 7vw, 82px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .company {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .company div {
+      min-height: 86px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.32);
+    }
+
+    .company span {
+      display: block;
+      color: var(--yellow);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .company strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 15px;
+    }
+
+    .hero-content {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(270px, 0.78fr);
+      gap: 26px;
+      align-items: center;
+    }
+
+    .hero-visual,
+    .visual-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background:
+        radial-gradient(circle at top right, rgba(255, 214, 0, 0.18), transparent 34%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.48));
+      box-shadow: 0 22px 50px rgba(0, 0, 0, 0.28);
+    }
+
+    .hero-visual {
+      min-height: 250px;
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .hero-visual svg,
+    .visual-card svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .visual-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin: 22px 0;
+    }
+
+    .visual-card {
+      min-height: 230px;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .visual-card strong {
+      display: block;
+      margin-top: 12px;
+      color: var(--yellow);
+      font-size: 16px;
+    }
+
+    .visual-card p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.38;
+    }
+
+    .toc {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 22px 0;
+    }
+
+    .toc a {
+      color: var(--text);
+      text-decoration: none;
+      min-height: 72px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .toc a span {
+      display: block;
+      color: var(--green);
+      font-size: 20px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .section {
+      break-inside: avoid;
+      margin-top: 18px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+    }
+
+    .section:nth-of-type(even) {
+      background: var(--panel-2);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+
+    .num {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      background: var(--green);
+      color: #071207;
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--yellow);
+      font-size: 24px;
+      line-height: 1.12;
+    }
+
+    .section p {
+      margin: 10px 0 0;
+      color: #e8e8e8;
+    }
+
+    ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+      color: #e8e8e8;
+    }
+
+    li { margin: 6px 0; }
+
+    .note {
+      margin-top: 14px;
+      padding: 14px;
+      border-left: 5px solid var(--yellow);
+      border-radius: 10px;
+      background: rgba(255, 214, 0, 0.08);
+      color: #fff7bd;
+      font-weight: 700;
+    }
+
+    .footer {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media print {
+      body { background: var(--black); color: var(--text); }
+      .page { width: 100%; padding: 0; }
+      .hero, .section, .toc a, .company div, .hero-visual, .visual-card {
+        box-shadow: none;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .toc a { break-inside: avoid; }
+      a { color: inherit; }
+    }
+
+    @media (max-width: 760px) {
+      .page { padding: 20px 14px 40px; }
+      .hero { padding: 22px; }
+      .hero-content,
+      .visual-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-top, .company { grid-template-columns: 1fr; }
+      .hero-top { align-items: flex-start; flex-direction: column; }
+      .toc { grid-template-columns: repeat(2, 1fr); }
+      .company { display: grid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-top">
+        <img class="logo" src="../achei-x-top-logo-small.png" alt="Achei X" />
+        <span class="badge">Atualizado em 2026</span>
+      </div>
+      <div class="hero-content">
+      <div>
+        <h1>Termos de Uso</h1>
+        <p>Um resumo visual e organizado das regras de uso do Site e Aplicativo Achei X, com a identificação da empresa responsável e os principais deveres de usuários, anunciantes e prestadores.</p>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <svg viewBox="0 0 560 380" role="img">
+          <defs>
+            <linearGradient id="phoneGlowTerms" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#22c55e"/>
+              <stop offset="1" stop-color="#ffd600"/>
+            </linearGradient>
+          </defs>
+          <rect x="32" y="252" width="496" height="54" rx="27" fill="#040404" opacity=".78"/>
+          <rect x="330" y="58" width="142" height="248" rx="26" fill="#070707" stroke="#ffffff" stroke-opacity=".22" stroke-width="4"/>
+          <rect x="346" y="86" width="110" height="176" rx="16" fill="url(#phoneGlowTerms)" opacity=".9"/>
+          <rect x="362" y="107" width="78" height="16" rx="8" fill="#071207"/>
+          <rect x="362" y="140" width="70" height="10" rx="5" fill="#071207" opacity=".72"/>
+          <rect x="362" y="160" width="88" height="10" rx="5" fill="#071207" opacity=".72"/>
+          <circle cx="401" cy="285" r="8" fill="#f7f7f7" opacity=".82"/>
+          <circle cx="183" cy="118" r="48" fill="#ffd600"/>
+          <path d="M112 286c11-75 32-118 71-118s60 43 71 118" fill="#22c55e"/>
+          <path d="M133 286c8-47 24-76 50-76s42 29 50 76" fill="#071207" opacity=".26"/>
+          <rect x="60" y="292" width="446" height="24" rx="12" fill="#22c55e" opacity=".55"/>
+          <rect x="94" y="70" width="118" height="48" rx="24" fill="#ffffff" opacity=".1"/>
+          <path d="M128 96h48" stroke="#ffd600" stroke-width="8" stroke-linecap="round"/>
+          <path d="M288 110l32 32 70-76" fill="none" stroke="#ffd600" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      </div>
+      <div class="company">
+        <div><span>Empresa</span><strong>JR Comércio e Soluções Digitais Ltda.</strong></div>
+        <div><span>CNPJ</span><strong>57.006.594/0001-65</strong></div>
+        <div><span>Contato</span><strong>contato@acheix.com.br</strong></div>
+      </div>
+    </section>
+
+    <nav class="toc" aria-label="Sumário">
+      <a href="#empresa"><span>01</span>Identificação da Empresa</a>
+      <a href="#anunciantes"><span>02</span>Responsabilidade dos Anunciantes</a>
+      <a href="#proibidos"><span>03</span>Conteúdos Proibidos</a>
+      <a href="#moderacao"><span>04</span>Moderação e Segurança</a>
+      <a href="#fraude"><span>05</span>Fraudes e Links</a>
+      <a href="#planos"><span>06</span>Planos e Anúncios</a>
+      <a href="#buscas"><span>07</span>Ordem de Exibição</a>
+      <a href="#responsabilidade"><span>08</span>Limitação de Responsabilidade</a>
+    </nav>
+
+    <section class="visual-grid" aria-label="Resumo visual dos Termos de Uso">
+      <article class="visual-card">
+        <svg viewBox="0 0 420 220" aria-hidden="true">
+          <rect x="28" y="34" width="226" height="144" rx="18" fill="#050505" stroke="#ffffff" stroke-opacity=".2" stroke-width="3"/>
+          <rect x="50" y="58" width="112" height="14" rx="7" fill="#ffd600"/>
+          <rect x="50" y="88" width="170" height="10" rx="5" fill="#ffffff" opacity=".3"/>
+          <rect x="50" y="112" width="146" height="10" rx="5" fill="#ffffff" opacity=".22"/>
+          <circle cx="309" cy="82" r="32" fill="#ffd600"/>
+          <path d="M260 180c8-50 25-78 50-78s42 28 50 78" fill="#22c55e"/>
+          <rect x="254" y="174" width="112" height="15" rx="8" fill="#071207" opacity=".35"/>
+        </svg>
+        <strong>Anunciante identificado</strong>
+        <p>Regras claras para publicar, renovar e manter anúncios com informações corretas.</p>
+      </article>
+      <article class="visual-card">
+        <svg viewBox="0 0 420 220" aria-hidden="true">
+          <rect x="126" y="30" width="168" height="160" rx="22" fill="#050505" stroke="#ffffff" stroke-opacity=".22" stroke-width="3"/>
+          <rect x="146" y="58" width="128" height="82" rx="12" fill="#22c55e"/>
+          <rect x="164" y="78" width="70" height="10" rx="5" fill="#071207" opacity=".75"/>
+          <rect x="164" y="101" width="92" height="10" rx="5" fill="#071207" opacity=".55"/>
+          <path d="M177 162h66" stroke="#ffd600" stroke-width="12" stroke-linecap="round"/>
+          <circle cx="296" cy="61" r="30" fill="#ffd600"/>
+          <path d="M284 61l8 8 18-22" fill="none" stroke="#071207" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <strong>Uso no celular</strong>
+        <p>O documento foi pensado para leitura no App, com abertura interna e visual direto.</p>
+      </article>
+      <article class="visual-card">
+        <svg viewBox="0 0 420 220" aria-hidden="true">
+          <rect x="54" y="50" width="260" height="128" rx="18" fill="#050505" stroke="#ffffff" stroke-opacity=".2" stroke-width="3"/>
+          <rect x="76" y="74" width="92" height="16" rx="8" fill="#ffd600"/>
+          <rect x="76" y="106" width="170" height="10" rx="5" fill="#ffffff" opacity=".28"/>
+          <rect x="76" y="130" width="138" height="10" rx="5" fill="#ffffff" opacity=".2"/>
+          <path d="M282 132c26 0 46-20 46-46 22 14 38 18 60 16-4 62-31 92-106 106-75-14-102-44-106-106 22 2 38-2 60-16 0 26 20 46 46 46Z" fill="#22c55e" opacity=".9"/>
+          <path d="M260 132l18 18 42-54" fill="none" stroke="#071207" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <strong>Segurança e moderação</strong>
+        <p>Conteúdos podem passar por análise automática e revisão para reduzir fraudes.</p>
+      </article>
+    </section>
+
+    <section id="empresa" class="section">
+      <div class="section-head"><div class="num">01</div><h2>Identificação da Empresa</h2></div>
+      <p>O Site e Aplicativo Achei X é operado por JR Comércio e Soluções Digitais Ltda., inscrita no CNPJ nº 57.006.594/0001-65, com sede em São Paulo/SP.</p>
+      <p>Contato oficial para assuntos relacionados a estes Termos de Uso: contato@acheix.com.br.</p>
+    </section>
+
+    <section id="anunciantes" class="section">
+      <div class="section-head"><div class="num">02</div><h2>Responsabilidade dos Anunciantes</h2></div>
+      <p>O anunciante é o único responsável pela veracidade, legalidade, autenticidade, procedência e atualização das informações, imagens, vídeos, textos, preços, documentos e contatos que informar ou tentar publicar.</p>
+      <ul>
+        <li>Não publique informações falsas, enganosas, duplicadas ou usadas para obter vantagem indevida.</li>
+        <li>Não publique produtos, serviços, documentos, dados pessoais, pagamentos ou negociações ilícitas.</li>
+        <li>Não viole direitos de terceiros, propriedade intelectual, imagem, honra, privacidade ou normas aplicáveis.</li>
+      </ul>
+      <div class="note">A plataforma poderá remover anúncios, bloquear contas e negar reembolso quando houver violação destes Termos ou risco jurídico para o Achei X.</div>
+    </section>
+
+    <section id="proibidos" class="section">
+      <div class="section-head"><div class="num">03</div><h2>Conteúdos Proibidos</h2></div>
+      <p>São proibidos conteúdos envolvendo nudez, pornografia, prostituição, exploração sexual, exploração infantil, violência extrema, drogas ilícitas, armas, munições, documentos pessoais, cartões bancários, comprovantes financeiros, QR Codes suspeitos, golpes, produtos roubados ou furtados, crimes cibernéticos, venda de dados pessoais, ferramentas para atividades ilegais, animais silvestres protegidos, contrabando, medicamentos ilegais ou qualquer produto cuja comercialização seja proibida pela legislação brasileira.</p>
+      <p>Pessoas podem aparecer em imagens quando estiverem em contexto comum e não sensível. Crianças em contexto familiar ou cotidiano podem aparecer desde que não exista indício de exploração, exposição inadequada, sexualização, violência, risco ou violação de direitos.</p>
+    </section>
+
+    <section id="moderacao" class="section">
+      <div class="section-head"><div class="num">04</div><h2>Moderação Automática e Manual</h2></div>
+      <p>Toda imagem enviada para anúncio poderá passar por análise automática de segurança, incluindo detecção de pessoas, nudez, violência, drogas, armas, documentos, QR Codes, produtos ilegais e leitura de textos presentes nas imagens por OCR.</p>
+      <p>Nenhuma imagem tem garantia de publicação. Imagens podem ser aprovadas, reprovadas automaticamente ou encaminhadas para revisão manual em caso de baixa confiança, suspeita, denúncia ou inconsistência.</p>
+      <p>Por segurança, a plataforma poderá exibir mensagem genérica de reprovação, sem revelar critérios técnicos, modelos, pontuações ou regras internas.</p>
+    </section>
+
+    <section id="fraude" class="section">
+      <div class="section-head"><div class="num">05</div><h2>Links, Contatos e Tentativas de Fraude</h2></div>
+      <p>O Achei X poderá bloquear mensagens, interesses, links externos, QR Codes, termos de captação, propostas suspeitas, tentativas de retirar usuários da plataforma, comprovantes suspeitos, documentos, dados bancários ou qualquer conteúdo que indique fraude, golpe, spam, prospecção indevida ou risco aos usuários.</p>
+      <p>O usuário não deve enviar senhas, códigos, documentos de terceiros, dados bancários, links suspeitos ou informações sensíveis.</p>
+    </section>
+
+    <section id="planos" class="section">
+      <div class="section-head"><div class="num">06</div><h2>Planos, Renovação e Exclusão de Anúncios</h2></div>
+      <p>Os anúncios publicados possuem prazo de validade conforme o plano contratado:</p>
+      <ul>
+        <li>Plano Grátis: 90 dias, limitado a 1 anúncio gratuito por categoria a cada 90 dias. Até 10 fotos por anúncio.</li>
+        <li>Plano Bronze: 60 dias.</li>
+        <li>Plano Prata: 90 dias.</li>
+        <li>Plano Ouro: 120 dias.</li>
+        <li>Plano X6 Profissional: 6 meses, com até 10 anúncios ativos de veículos ou imóveis.</li>
+        <li>Plano X12 Profissional: 12 meses, com até 20 anúncios ativos de veículos ou imóveis.</li>
+      </ul>
+      <p>Ao término do prazo contratado, o anúncio será automaticamente desativado. Após o período de recuperação de até 7 dias, os dados do anúncio poderão ser excluídos permanentemente.</p>
+    </section>
+
+    <section id="buscas" class="section">
+      <div class="section-head"><div class="num">07</div><h2>Ordem de Exibição nas Buscas</h2></div>
+      <p>A ordem de exibição dos anúncios e prestadores poderá considerar relevância da busca, localização, categoria, qualidade das informações, reputação, taxa de resposta, quantidade de exposições recentes, tempo desde a última exibição e aleatoriedade controlada entre resultados equivalentes.</p>
+      <p>Nenhum anunciante poderá ocupar permanentemente as primeiras posições apenas por pagamento. A plataforma busca distribuir oportunidades de exposição de forma equilibrada.</p>
+    </section>
+
+    <section id="responsabilidade" class="section">
+      <div class="section-head"><div class="num">08</div><h2>Limitação de Responsabilidade</h2></div>
+      <p>O Achei X adota medidas razoáveis de prevenção, moderação e segurança, mas não se responsabiliza por atos, omissões, crimes, fraudes, declarações, imagens, documentos, links, produtos, serviços, negociações ou conteúdos enviados por usuários.</p>
+      <p>A plataforma não garante a concretização de negócios, a qualidade dos produtos ou serviços anunciados, a identidade plena dos usuários, a capacidade financeira das partes, a procedência de bens ou o cumprimento de acordos firmados fora da plataforma.</p>
+      <div class="note">Ao utilizar a plataforma, o usuário declara ter lido, compreendido e aceitado integralmente estes Termos de Uso.</div>
+    </section>
+
+    <footer class="footer">
+      © 2026 Achei X - JR Comércio e Soluções Digitais Ltda. - São Paulo/SP
+    </footer>
+  </main>
+</body>
+</html>

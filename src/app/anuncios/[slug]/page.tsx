@@ -4,22 +4,28 @@ import { Clock, Send, ShieldCheck, Star } from "lucide-react";
 import { ContactBox } from "@/components/contact-box";
 import { FavoriteButton } from "@/components/favorite-button";
 import { ListingPhotoGallery } from "@/components/listing-photo-gallery";
-import { money } from "@/components/listing-card";
 import { PlanIcon } from "@/components/plan-icon";
 import { ReportListingButton } from "@/components/report-listing-button";
 import { ShareMenu } from "@/components/share-menu";
 import { getCurrentUser } from "@/lib/auth";
+import { canUseContactFeatures, verifiedAccountRequiredMessage } from "@/lib/account-requirements";
 import { demoListings } from "@/lib/constants";
-import { formatIntegerBR } from "@/lib/formatters";
+import { realEstatePurposeLabel } from "@/lib/real-estate-taxonomy";
+import { formatCurrencyBRL, formatIntegerBR } from "@/lib/formatters";
 import { absolutePublicUrl, imageContentType, normalizeImageUrl, optimizedOpenGraphImageUrl } from "@/lib/image-url";
 import { findListingBySlug } from "@/lib/listing-records";
 import { db, throwDbError } from "@/lib/supabase-db";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { calculateResponseMetrics, formatAverageResponse, responseTierLabel } from "@/lib/response-metrics";
 
 export const dynamic = "force-dynamic";
 
+function money(cents: number) {
+  return formatCurrencyBRL(cents);
+}
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const listing = await findListingBySlug(params.slug).catch(() => null) ?? getDemoListing(params.slug);
+  const listing = await findPublicListing(params.slug);
   if (!listing) {
     return {
       title: "Anúncio não encontrado",
@@ -65,8 +71,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 export default async function ListingPage({ params }: { params: { slug: string } }) {
   const user = await getCurrentUser();
-  const databaseListing = await findListingBySlug(params.slug).catch(() => null);
-  const listing = databaseListing ?? getDemoListing(params.slug);
+  const databaseListing = isSupabaseConfigured() ? await findListingBySlug(params.slug) : null;
+  const listing = databaseListing ?? (!isSupabaseConfigured() ? getDemoListing(params.slug) : null);
   if (!listing) notFound();
   const galleryPhotos = buildGalleryPhotos(listing.photos, listing.title);
   const planName = listing.plan?.name ?? "GRÁTIS";
@@ -75,12 +81,20 @@ export default async function ListingPage({ params }: { params: { slug: string }
   const publicHistory = getPublicHistory(listing.owner);
   const ownerId = "ownerId" in listing ? listing.ownerId : null;
   const listingId = "id" in listing ? listing.id : null;
-  const canReportListing = Boolean(user && (!ownerId || ownerId !== user.id));
+  const isDatabaseListing = Boolean(databaseListing);
+  const canReportListing = Boolean(user && isDatabaseListing && ownerId && ownerId !== user.id);
+  const reportDisabledReason = !isDatabaseListing
+    ? "Este é um anúncio demonstrativo. Denúncias ficam disponíveis em anúncios reais publicados por usuários."
+    : ownerId === user?.id
+      ? "Você não pode reportar seu próprio anúncio."
+      : undefined;
   const isVerified = Boolean(listing.owner?.identityVerifiedAt);
   const ownerLeads = ownerId ? await findOwnerLeadMetrics(ownerId).catch(() => []) : [];
   const isFavorited = user && listingId ? await findViewerFavorite(user.id, listingId).catch(() => false) : false;
   const responseMetrics = calculateResponseMetrics(ownerLeads);
   const serviceScore = responseMetrics.score === null ? null : Math.round(responseMetrics.score / 10);
+  const canInteractWithOwner = Boolean(user && canUseContactFeatures(user));
+  const publicContact = canInteractWithOwner ? buildPublicContact(listing) : { phone: null, whatsapp: null, email: null };
 
   return (
     <main className="min-h-[calc(100vh-65px)] bg-neutral-950 text-white">
@@ -138,10 +152,11 @@ export default async function ListingPage({ params }: { params: { slug: string }
 
           {listing.realEstate && (
             <dl className="grid grid-cols-2 gap-3 text-sm">
-              <Info label="Finalidade" value={listing.realEstate.purpose} />
+              <Info label="Finalidade" value={realEstatePurposeLabel(listing.realEstate.purpose) ?? "Não informada"} />
               <Info label="Quartos" value={listing.realEstate.bedrooms ?? "-"} />
               <Info label="Banheiros" value={listing.realEstate.bathrooms ?? "-"} />
               <Info label="Área" value={listing.realEstate.areaM2 ? `${listing.realEstate.areaM2} m2` : "-"} />
+              {listing.realEstate.maxGuests ? <Info label="Máximo de hóspedes" value={listing.realEstate.maxGuests} /> : null}
             </dl>
           )}
 
@@ -178,14 +193,27 @@ export default async function ListingPage({ params }: { params: { slug: string }
 
           <div className="rounded-lg border border-emerald-300/30 bg-[#22C55E] p-4 text-black shadow-[0_0_22px_rgb(34_197_94_/_0.18)]">
             <h3 className="font-black">Entre em Contato</h3>
-            <ContactBox slug={listing.slug} authenticated={Boolean(user)} />
+            <ContactBox
+              slug={listing.slug}
+              authenticated={Boolean(user)}
+              currentUserId={user?.id ?? null}
+              contact={publicContact}
+              canInteract={canInteractWithOwner}
+              interactionDisabledReason={user ? verifiedAccountRequiredMessage : undefined}
+            />
           </div>
 
-          <ReportListingButton slug={listing.slug} authenticated={Boolean(user)} canReport={canReportListing} ownerId={ownerId} canBlock={Boolean(user && ownerId && ownerId !== user.id)} />
+          <ReportListingButton slug={listing.slug} listingId={listingId} authenticated={Boolean(user)} canReport={canReportListing} disabledReason={reportDisabledReason} ownerId={ownerId} canBlock={Boolean(user && ownerId && ownerId !== user.id)} />
         </aside>
       </section>
     </main>
   );
+}
+
+async function findPublicListing(slug: string) {
+  if (!isSupabaseConfigured()) return getDemoListing(slug);
+  const databaseListing = await findListingBySlug(slug);
+  return databaseListing;
 }
 
 async function findOwnerLeadMetrics(ownerId: string) {
@@ -225,15 +253,36 @@ function getDemoListing(slug: string) {
   return {
     ...demo,
     description: "Anúncio demonstrativo criado para apresentar o layout do aplicativo enquanto não há anúncios reais aprovados.",
-    showPhone: false,
-    showWhatsapp: false,
-    owner: { createdAt: new Date("2024-01-01"), identityVerifiedAt: null, _count: { listings: 8 } },
+    showPhone: true,
+    showWhatsapp: true,
+    showEmail: true,
+    retainChatAudit: true,
+    owner: {
+      createdAt: new Date("2024-01-01"),
+      identityVerifiedAt: null,
+      phone: "11948437423",
+      whatsapp: "11948437423",
+      email: "teste@acheix.com.br",
+      allowPublicPhone: true,
+      allowPublicWhatsapp: true,
+      allowPublicEmail: true,
+      _count: { listings: 8 }
+    },
     vehicle: demo.category === "VEHICLE"
       ? { brand: demo.title.split(" ")[0], model: demo.title.split(" ").slice(1, 3).join(" "), version: demo.title.split(" ").slice(1, 4).join(" "), fipeCode: null, year: 2022, mileageKm: 42000 }
       : null,
     realEstate: demo.category === "REAL_ESTATE"
       ? { purpose: demo.priceCents <= 500000 ? "Locação" : "Venda", bedrooms: demo.type === "Sala Comercial" ? null : 3, bathrooms: 2, areaM2: demo.type === "Sala Comercial" ? 48 : 120 }
       : null
+  };
+}
+
+function buildPublicContact(listing: any) {
+  const owner = listing.owner;
+  return {
+    whatsapp: listing.showWhatsapp && owner?.allowPublicWhatsapp ? owner.whatsapp ?? null : null,
+    phone: listing.showPhone && owner?.allowPublicPhone ? owner.phone ?? null : null,
+    email: listing.showEmail && owner?.allowPublicEmail ? owner.email ?? null : null
   };
 }
 

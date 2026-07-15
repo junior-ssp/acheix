@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, X } from "lucide-react";
 import { setAppBadgeCount } from "@/lib/app-badge-client";
 
@@ -16,10 +17,21 @@ type NotificationItem = {
 };
 
 export function NotificationPopups() {
+  const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [enabled, setEnabled] = useState(false);
   const current = items[0];
+
+  function openAction(url: string) {
+    if (url.startsWith("/") && !url.startsWith("//")) router.push(url as any);
+    else window.location.assign(url);
+  }
+
+  async function openCurrentAction(url: string) {
+    await closeCurrent();
+    openAction(url);
+  }
 
   const loadNotifications = useCallback(async () => {
     const response = await fetch("/api/notifications", { cache: "no-store" }).catch(() => null);
@@ -98,7 +110,7 @@ export function NotificationPopups() {
       });
       push.onclick = () => {
         window.focus();
-        if (actionUrl) window.location.href = actionUrl;
+        if (actionUrl) openCurrentAction(actionUrl);
       };
     }
     setAppBadgeCount(unreadCount);
@@ -142,16 +154,16 @@ export function NotificationPopups() {
         <div className="min-w-0 flex-1">
           <strong className="block text-sm text-yellow-300">{current.title}</strong>
           {current.linkUrl && current.linkLabel ? (
-            <a href={current.linkUrl} className="mt-1 block text-sm font-black text-white underline decoration-yellow-300/70 underline-offset-4 hover:text-yellow-200">
+            <button type="button" onClick={() => openCurrentAction(current.linkUrl!)} className="mt-1 block text-left text-sm font-black text-white underline decoration-yellow-300/70 underline-offset-4 hover:text-yellow-200">
               {current.linkLabel}
-            </a>
+            </button>
           ) : null}
           <p className="mt-1 text-sm text-neutral-200">{current.message}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {current.primaryActionUrl ? (
-              <a href={current.primaryActionUrl} className="rounded-md px-3 py-2 text-xs btn-gold">
+              <button type="button" onClick={() => openCurrentAction(current.primaryActionUrl!)} className="rounded-md px-3 py-2 text-xs btn-gold">
                 {current.primaryActionLabel || "Abrir"}
-              </a>
+              </button>
             ) : null}
             {current.contactLeadId ? (
               <button type="button" onClick={deleteCurrent} className="rounded-md border border-red-400/30 px-3 py-2 text-xs font-bold text-red-200">Excluir</button>

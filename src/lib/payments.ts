@@ -1,11 +1,18 @@
-import { addDays } from "@/lib/expiration-policy";
+﻿import { addDays } from "@/lib/expiration-policy";
+import { confirmBannerPayment, parseBannerProviderRef } from "@/lib/banner-campaigns";
+import { planCatalog } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications";
-import { activateServiceProBilling } from "@/lib/service-billing-policy";
+import { getProductValuePlanId } from "@/lib/plan-rules";
+import { canAutoApproveProductListing } from "@/lib/product-auto-approval";
+import { listingTopRefreshActivationFields } from "@/lib/listing-top-refresh-policy";
+import { activateServicePaidBilling } from "@/lib/service-billing-policy";
 import { parseServiceComplement } from "@/lib/service-contact-disclosure";
+import { getServicePlan, isPaidServicePlanCode, type ServicePlanCode } from "@/lib/service-plans";
+import { replaceSeedListingForRealListing } from "@/lib/seed-listing-replacement";
 import { db, isUniqueViolation, newDbId, throwDbError } from "@/lib/supabase-db";
 
 type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
-type PaidPlanCode = "BRONZE" | "SILVER" | "GOLD" | "X6" | "X12";
+type PaidPlanCode = "PRODUCT_MINI" | "PRODUCT_START" | "PRODUCT_BASIC" | "BRONZE" | "SILVER" | "GOLD" | "X6" | "X12";
 type PaymentForConfirmation = {
   id: string;
   userId: string;
@@ -33,9 +40,11 @@ export function parsePublishProviderRef(providerRef: string | null | undefined) 
 
 export function parseServiceProviderRef(providerRef: string | null | undefined) {
   const [kind, profileId, planCode] = String(providerRef ?? "").split(":");
-  if (kind !== "service" || !profileId || planCode !== "SERVICE_PRO") return null;
-  return { profileId, planCode: "SERVICE_PRO" as const };
+  if (kind !== "service" || !profileId || !isPaidServicePlanCode(planCode)) return null;
+  return { profileId, planCode: planCode as ServicePlanCode };
 }
+
+export { parseBannerProviderRef };
 
 export async function findPaymentForConfirmation(paymentId: string) {
   const { data, error } = await db()
@@ -55,18 +64,23 @@ export async function confirmRenewalPayment(paymentId: string) {
   const renew = parseRenewProviderRef(payment.providerRef);
   const publish = parsePublishProviderRef(payment.providerRef);
   const service = parseServiceProviderRef(payment.providerRef);
+  const banner = parseBannerProviderRef(payment.providerRef);
+  if (banner) return confirmBannerPayment(payment);
   if (service) return confirmServicePayment(payment, service);
   const reference = renew ?? publish;
   if (!reference) throw new Error("Pagamento não possui referência de anúncio válida.");
 
   const [listingResult, planResult] = await Promise.all([
-    supabase.from("Listing").select("id,slug,title").eq("id", reference.listingId).maybeSingle(),
+    supabase.from("Listing").select("id,slug,title,category,owner:User!Listing_ownerId_fkey(email)").eq("id", reference.listingId).maybeSingle(),
     supabase.from("Plan").select("id,code,durationDays").eq("code", reference.planCode).maybeSingle()
   ]);
   throwDbError(listingResult.error);
   throwDbError(planResult.error);
   if (!listingResult.data) throw new Error("Anúncio não encontrado para confirmação de pagamento.");
-  if (!planResult.data) throw new Error("Plano não encontrado para confirmação de pagamento.");
+  const catalogPlan = planCatalog.find((plan) => plan.code === reference.planCode);
+  const fallbackProductPlanId = getProductValuePlanId(reference.planCode);
+  const paymentPlan = planResult.data ?? (catalogPlan && fallbackProductPlanId ? { id: fallbackProductPlanId, code: catalogPlan.code, durationDays: catalogPlan.durationDays } : null);
+  if (!paymentPlan) throw new Error("Plano não encontrado para confirmação de pagamento.");
 
   const existingSubscription = await findPaymentSubscription(payment.id);
   if (paidStatuses.includes(payment.status as PaymentStatus) && existingSubscription) return payment;
@@ -97,15 +111,19 @@ export async function confirmRenewalPayment(paymentId: string) {
     paidAt = Number.isFinite(updatedAt.getTime()) ? updatedAt : now;
   }
 
-  const expiresAt = addDays(paidAt, planResult.data.durationDays);
+  const expiresAt = addDays(paidAt, paymentPlan.durationDays);
+  const owner = Array.isArray((listingResult.data as any).owner) ? (listingResult.data as any).owner[0] : (listingResult.data as any).owner;
+  const statusAfterPayment = publish && listingResult.data.category === "PRODUCT" && !canAutoApproveProductListing(owner) ? "PENDING_REVIEW" : "ACTIVE";
+  const topRefreshFields = statusAfterPayment === "ACTIVE" ? listingTopRefreshActivationFields(paymentPlan.code, paidAt) : {};
   const { error: updateListingError } = await supabase
     .from("Listing")
     .update({
-      planId: planResult.data.id,
-      status: "ACTIVE",
+      planId: paymentPlan.id,
+      status: statusAfterPayment,
       expiresAt: expiresAt.toISOString(),
       expiredNotifiedAt: null,
-      updatedAt: paidAt.toISOString()
+      updatedAt: paidAt.toISOString(),
+      ...topRefreshFields
     })
     .eq("id", listingResult.data.id);
   throwDbError(updateListingError);
@@ -115,7 +133,7 @@ export async function confirmRenewalPayment(paymentId: string) {
     const { error: subscriptionError } = await supabase.from("Subscription").insert({
       id: newDbId(),
       listingId: listingResult.data.id,
-      planId: planResult.data.id,
+      planId: paymentPlan.id,
       paymentId: payment.id,
       startsAt: paidAt.toISOString(),
       endsAt: expiresAt.toISOString()
@@ -127,14 +145,18 @@ export async function confirmRenewalPayment(paymentId: string) {
     id: newDbId(),
     userId: paidPayment.userId,
     action: renew ? "payment.renewal_confirmed" : "payment.publish_confirmed",
-    metadata: { paymentId: paidPayment.id, listingId: listingResult.data.id, planCode: planResult.data.code, expiresAt: expiresAt.toISOString() }
+    metadata: { paymentId: paidPayment.id, listingId: listingResult.data.id, planCode: paymentPlan.code, expiresAt: expiresAt.toISOString() }
   });
   throwDbError(auditError);
+
+  await replaceSeedListingForRealListing(listingResult.data.id).catch((error) => console.error("seed_listing.replacement_failed", error));
 
   await createNotification(
     paidPayment.userId,
     "Pagamento confirmado",
-    `Seu anúncio "${listingResult.data.title ?? "Anúncio"}" foi ativado com sucesso.`,
+    statusAfterPayment === "PENDING_REVIEW"
+      ? `Seu anúncio "${listingResult.data.title ?? "Anúncio"}" foi pago e enviado para análise.`
+      : `Seu anúncio "${listingResult.data.title ?? "Anúncio"}" foi ativado com sucesso.`,
     {
       primaryActionLabel: "Ver anúncio",
       primaryActionUrl: listingResult.data.slug ? `/anuncios/${listingResult.data.slug}` : "/dashboard?meus=ACTIVE#meus-anuncios"
@@ -144,7 +166,7 @@ export async function confirmRenewalPayment(paymentId: string) {
   return paidPayment;
 }
 
-async function confirmServicePayment(payment: PaymentForConfirmation, reference: { profileId: string; planCode: "SERVICE_PRO" }) {
+async function confirmServicePayment(payment: PaymentForConfirmation, reference: { profileId: string; planCode: ServicePlanCode }) {
   const supabase = db();
   const { data: profile, error: profileError } = await supabase
     .from("service_profiles")
@@ -179,7 +201,8 @@ async function confirmServicePayment(payment: PaymentForConfirmation, reference:
   }
 
   const complement = parseServiceComplement(profile.complemento);
-  const serviceBilling = activateServiceProBilling(complement.serviceBilling, paidAt);
+  const plan = getServicePlan(reference.planCode);
+  const serviceBilling = activateServicePaidBilling(complement.serviceBilling, plan, paidAt);
   const pendingServicePro = isRecord(complement.pendingServicePro) ? complement.pendingServicePro : {};
   const nextLogo = typeof pendingServicePro.companyLogo === "string" && pendingServicePro.companyLogo ? pendingServicePro.companyLogo : undefined;
   const { error: updateProfileError } = await supabase
@@ -202,7 +225,7 @@ async function confirmServicePayment(payment: PaymentForConfirmation, reference:
   const { error: auditError } = await supabase.from("AuditLog").insert({
     id: newDbId(),
     userId: paidPayment.userId,
-    action: "payment.service_pro_confirmed",
+    action: "payment.service_plan_confirmed",
     metadata: {
       paymentId: paidPayment.id,
       profileId: profile.id,
@@ -214,8 +237,8 @@ async function confirmServicePayment(payment: PaymentForConfirmation, reference:
 
   await createNotification(
     paidPayment.userId,
-    "Plano PRO confirmado",
-    `Seu perfil de serviços "${profile.nome_fantasia ?? profile.name ?? "Prestador"}" foi ativado no Plano PRO por 12 meses.`,
+    "Plano confirmado",
+    `Seu perfil de serviços "${profile.nome_fantasia ?? profile.name ?? "Prestador"}" foi ativado no plano ${plan.name}.`,
     {
       primaryActionLabel: "Ver meus serviços",
       primaryActionUrl: "/dashboard#meus-servicos"
@@ -242,7 +265,7 @@ function isOldEnoughForReconciliation(updatedAt: string | null | undefined) {
 }
 
 function isPaidPlanCode(value: string | undefined): value is PaidPlanCode {
-  return value === "BRONZE" || value === "SILVER" || value === "GOLD" || value === "X6" || value === "X12";
+  return value === "PRODUCT_MINI" || value === "PRODUCT_START" || value === "PRODUCT_BASIC" || value === "BRONZE" || value === "SILVER" || value === "GOLD" || value === "X6" || value === "X12";
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

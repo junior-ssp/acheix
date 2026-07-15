@@ -115,6 +115,9 @@ export function VehicleFields({
   const [modelName, setModelName] = useState("");
   const [versions, setVersions] = useState<Version[]>([]);
   const [versionId, setVersionId] = useState("");
+  const [customBrand, setCustomBrand] = useState(false);
+  const [customModel, setCustomModel] = useState(false);
+  const [customVersion, setCustomVersion] = useState(false);
 
   useEffect(() => {
     setBrands(fallbackBrandsByType[vehicleType]);
@@ -125,6 +128,9 @@ export function VehicleFields({
     setModelName("");
     setVersions([]);
     setVersionId("");
+    setCustomBrand(false);
+    setCustomModel(false);
+    setCustomVersion(false);
     setYears(defaultYears());
     if (vehicleType === "BICYCLE") return;
     fetch(`/api/vehicle-catalog?mode=brands&vehicleType=${vehicleType}`)
@@ -141,9 +147,12 @@ export function VehicleFields({
     setModelName("");
     setVersions([]);
     setVersionId("");
+    setCustomModel(false);
+    setCustomVersion(false);
     setYears(defaultYears());
     if (!brandId) return;
 
+    if (brandId.startsWith("manual:")) return;
     if (brandId.startsWith("fallback:") || brandId.startsWith("manufacturer:")) {
       setModels((fallbackModelsByBrand[brandName] ?? []).map((name) => ({ id: `fallback:${name}`, name })));
       return;
@@ -160,9 +169,11 @@ export function VehicleFields({
   useEffect(() => {
     setVersions([]);
     setVersionId("");
+    setCustomVersion(false);
     setYears(defaultYears());
     if (!modelName) return;
 
+    if (modelId.startsWith("manual:")) return;
     if (modelId.startsWith("fallback:") || brandId.startsWith("fallback:") || brandId.startsWith("manufacturer:")) {
       const fallbackVersions = fallbackVersionsByModel[modelName] ?? [modelName];
       setVersions(fallbackVersions.map((name) => ({ id: `fallback:${name}`, name })));
@@ -218,12 +229,14 @@ export function VehicleFields({
           <span className="text-xs font-black uppercase text-yellow-300">Marca</span>
           <select
             required
-            name="brand"
-            value={brandName}
+            name={customBrand ? undefined : "brand"}
+            value={customBrand ? "__custom__" : brandName}
             onChange={(event) => {
               const option = event.currentTarget.selectedOptions[0];
-              setBrandId(option.dataset.id ?? "");
-              setBrandName(event.currentTarget.value);
+              const isCustom = event.currentTarget.value === "__custom__";
+              setCustomBrand(isCustom);
+              setBrandId(isCustom ? "manual:brand" : option.dataset.id ?? "");
+              setBrandName(isCustom ? "" : event.currentTarget.value);
             }}
             className="input"
           >
@@ -231,7 +244,9 @@ export function VehicleFields({
             {brands.map((brand) => (
               <option key={brand.id} value={brand.name} data-id={brand.id}>{brand.name}</option>
             ))}
+            <option value="__custom__">Outra marca (digitar)</option>
           </select>
+          {customBrand ? <input required autoFocus name="brand" value={brandName} onChange={(event) => setBrandName(event.currentTarget.value)} placeholder="Digite a marca" className="input" /> : null}
           <FieldHelper>{selectedBrand?.source ? `Fonte: ${selectedBrand.source}` : undefined}</FieldHelper>
         </label>
 
@@ -239,12 +254,14 @@ export function VehicleFields({
           <span className="text-xs font-black uppercase text-yellow-300">Modelo</span>
           <select
             required
-            name="model"
-            value={modelName}
+            name={customModel ? undefined : "model"}
+            value={customModel ? "__custom__" : modelName}
             onChange={(event) => {
               const option = event.currentTarget.selectedOptions[0];
-              setModelId(option.dataset.id ?? "");
-              setModelName(event.currentTarget.value);
+              const isCustom = event.currentTarget.value === "__custom__";
+              setCustomModel(isCustom);
+              setModelId(isCustom ? "manual:model" : option.dataset.id ?? "");
+              setModelName(isCustom ? "" : event.currentTarget.value);
             }}
             disabled={!brandName}
             className="input disabled:opacity-60"
@@ -253,7 +270,9 @@ export function VehicleFields({
             {models.map((model) => (
               <option key={model.id} value={model.name} data-id={model.id}>{model.name}</option>
             ))}
+            <option value="__custom__">Outro modelo (digitar)</option>
           </select>
+          {customModel ? <input required autoFocus name="model" value={modelName} onChange={(event) => setModelName(event.currentTarget.value)} placeholder="Digite o modelo" className="input" /> : null}
           <FieldHelper />
         </label>
 
@@ -262,11 +281,13 @@ export function VehicleFields({
           <input type="hidden" name="fipeCode" value={selectedVersion?.fipeCode ?? ""} />
           <select
             required
-            name="version"
-            value={selectedVersion?.name ?? ""}
+            name={customVersion ? undefined : "version"}
+            value={customVersion ? "__custom__" : selectedVersion?.name ?? ""}
             onChange={(event) => {
               const option = event.currentTarget.selectedOptions[0];
-              setVersionId(option.dataset.id ?? "");
+              const isCustom = event.currentTarget.value === "__custom__";
+              setCustomVersion(isCustom);
+              setVersionId(isCustom ? "manual:version" : option.dataset.id ?? "");
             }}
             disabled={!modelName}
             className="input disabled:opacity-60"
@@ -275,7 +296,9 @@ export function VehicleFields({
             {versions.map((version) => (
               <option key={version.id} value={version.name} data-id={version.id}>{version.name}</option>
             ))}
+            <option value="__custom__">Outra versão (digitar)</option>
           </select>
+          {customVersion ? <input required autoFocus name="version" placeholder="Digite a versão" className="input" /> : null}
           <FieldHelper />
         </label>
 
@@ -335,7 +358,7 @@ function vehicleTypeFromSubtype(subtype: string): VehicleType {
 
 function defaultYears() {
   const current = new Date().getFullYear() + 1;
-  return Array.from({ length: current - 1950 + 1 }, (_, index) => current - index);
+  return Array.from({ length: current - 1900 + 1 }, (_, index) => current - index);
 }
 
 function FieldHelper({ children }: { children?: string }) {

@@ -8,6 +8,8 @@ const focusableSelector = "input, textarea, select, [contenteditable='true']";
 export function KeyboardSafeScroll() {
   useEffect(() => {
     let resizeTimer: number | undefined;
+    let lastScrollTime = 0;
+    let lastFocusedElement: HTMLElement | null = null;
 
     function isEditableElement(target: EventTarget | null): target is HTMLElement {
       return target instanceof HTMLElement && target.matches(focusableSelector);
@@ -28,6 +30,8 @@ export function KeyboardSafeScroll() {
       const active = document.activeElement;
       if (!(active instanceof HTMLElement) || !active.matches(focusableSelector)) return;
 
+      if (lastFocusedElement === active && Date.now() - lastScrollTime < 600) return;
+
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
       const rect = active.getBoundingClientRect();
       const safeBottom = Math.min(viewportHeight - 96, window.innerHeight - keyboardHeight() - 96);
@@ -35,6 +39,9 @@ export function KeyboardSafeScroll() {
       const tooCloseToTop = rect.top < 96;
 
       if (!hiddenBelowKeyboard && !tooCloseToTop) return;
+
+      lastFocusedElement = active;
+      lastScrollTime = Date.now();
       active.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
     }
 
@@ -50,15 +57,21 @@ export function KeyboardSafeScroll() {
       window.setTimeout(scrollFocusedField, 420);
     }
 
+    function handleFocusOut(event: FocusEvent) {
+      if (isEditableElement(event.target)) {
+        lastFocusedElement = null;
+      }
+    }
+
     document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
     window.visualViewport?.addEventListener("resize", scheduleScroll);
-    window.visualViewport?.addEventListener("scroll", scheduleScroll);
     window.addEventListener("resize", scheduleScroll);
 
     return () => {
       document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
       window.visualViewport?.removeEventListener("resize", scheduleScroll);
-      window.visualViewport?.removeEventListener("scroll", scheduleScroll);
       window.removeEventListener("resize", scheduleScroll);
       window.clearTimeout(resizeTimer);
       document.documentElement.classList.remove(keyboardClassName);

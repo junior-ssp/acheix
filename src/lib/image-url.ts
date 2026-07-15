@@ -1,4 +1,4 @@
-const fallbackListingImage = "/achei-x-logo.png";
+const fallbackListingImage = "/achei-x-logo-small.png";
 
 export function normalizeImageUrl(value?: string | null, fallback = fallbackListingImage) {
   const trimmed = value?.trim();

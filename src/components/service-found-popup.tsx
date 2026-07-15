@@ -19,7 +19,7 @@ export function ServiceFoundPopup({ show, resultCount }: { show: boolean; result
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 px-4">
       <div className={`animate-achei-found w-full max-w-sm rounded-lg border p-5 text-center shadow-2xl ${found ? "border-emerald-300/40 bg-neutral-950" : "border-yellow-300/40 bg-neutral-950"}`}>
-        <img src="/achei-x-logo.png" alt="Achei X" className="mx-auto h-20 w-20 rounded-md object-contain" />
+        <img src="/achei-x-logo-small.png" alt="Achei X" className="mx-auto h-20 w-20 rounded-md object-contain" />
         <p className={`mt-4 text-sm font-black uppercase ${found ? "text-emerald-300" : "text-yellow-300"}`}>
           {found ? "Profissional encontrado" : "Nenhum profissional encontrado"}
         </p>

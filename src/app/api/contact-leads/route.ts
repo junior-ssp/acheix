@@ -1,5 +1,6 @@
 ﻿import { requireUser } from "@/lib/auth";
 import { errorResponse, json } from "@/lib/http";
+import { markMessagesRead } from "@/lib/messages";
 import { deliverUserNotice } from "@/lib/notifications";
 import { db, throwDbError, userSelect } from "@/lib/supabase-db";
 
@@ -24,6 +25,7 @@ export async function DELETE() {
     if (ids.length) {
       const { error } = await db().from("ContactLead").delete().in("id", ids);
       throwDbError(error);
+      await Promise.all(ids.map((id) => markMessagesRead({ userId: user.id, sourceId: id })));
     }
     return json({ ok: true });
   } catch (error) {

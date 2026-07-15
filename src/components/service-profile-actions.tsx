@@ -2,11 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pencil, Sparkles, Trash2 } from "lucide-react";
+import { Clock, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { isPaidServicePlanCode } from "@/lib/service-plans";
 
-export function ServiceProfileActions() {
+type ServiceProfileActionsProps = {
+  billing?: {
+    planCode: string;
+    status: string;
+    daysUntilDue: number;
+  } | null;
+};
+
+export function ServiceProfileActions({ billing }: ServiceProfileActionsProps) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const paidPlanActive = isPaidServicePlanCode(billing?.planCode) && billing?.status === "ACTIVE";
+  const planButtonLabel = paidPlanActive ? remainingPlanLabel(billing.daysUntilDue) : "Alterar Plano";
 
   async function deleteProfile() {
     if (!window.confirm("Excluir seu perfil de serviços? Ele deixará de aparecer nas buscas.")) return;
@@ -35,8 +46,8 @@ export function ServiceProfileActions() {
         Editar Serviço
       </Link>
       <Link href="/servicos/planos" className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#22C55E] px-2 text-center text-xs font-black text-black hover:bg-[#34D399] sm:text-sm">
-        <Sparkles size={16} />
-        Alterar Plano
+        {paidPlanActive ? <Clock size={16} /> : <Sparkles size={16} />}
+        {planButtonLabel}
       </Link>
       <button
         type="button"
@@ -50,5 +61,11 @@ export function ServiceProfileActions() {
       {message ? <p className="col-span-3 text-sm text-yellow-300">{message}</p> : null}
     </div>
   );
+}
+
+function remainingPlanLabel(daysUntilDue: number) {
+  if (daysUntilDue <= 0) return "Vence hoje";
+  if (daysUntilDue === 1) return "1 dia restante";
+  return `${daysUntilDue} dias restantes`;
 }
 

@@ -12,6 +12,8 @@ import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private static final String ADMIN_START_URL = "https://admin.acheix.com.br/admin";
+
     private boolean isAdminApk() {
         return "br.com.acheix.admin".equals(getPackageName());
     }
@@ -61,12 +63,30 @@ public class MainActivity extends BridgeActivity {
         clearWebCacheAndStorage();
     }
 
+    private void forceAdminStartUrl() {
+        if (!isAdminApk()) return;
+
+        try {
+            WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+            if (webView == null) return;
+
+            webView.post(() -> {
+                try {
+                    webView.loadUrl(ADMIN_START_URL);
+                    webView.clearHistory();
+                } catch (Exception ignored) {
+                }
+            });
+        } catch (Exception ignored) {
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().setNavigationBarColor(Color.BLACK);
-        clearWebCacheAndStorage();
+        clearAdminWebSession();
         super.onCreate(savedInstanceState);
 
         WebView webView = getBridge().getWebView();
@@ -78,7 +98,8 @@ public class MainActivity extends BridgeActivity {
         settings.setLoadWithOverviewMode(false);
         settings.setTextZoom(100);
 
-        clearWebCacheAndStorage();
+        clearAdminWebSession();
+        forceAdminStartUrl();
     }
 
     @Override

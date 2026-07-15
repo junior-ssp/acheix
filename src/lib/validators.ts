@@ -1,6 +1,10 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 import { categories } from "@/lib/constants";
 import { hasPublicContactInText, publicContactDescriptionMessage } from "@/lib/public-contact-guard";
+import { isRealEstateTypeAllowed } from "@/lib/real-estate-taxonomy";
+import { professionalCouncilOptions, requiresProfessionalCredentials } from "@/lib/service-catalog";
+
+const legacyProductCategories = ["Beleza e Saúde"] as const;
 
 export function isValidCpf(value: string) {
   const cpf = value.replace(/\D/g, "");
@@ -34,11 +38,16 @@ const emailSchema = z.string()
   .email("Digite um e-mail válido com @")
   .refine((value) => value.includes("@"), "Digite um e-mail válido com @");
 
-const phoneMessage = "Telefone deve estar no formato (xx) XXXXX-XXXX.";
+const phoneMessage = "Telefone deve estar no formato (xx) XXXX-XXXX ou (xx) XXXXX-XXXX.";
 const whatsappMessage = "WhatsApp deve estar no formato (xx) XXXXX-XXXX.";
 const phoneDigits = (value: string | null | undefined) => String(value ?? "").replace(/\D/g, "");
-const isValidPhone = (value: string | null | undefined) => phoneDigits(value).length === 11;
+const isValidPhone = (value: string | null | undefined) => [10, 11].includes(phoneDigits(value).length);
 const isValidOptionalPhone = (value: string | null | undefined) => !value || isValidPhone(value);
+const isValidOptionalWhatsapp = (value: string | null | undefined) => !value || phoneDigits(value).length === 11;
+const checkboxBoolean = z.preprocess((value) => {
+  if (value === "on" || value === "true" || value === "1") return true;
+  return value;
+}, z.boolean());
 const isAtLeast18 = (value: Date) => {
   if (!Number.isFinite(value.getTime())) return false;
   const today = new Date();
@@ -47,17 +56,24 @@ const isAtLeast18 = (value: Date) => {
   return adultDate <= today;
 };
 
+const birthDateSchema = z.preprocess((value) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return raw;
+  const [, day, month, year] = match;
+  return `${year}-${month}-${day}`;
+}, z.string().date("Informe a data de nascimento no formato DD/MM/AAAA.").nullable().optional());
+
 export const registerSchema = z.object({
   accountType: z.enum(["CPF", "CNPJ"]).default("CPF"),
-  name: z.string().min(2),
-  cpf: z.string().refine((value) => value.replace(/\D/g, "").length === 11 && isValidCpf(value), "Informe um CPF válido"),
+  name: z.string().trim().min(2),
+  cpf: z.string().optional(),
   cnpj: z.string().optional(),
-  birthDate: z.coerce.date().refine(isAtLeast18, "Você precisa ter 18 anos ou mais para se cadastrar."),
+  birthDate: birthDateSchema,
   email: emailSchema,
   password: z.string().min(6),
-  acceptTerms: z.coerce.boolean().refine(Boolean, "Aceite os Termos de Uso e a Política de Privacidade"),
-  phone: z.string().refine(isValidPhone, phoneMessage),
-  whatsapp: z.string().refine(isValidPhone, whatsappMessage),
+  acceptTerms: checkboxBoolean.refine(Boolean, "Aceite os Termos de Uso e a Política de Privacidade"),
   cep: z.string().optional(),
   address: z.string().optional(),
   number: z.string().optional(),
@@ -66,6 +82,9 @@ export const registerSchema = z.object({
   city: z.string().optional(),
   state: z.string().length(2).optional()
 }).superRefine((data, ctx) => {
+  if (data.accountType === "CPF" && !isValidCpf(data.cpf ?? "")) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cpf"], message: "Informe um CPF válido." });
+  }
   if (data.accountType === "CNPJ" && !isValidCnpj(data.cnpj ?? "")) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cnpj"], message: "Informe um CNPJ válido." });
   }
@@ -76,14 +95,29 @@ export const loginSchema = z.object({
   password: z.string().min(1)
 });
 
+export const passwordResetRequestSchema = z.object({
+  email: emailSchema
+});
+
+export const passwordResetConfirmSchema = z.object({
+  token: z.string().trim().min(20),
+  password: z.string().min(6, "A nova senha deve ter pelo menos 6 caracteres."),
+  confirmPassword: z.string().min(6, "Confirme a nova senha.")
+}).refine((data) => data.password === data.confirmPassword, {
+  path: ["confirmPassword"],
+  message: "As senhas não conferem."
+});
+
 export const profileSchema = z.object({
   name: z.string().trim().min(2, "Informe seu nome"),
   username: z.preprocess(
     (value) => String(value ?? "").trim().toLowerCase(),
     z.string().refine((value) => value === "" || /^[a-z0-9._-]{3,30}$/.test(value), "Username deve ter de 3 a 30 caracteres e usar apenas letras, números, ponto, hífen ou underline")
   ),
+  cpf: z.string().optional(),
+  cnpj: z.string().optional(),
   phone: z.string().optional().refine(isValidOptionalPhone, phoneMessage),
-  whatsapp: z.string().optional().refine(isValidOptionalPhone, whatsappMessage),
+  whatsapp: z.string().optional().refine(isValidOptionalWhatsapp, whatsappMessage),
   cep: z.string().optional(),
   address: z.string().optional(),
   number: z.string().optional(),
@@ -96,7 +130,7 @@ export const profileSchema = z.object({
 export const serviceListingSchema = z.object({
   title: z.string().trim().min(4),
   description: z.string().trim().optional(),
-  audience: z.enum(["VEHICLE", "REAL_ESTATE"]),
+  audience: z.enum(["VEHICLE", "REAL_ESTATE", "BEAUTY", "TECHNOLOGY", "PETS"]),
   providerKind: z.enum(["INDIVIDUAL", "COMPANY"]),
   document: z.string().min(11),
   services: z.array(z.string().trim().min(2)).min(1).max(6),
@@ -108,7 +142,7 @@ export const serviceListingSchema = z.object({
   number: z.string().trim().optional(),
   complement: z.string().trim().optional(),
   phone: z.string().optional().refine(isValidOptionalPhone, phoneMessage),
-  whatsapp: z.string().optional().refine(isValidOptionalPhone, whatsappMessage)
+  whatsapp: z.string().optional().refine(isValidOptionalWhatsapp, whatsappMessage)
 }).superRefine((data, ctx) => {
   if (data.providerKind === "COMPANY" && !isValidCnpj(data.document)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["document"], message: "Informe um CNPJ válido." });
@@ -153,16 +187,20 @@ export const serviceProfileSchema = z.object({
   number: z.string().trim().optional(),
   complement: z.string().trim().optional(),
   privatePhone: z.string().optional().refine(isValidOptionalPhone, phoneMessage),
-  privateWhatsapp: z.string().optional().refine(isValidOptionalPhone, whatsappMessage),
+  privateWhatsapp: z.string().optional().refine(isValidOptionalWhatsapp, whatsappMessage),
   privateEmail: z.string().trim().email().optional().or(z.literal("")),
   website: z.string().trim().url().optional().or(z.literal("")),
   profilePhoto: z.string().trim().url().optional().or(z.literal("")),
   companyLogo: z.string().trim().url().optional().or(z.literal("")),
+  serviceImages: z.array(z.string().trim().url()).max(3).optional().default([]),
   locations: z.array(serviceLocationSchema).min(1).max(5).optional(),
-  servicePlanCode: z.enum(["SERVICE_FREE", "SERVICE_PRO"]).default("SERVICE_FREE"),
+  servicePlanCode: z.enum(["SERVICE_FREE", "SERVICE_BRONZE", "SERVICE_SILVER", "SERVICE_GOLD", "SERVICE_X6", "SERVICE_X12", "SERVICE_PRO"]).default("SERVICE_FREE"),
   contactPreference: z.enum(["LEADS_ONLY", "PHONE", "WHATSAPP", "BOTH"]).default("LEADS_ONLY"),
   publicContactEnabled: z.boolean().default(false),
-  contactDisclosureAccepted: z.boolean().default(false)
+  contactDisclosureAccepted: z.boolean().default(false),
+  professionalCouncil: z.enum(professionalCouncilOptions).optional().or(z.literal("")),
+  professionalCouncilOther: z.string().trim().max(80).optional().default(""),
+  professionalDeclarationAccepted: z.boolean().default(false)
 }).superRefine((data, ctx) => {
   if (!data.cep && (!data.city || !data.district)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cep"], message: "Informe CEP ou cidade + bairro." });
@@ -173,18 +211,27 @@ export const serviceProfileSchema = z.object({
   if (data.cep && !/^\d{5}-?\d{3}$/.test(data.cep)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cep"], message: "CEP deve estar no formato XXXXX-XXX." });
   }
-  if (!data.privatePhone && !data.privateWhatsapp) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["privateWhatsapp"], message: "Informe telefone ou WhatsApp." });
-  }
+  // Contatos privados são opcionais: o perfil ainda pode receber interessados pelo Achei X.
   if ((data.publicContactEnabled || data.contactPreference !== "LEADS_ONLY") && !data.contactDisclosureAccepted) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["contactDisclosureAccepted"], message: "Aceite o termo para tornar seus contatos públicos." });
+  }
+  if (requiresProfessionalCredentials(data.categories)) {
+    if (!data.professionalCouncil) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["professionalCouncil"], message: "Selecione o Conselho da Profissão." });
+    }
+    if (data.professionalCouncil === "Outro" && !data.professionalCouncilOther) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["professionalCouncilOther"], message: "Informe o conselho, registro ou órgão profissional." });
+    }
+    if (!data.professionalDeclarationAccepted) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["professionalDeclarationAccepted"], message: "Aceite a declaração obrigatória para anunciar nesta categoria profissional." });
+    }
   }
 });
 
 export const listingSchema = z.object({
   title: z.string().min(8),
   description: z.string().trim().optional().default("").refine((value) => !hasPublicContactInText(value), publicContactDescriptionMessage),
-  category: z.enum(["VEHICLE", "REAL_ESTATE"]),
+  category: z.enum(["VEHICLE", "REAL_ESTATE", "PRODUCT"]),
   type: z.string().min(2),
   priceCents: z.number().int().nonnegative(),
   city: z.string().optional().or(z.literal("")),
@@ -192,7 +239,9 @@ export const listingSchema = z.object({
   district: z.string().optional(),
   showPhone: z.boolean().default(false),
   showWhatsapp: z.boolean().default(false),
-  planCode: z.enum(["FREE", "BRONZE", "SILVER", "GOLD", "X6", "X12"]),
+  showEmail: z.boolean().default(false),
+  retainChatAudit: z.boolean().default(true),
+  planCode: z.enum(["FREE", "PRODUCT_MINI", "PRODUCT_START", "PRODUCT_BASIC", "BRONZE", "SILVER", "GOLD", "X6", "X12"]),
   acceptTerms: z.boolean().refine(Boolean, "Aceite os termos antes de publicar"),
   photos: z.array(z.object({ url: z.string().url(), alt: z.string().optional(), moderationToken: z.string().optional() })).default([]),
   vehicle: z.object({
@@ -207,16 +256,27 @@ export const listingSchema = z.object({
     mileageKm: z.number().int().nonnegative().optional()
   }).optional(),
   realEstate: z.object({
-    purpose: z.enum(["Venda", "Locação", "Temporada"]),
+    purpose: z.enum(["SALE", "RENT", "SEASON"]),
     bedrooms: z.number().int().nonnegative().optional(),
     suites: z.number().int().nonnegative().optional(),
     bathrooms: z.number().int().nonnegative().optional(),
     parking: z.number().int().nonnegative().optional(),
     areaM2: z.number().int().positive().optional(),
-    features: z.array(z.string()).default([])
+    features: z.array(z.string()).default([]),
+    maxGuests: z.number().int().positive().optional()
+  }).optional(),
+  product: z.object({
+    productCategory: z.string().trim().min(2),
+    subcategory: z.string().trim().min(2),
+    condition: z.enum(["Novo", "Usado", "Recondicionado", "Lacrado"]),
+    brand: z.string().trim().optional(),
+    model: z.string().trim().optional(),
+    serialOrImei: z.string().trim().optional(),
+    originProofUrls: z.array(z.string().url()).min(1, "Envie pelo menos uma prova de origem para análise do Admin.").max(3),
+    originDeclarationAccepted: z.boolean().refine(Boolean, "Confirme que o produto é lícito e possui origem comprovável.")
   }).optional()
 }).superRefine((data, ctx) => {
-  const allowed = data.category === "VEHICLE" ? categories.VEHICLE : categories.REAL_ESTATE;
+  const allowed = data.category === "VEHICLE" ? categories.VEHICLE : data.category === "REAL_ESTATE" ? categories.REAL_ESTATE : [...categories.PRODUCT, ...legacyProductCategories];
   if (!(allowed as readonly string[]).includes(data.type)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["type"], message: "Categoria não permitida" });
   }
@@ -226,9 +286,13 @@ export const listingSchema = z.object({
   if (data.category === "REAL_ESTATE" && !data.realEstate) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["realEstate"], message: "Dados do Imóvel obrigatórios" });
   }
+  if (data.category === "REAL_ESTATE" && data.realEstate && !isRealEstateTypeAllowed(data.realEstate.purpose, data.type)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["type"], message: "Tipo de imóvel incompatível com a finalidade selecionada." });
+  }
+  if (data.category === "PRODUCT" && !data.product) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["product"], message: "Dados do Produto obrigatórios" });
+  }
+  if (data.category === "PRODUCT" && data.planCode === "FREE") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["planCode"], message: "Produtos só podem ser publicados em planos pagos." });
+  }
 });
-
-
-
-
-

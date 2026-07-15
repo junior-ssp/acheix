@@ -1,11 +1,14 @@
 ﻿import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { MapPin, ShieldCheck, Star } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { formatCep } from "@/lib/formatters";
+import { absolutePublicUrl, imageContentType, optimizedOpenGraphImageUrl } from "@/lib/image-url";
 import { defaultServiceCategories } from "@/lib/service-catalog";
 import { isServiceVisibleByBilling, serviceBillingFromComplement } from "@/lib/service-billing-policy";
 import { isServicePublicContactEnabled } from "@/lib/service-contact-disclosure";
+import { isPaidServicePlanCode } from "@/lib/service-plans";
+import { publicServiceAreas, publicServiceAreaText } from "@/lib/service-public-location";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { PublicShareButton } from "@/components/public-share-button";
 import { ServiceContactButton } from "@/components/service-contact-button";
@@ -18,9 +21,8 @@ type PublicServiceProfile = {
   categories: string[];
   description: string;
   city: string;
-  district: string | null;
   state: string;
-  cep: string | null;
+  serviceAreas: string[];
   averageRating: number;
   totalRatings: number;
   totalServices: number;
@@ -33,6 +35,51 @@ type PublicServiceProfile = {
 };
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const service = await getService(params.id);
+  if (!service) {
+    return {
+      title: "Profissional não encontrado",
+      description: "Este CARD de serviço não está disponível no Achei X."
+    };
+  }
+
+  const title = `${service.title} - Achei X`;
+  const description = compactText(`${service.categories.join(", ")}. ${publicServiceAreaText(service.serviceAreas)}. ${service.description || "Confira este profissional no Achei X."}`, 155);
+  const imageUrl = optimizedOpenGraphImageUrl(service.imageUrl);
+  const url = absolutePublicUrl(`/servicos/${service.id}`);
+
+  return {
+    title: { absolute: title },
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "Achei X",
+      type: "website",
+      locale: "pt_BR",
+      images: [
+        {
+          url: imageUrl,
+          secureUrl: imageUrl,
+          type: imageContentType(imageUrl),
+          width: 1200,
+          height: 630,
+          alt: service.title
+        }
+      ]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl]
+    }
+  };
+}
 
 export default async function ServiceProfilePage({ params }: { params: { id: string } }) {
   const [user, service] = await Promise.all([getCurrentUser(), getService(params.id)]);
@@ -52,7 +99,7 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
               <h1 className="mt-1 break-words text-2xl font-black">{service.title}</h1>
               <p className="mt-1 flex items-center gap-1 text-sm text-neutral-300">
                 <MapPin size={15} />
-                {service.district ? `${service.district}, ` : ""}{service.city}/{service.state}
+                {publicServiceAreaText(service.serviceAreas)}
               </p>
             </div>
           </div>
@@ -85,7 +132,6 @@ export default async function ServiceProfilePage({ params }: { params: { id: str
           </p>
           {service.verified ? <p className="mt-2 text-emerald-200">Conta verificada</p> : null}
           {service.isPro ? <p className="mt-2 inline-flex rounded-full border border-emerald-300/35 bg-emerald-400/10 px-2 py-1 text-[11px] font-black uppercase text-emerald-200">Plano PRO ativo</p> : null}
-          {service.cep ? <p className="mt-2">CEP {formatCep(service.cep)}</p> : null}
         </div>
 
         <ServiceContactButton serviceId={service.id} serviceTitle={service.title} authenticated={Boolean(user)} contactPublicEnabled={service.contactPublicEnabled} />
@@ -115,9 +161,8 @@ async function getService(id: string): Promise<PublicServiceProfile | null> {
       categories: (profile.categorias_servico ?? [profile.categoria_servico]).map(categoryName),
       description: profile.descricao,
       city: profile.cidade,
-      district: profile.bairro,
       state: profile.estado,
-      cep: profile.cep,
+      serviceAreas: publicServiceAreas(profile.cidade, profile.estado, profile.complemento),
       averageRating: profile.avaliacao_media,
       totalRatings: profile.total_avaliacoes,
       totalServices: profile.total_servicos,
@@ -174,6 +219,11 @@ function normalize(value?: string | null) {
   return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+function compactText(value: string, maxLength: number) {
+  const compacted = value.replace(/\s+/g, " ").trim();
+  return compacted.length > maxLength ? `${compacted.slice(0, maxLength - 1).trim()}…` : compacted;
+}
+
 function ServiceAvatar({ imageUrl, title, category }: { imageUrl: string | null; title: string; category: string }) {
   if (imageUrl) {
     return <img src={imageUrl} alt={title} className="h-16 w-16 shrink-0 rounded-lg border border-white/10 object-cover" />;
@@ -187,13 +237,26 @@ function ServiceAvatar({ imageUrl, title, category }: { imageUrl: string | null;
 }
 
 function serviceProfileImage(logo: string | null | undefined, photo: string | null | undefined, complement: string | null | undefined) {
+  const serviceImages = parseServiceImages(complement);
+  if (serviceImages[0]) return serviceImages[0];
   const billing = serviceBillingFromComplement(complement);
-  return billing.planCode === "SERVICE_PRO" && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
+  return isPaidServicePlanCode(billing.planCode) && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
+}
+
+function parseServiceImages(complement: string | null | undefined) {
+  try {
+    const parsed = JSON.parse(String(complement || "{}")) as { serviceImages?: unknown };
+    return Array.isArray(parsed.serviceImages)
+      ? parsed.serviceImages.filter((item): item is string => typeof item === "string" && /^https?:\/\//.test(item)).slice(0, 3)
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 function isServicePro(complement: string | null | undefined) {
   const billing = serviceBillingFromComplement(complement);
-  return billing.planCode === "SERVICE_PRO" && billing.status === "ACTIVE";
+  return isPaidServicePlanCode(billing.planCode) && billing.status === "ACTIVE";
 }
 
 

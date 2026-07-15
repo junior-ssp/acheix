@@ -1,0 +1,53 @@
+POLITICA DE PRIVACIDADE - ACHEI X
+
+Controlador dos Dados
+
+O Site e Aplicativo Achei X e operado por JR Comercio e Solucoes Digitais Ltda., inscrita no CNPJ no 57.006.594/0001-65, com sede em Sao Paulo/SP.
+
+A JR Comercio e Solucoes Digitais Ltda. e a controladora dos dados pessoais tratados no Site e Aplicativo Achei X, nos termos da LGPD.
+
+Contato para solicitacoes de privacidade e protecao de dados: contato@acheix.com.br.
+
+Dados Tratados
+
+O Achei X podera tratar dados cadastrais, dados de contato, localizacao informada, anuncios, imagens, videos, textos, interesses enviados, pagamentos, preferencias, dados tecnicos do dispositivo, IP, logs, evidencias de seguranca e registros de uso da plataforma.
+
+Ao enviar imagens, o usuario declara possuir autorizacao e responsabilidade sobre o conteudo enviado, incluindo pessoas, placas, objetos, documentos, imoveis, bens e qualquer informacao visivel.
+
+Moderacao, OCR e Seguranca
+
+Para proteger usuarios e reduzir exposicao a conteudos ilegais, o Achei X podera analisar automaticamente imagens, textos e links enviados a plataforma. Essa analise pode incluir moderacao por IA, leitura de textos presentes em imagens por OCR, geracao de hash de imagens, classificacao de risco, verificacao de links, identificacao de QR Codes suspeitos e criacao de logs administrativos.
+
+Esses tratamentos sao realizados para prevencao a fraudes, protecao da vida e integridade dos usuarios, prevencao de crimes, exercicio regular de direitos, cumprimento de obrigacoes legais e legitimo interesse de seguranca da plataforma.
+
+LGPD e Bases Legais
+
+O tratamento de dados podera ocorrer com base em execucao de contrato, cumprimento de obrigacao legal ou regulatoria, exercicio regular de direitos, protecao da vida ou da incolumidade fisica, prevencao a fraudes e legitimo interesse, sempre observando a legislacao aplicavel.
+
+Quando o tratamento depender de consentimento, o usuario podera revoga-lo pelos canais disponiveis, ciente de que isso pode limitar funcionalidades essenciais da plataforma.
+
+Compartilhamento
+
+Dados poderao ser compartilhados com provedores de infraestrutura, armazenamento, pagamentos, notificacoes, seguranca, moderacao, suporte tecnico e servicos necessarios ao funcionamento do Achei X.
+
+Quando exigido por lei, ordem de autoridade competente, investigacao, defesa de direitos ou prevencao de danos, o Achei X podera preservar e fornecer registros, logs, hashes, imagens, textos, dados cadastrais, pagamentos, IPs e demais informacoes pertinentes.
+
+Responsabilidade do Usuario
+
+O usuario e responsavel por nao enviar documentos de terceiros, dados sensiveis, imagens intimas, conteudo infantil inadequado, materiais ilicitos, links suspeitos, QR Codes fraudulentos, comprovantes falsos, dados bancarios indevidos ou qualquer conteudo que viole direitos, leis ou estes Termos.
+
+A plataforma nao se responsabiliza por crimes, fraudes, violacoes de direitos, dados ou conteudos inseridos por usuarios, sem prejuizo das medidas de moderacao, bloqueio, auditoria e cooperacao legal cabiveis.
+
+Retencao e Exclusao de Dados
+
+Os dados dos anuncios sao armazenados pelo periodo necessario para prestacao do servico, cumprimento de obrigacoes legais, prevencao a fraudes, seguranca da plataforma e exercicio regular de direitos.
+
+Anuncios expirados poderao ser mantidos temporariamente para possibilitar renovacao pelo usuario. Apos o periodo de recuperacao, os dados poderao ser excluidos permanentemente dos servidores da plataforma.
+
+Logs de seguranca, auditoria, moderacao, pagamentos, hashes, bloqueios e registros relacionados a suspeitas de fraude ou ilegalidade poderao ser preservados por prazo maior quando necessario para protecao dos usuarios, defesa da plataforma ou cumprimento de exigencias legais.
+
+Direitos do Titular
+
+Nos termos da LGPD, o usuario podera solicitar confirmacao de tratamento, acesso, correcao, portabilidade, anonimizacao, eliminacao, informacao sobre compartilhamento e revisao de decisoes automatizadas quando aplicavel.
+
+Solicitacoes poderao ser limitadas quando houver obrigacao legal de retencao, necessidade de preservacao de prova, prevencao a fraude, seguranca, abuso de direito ou protecao de terceiros.

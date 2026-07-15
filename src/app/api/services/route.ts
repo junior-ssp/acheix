@@ -3,10 +3,12 @@ import { requireUser } from "@/lib/auth";
 import { onlyDigits } from "@/lib/formatters";
 import { lookupCepWithCoordinates, parseRadiusKm } from "@/lib/geolocation";
 import { errorResponse, json } from "@/lib/http";
-import { defaultServiceCategories, normalizeServiceSlug } from "@/lib/service-catalog";
-import { ensureServiceBilling, isServiceVisibleByBilling, serviceBillingFromComplement } from "@/lib/service-billing-policy";
+import { defaultServiceCategories, normalizeServiceSlug, requiresProfessionalCredentials } from "@/lib/service-catalog";
+import { activateServicePaidBilling, ensureServiceBilling, isServiceVisibleByBilling, serviceBillingFromComplement } from "@/lib/service-billing-policy";
 import { isPublicServiceContactPreference, isServicePublicContactEnabled, parseServiceComplement, serviceContactDisclosureText, serviceContactDisclosureVersion } from "@/lib/service-contact-disclosure";
-import { getServicePlan } from "@/lib/service-plans";
+import { publicServiceAreas } from "@/lib/service-public-location";
+import { getServicePlan, isPaidServicePlanCode } from "@/lib/service-plans";
+import { isPlatformComplimentaryUser } from "@/lib/platform-complimentary-users";
 import { orderAndRecordServiceSearchExposure } from "@/lib/service-search-exposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { newDbId } from "@/lib/supabase-db";
@@ -200,11 +202,28 @@ export async function POST(request: Request) {
     if (lookupError) throw lookupError;
 
     const existingComplement = parseServiceComplement(existing?.complemento);
-    const serviceBilling = ensureServiceBilling(existingComplement.serviceBilling, now);
-    const hasPaidServicePro = serviceBilling.planCode === "SERVICE_PRO" && serviceBilling.status !== "HIDDEN";
-    const pendingServicePro = servicePlan.code === "SERVICE_PRO" && !hasPaidServicePro
+    const complimentaryUser = isPlatformComplimentaryUser(user);
+    const paidServicePlan = isPaidServicePlanCode(servicePlan.code);
+    const serviceBilling = paidServicePlan && complimentaryUser
+      ? activateServicePaidBilling(existingComplement.serviceBilling, servicePlan, now)
+      : ensureServiceBilling(existingComplement.serviceBilling, now);
+    const hasPaidServicePlan = isPaidServicePlanCode(serviceBilling.planCode) && serviceBilling.status !== "HIDDEN";
+    const pendingServicePro = paidServicePlan && !hasPaidServicePlan
       ? { companyLogo: data.companyLogo || null, requestedAt: nowIso }
       : existingComplement.pendingServicePro;
+    const serviceImageLimit = servicePlan.imageLimit;
+    const serviceImages = data.serviceImages.slice(0, serviceImageLimit);
+    const needsProfessionalCredentials = requiresProfessionalCredentials(categories);
+    const professionalCredentials = needsProfessionalCredentials
+      ? {
+          categories,
+          council: data.professionalCouncil,
+          councilOther: data.professionalCouncil === "Outro" ? data.professionalCouncilOther : "",
+          declarationAccepted: data.professionalDeclarationAccepted,
+          declarationText: "Declaro que possuo todas as autorizações e registros exigidos pela legislação para exercer minha atividade profissional, assumindo integral responsabilidade pelas informações fornecidas e pelos serviços prestados.",
+          acceptedAt: nowIso
+        }
+      : null;
     const previousDisclosure = existingComplement.contactDisclosure;
     const hadPublicContact = Boolean(previousDisclosure?.publicContactEnabled && previousDisclosure?.acceptedAt);
     const contactDisclosure = buildContactDisclosure({
@@ -217,8 +236,10 @@ export async function POST(request: Request) {
     const complement = JSON.stringify({
       ...existingComplement,
       serviceLocations: locations,
+      serviceImages,
       contactPreference,
       contactDisclosure,
+      professionalCredentials,
       serviceBilling,
       pendingServicePro
     });
@@ -249,13 +270,13 @@ export async function POST(request: Request) {
       email_privado: data.privateEmail || null,
       website: null,
       foto_perfil: null,
-      logo_empresa: hasPaidServicePro ? data.companyLogo || null : existing?.logo_empresa ?? null,
+      logo_empresa: serviceImages[0] ?? null,
       conta_verificada: Boolean(user.identityVerifiedAt),
       score,
       rank: rankFromScore(score),
       search_text: searchText,
-      active: servicePlan.code === "SERVICE_FREE" || Boolean(existing),
-      status: servicePlan.code === "SERVICE_FREE" || existing ? "ACTIVE" : "INACTIVE",
+      active: !paidServicePlan || Boolean(existing) || complimentaryUser,
+      status: !paidServicePlan || existing || complimentaryUser ? "ACTIVE" : "INACTIVE",
       last_active_at: nowIso,
       activity_confirmation_due_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       activity_prompted_at: null,
@@ -288,7 +309,7 @@ export async function POST(request: Request) {
       await insertServiceDisclosureAudit(user.id, profile.id, "service.contact_disclosure.revoked", contactDisclosure);
     }
 
-    if (servicePlan.code === "SERVICE_PRO") {
+    if (paidServicePlan && !complimentaryUser) {
       const { data: payment, error: paymentError } = await supabase
         .from("Payment")
         .insert({
@@ -365,9 +386,8 @@ function toPublicProfile(profile: any) {
     experience: profile.experiencia,
     businessHours: profile.horario_atendimento,
     city: profile.cidade,
-    district: profile.bairro,
     state: profile.estado,
-    cep: profile.cep,
+    serviceAreas: publicServiceAreas(profile.cidade, profile.estado, profile.complemento),
     imageUrl: serviceProfileImage(profile.logo_empresa, profile.foto_perfil, profile.complemento),
     averageRating: profile.avaliacao_media,
     totalRatings: profile.total_avaliacoes,
@@ -435,6 +455,19 @@ function rankFromScore(score: number) {
 }
 
 function serviceProfileImage(logo: string | null | undefined, photo: string | null | undefined, complement: string | null | undefined) {
+  const serviceImages = parseServiceImages(complement);
+  if (serviceImages[0]) return serviceImages[0];
   const billing = serviceBillingFromComplement(complement);
-  return billing.planCode === "SERVICE_PRO" && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
+  return isPaidServicePlanCode(billing.planCode) && billing.status !== "HIDDEN" ? logo ?? photo ?? null : null;
+}
+
+function parseServiceImages(complement: string | null | undefined) {
+  try {
+    const parsed = JSON.parse(String(complement || "{}")) as { serviceImages?: unknown };
+    return Array.isArray(parsed.serviceImages)
+      ? parsed.serviceImages.filter((item): item is string => typeof item === "string" && /^https?:\/\//.test(item)).slice(0, 3)
+      : [];
+  } catch {
+    return [];
+  }
 }

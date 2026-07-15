@@ -54,6 +54,7 @@ type ModerationInput = {
   fileName: string;
   mimeType: string;
   bytes: Buffer;
+  originProof?: boolean;
   request: Request;
 };
 
@@ -106,7 +107,7 @@ const ocrBlockedTerms = [
 export async function moderateListingImage(input: ModerationInput): Promise<ModerationDecision> {
   const hash = createHash("sha256").update(input.bytes).digest("hex");
   const providerResult = await callImageModerationProvider(input, hash);
-  const decision = decideImageModeration(hash, providerResult);
+  const decision = decideImageModeration(hash, providerResult, Boolean(input.originProof));
   const moderationId = newDbId();
   const url = null;
   const withId = { ...decision, moderationId };
@@ -130,6 +131,36 @@ export async function moderateListingImage(input: ModerationInput): Promise<Mode
   }
 
   return withId;
+}
+
+export async function analyzeIdentityDocumentImage(input: ModerationInput) {
+  const hash = createHash("sha256").update(input.bytes).digest("hex");
+  const providerResult = await callImageModerationProvider(input, hash);
+  const findings = normalizeFindings(providerResult);
+  const ocrText = String(providerResult.ocrText ?? providerResult.text ?? "");
+  const provider = providerResult.provider ?? "configured-ai";
+  const moderationId = newDbId();
+
+  await tryInsertAudit(input.user.id, "identity_document.ocr_analyzed", {
+    moderationId,
+    hash,
+    provider,
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+    fileSize: input.bytes.length,
+    hasOcrText: Boolean(ocrText.trim()),
+    findings: redactFindings(findings),
+    ip: requestIp(input.request),
+    userAgent: input.request.headers.get("user-agent") ?? "unknown"
+  });
+
+  return {
+    moderationId,
+    hash,
+    provider,
+    findings,
+    ocrText
+  };
 }
 
 export async function finalizeApprovedImageModeration(input: {
@@ -186,10 +217,10 @@ export function assertListingPhotosApproved(userId: string, photos: ApprovedPhot
   return { ok: true };
 }
 
-function decideImageModeration(hash: string, providerResult: ProviderResult): Omit<ModerationDecision, "moderationId" | "token"> {
+function decideImageModeration(hash: string, providerResult: ProviderResult, originProof = false): Omit<ModerationDecision, "moderationId" | "token"> {
   const findings = normalizeFindings(providerResult);
   const ocrText = String(providerResult.ocrText ?? providerResult.text ?? "");
-  const ocrFindings = findBlockedOcrTerms(ocrText).map((term) => ({
+  const ocrFindings = findBlockedOcrTerms(ocrText, originProof).map((term) => ({
     category: "fraud_documents",
     confidence: 0.91,
     label: `ocr:${term}`
@@ -228,13 +259,21 @@ async function callImageModerationProvider(input: ModerationInput, hash: string)
   }
 
   const endpoint = imageModerationEndpoint();
-  const apiKey = process.env.IMAGE_MODERATION_API_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  if (!endpoint || !apiKey) {
+  const apiKey = process.env.IMAGE_MODERATION_API_KEY || "";
+  if (!endpoint) {
     return {
       status: "APPROVED",
       provider: "not_configured",
       findings: [],
-      raw: { reason: "IMAGE_MODERATION_ENDPOINT or API key not configured; standby approval used" }
+      raw: { reason: "IMAGE_MODERATION_ENDPOINT not configured; standby approval used" }
+    };
+  }
+  if (!apiKey) {
+    return {
+      status: "NEEDS_REVIEW",
+      provider: "misconfigured",
+      findings: [],
+      raw: { reason: "IMAGE_MODERATION_API_KEY is required when a moderation endpoint is configured" }
     };
   }
 
@@ -304,10 +343,11 @@ function normalizeConfidence(value: unknown) {
   return number > 1 ? Math.min(1, number / 100) : Math.max(0, Math.min(1, number));
 }
 
-function findBlockedOcrTerms(text: string) {
+function findBlockedOcrTerms(text: string, originProof = false) {
   const normalized = normalizeText(text);
   if (!normalized) return [];
-  return ocrBlockedTerms.filter((term) => normalized.includes(normalizeText(term))).slice(0, 20);
+  const allowedOnPrivateProof = new Set(["rg", "cpf", "cnh", "passaporte", "comprovante bancario", "comprovante bancário", "comprovante pix", "qr code pix", "dados pessoais"]);
+  return ocrBlockedTerms.filter((term) => !(originProof && allowedOnPrivateProof.has(term)) && normalized.includes(normalizeText(term))).slice(0, 20);
 }
 
 function imageModerationEndpoint() {

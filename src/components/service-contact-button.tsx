@@ -12,7 +12,19 @@ type PublicContact = {
 
 const whatsappIntroMessage = "Como vai, tudo bem ? Peguei seu contato nos *Classificados Achei X*, podemos conversar ?";
 
-export function ServiceContactButton({ serviceId, serviceTitle, authenticated, contactPublicEnabled }: { serviceId: string; serviceTitle: string; authenticated: boolean; contactPublicEnabled?: boolean }) {
+export function ServiceContactButton({
+  serviceId,
+  serviceTitle,
+  authenticated,
+  contactPublicEnabled,
+  fullWidth = false
+}: {
+  serviceId: string;
+  serviceTitle: string;
+  authenticated: boolean;
+  contactPublicEnabled?: boolean;
+  fullWidth?: boolean;
+}) {
   const [contactOpen, setContactOpen] = useState(false);
   const [leadOpen, setLeadOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -44,6 +56,11 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
   }
 
   async function sendLead(formData: FormData) {
+    if (!authenticated) {
+      const next = `${window.location.pathname}${window.location.search}`;
+      window.location.href = `/entrar?next=${encodeURIComponent(next)}`;
+      return;
+    }
     setLeadBusy(true);
     setMessage("");
     const response = await fetch(`/api/services/${serviceId}/contact`, {
@@ -62,14 +79,21 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
   }
 
   return (
-    <div className="mt-3">
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setLeadOpen((value) => !value)} className="inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm btn-gold">
+    <div className={fullWidth ? "w-full" : "mt-3"}>
+      <div className={fullWidth ? "grid gap-2" : "flex flex-wrap gap-2"}>
+        <button type="button" onClick={() => {
+          if (!authenticated) {
+            const next = `${window.location.pathname}${window.location.search}`;
+            window.location.href = `/entrar?next=${encodeURIComponent(next)}`;
+            return;
+          }
+          setLeadOpen((value) => !value);
+        }} className={`${fullWidth ? "h-12 w-full" : "h-10"} inline-flex items-center justify-center gap-2 rounded-full px-4 text-sm btn-gold`}>
           <Send size={16} />
           Tenho Interesse
         </button>
         {contactPublicEnabled ? (
-          <button type="button" onClick={revealContact} disabled={busy} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#22C55E] px-4 text-sm font-black text-black transition hover:bg-[#34D399] disabled:opacity-60">
+          <button type="button" onClick={revealContact} disabled={busy} className={`${fullWidth ? "h-12 w-full" : "h-10"} btn-green inline-flex items-center justify-center gap-2 rounded-full px-4 text-sm disabled:opacity-60`}>
             <Eye size={16} />
             {busy ? "Carregando..." : "Ver Contato"}
           </button>
@@ -85,8 +109,7 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
           }}
         >
           <p className="text-xs text-neutral-300">Envie seus dados para {serviceTitle} avaliar e retornar.</p>
-          {!authenticated ? <input name="name" required placeholder="Nome" className="input" /> : null}
-          <input name="phone" required={!authenticated} inputMode="numeric" maxLength={15} placeholder={authenticated ? "Telefone ou WhatsApp para retorno" : "Telefone ou WhatsApp"} onChange={(event) => { event.currentTarget.value = formatPhone(event.currentTarget.value); }} className="input" />
+          <input name="phone" inputMode="numeric" maxLength={15} placeholder="Telefone ou WhatsApp para retorno" onChange={(event) => { event.currentTarget.value = formatPhone(event.currentTarget.value); }} className="input" />
           <textarea name="message" rows={3} maxLength={280} placeholder="Observação opcional" className="input" />
           <button disabled={leadBusy} className="h-10 rounded-md btn-gold disabled:opacity-60">{leadBusy ? "Enviando..." : "Enviar interesse"}</button>
         </form>
@@ -95,7 +118,7 @@ export function ServiceContactButton({ serviceId, serviceTitle, authenticated, c
       {contactOpen ? (
         <div className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-neutral-100">
           {contact?.whatsapp ? (
-            <a href={`https://wa.me/55${contact.whatsapp}?text=${encodeURIComponent(whatsappIntroMessage)}`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#22C55E] px-3 font-black text-black">
+            <a href={`https://wa.me/55${contact.whatsapp}?text=${encodeURIComponent(whatsappIntroMessage)}`} target="_blank" rel="noreferrer" className="btn-green inline-flex h-10 items-center justify-center gap-2 rounded-md px-3">
               <Phone size={16} />
               WhatsApp {formatPhone(contact.whatsapp)}
             </a>

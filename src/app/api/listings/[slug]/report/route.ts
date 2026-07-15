@@ -7,6 +7,7 @@ import { calculateReportCredibility, calculateReportRiskPoints, caseStatusForRis
 export const dynamic = "force-dynamic";
 
 const reportSchema = z.object({
+  listingId: z.string().uuid().optional().nullable(),
   publicReason: z.enum(["FRAUD_SUSPECT", "MISLEADING_INFO", "PROHIBITED_CONTENT", "BAD_USER_BEHAVIOR", "NON_EXISTENT_ADVERTISER"]).optional(),
   reason: z.enum([
     "SCAM_ATTEMPT",
@@ -43,13 +44,22 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     const requestContext = getRequestContext(request);
     const data = reportSchema.parse(await request.json().catch(() => ({})));
     const supabase = db();
-    const { data: listing, error: listingError } = await supabase
+    let listingQuery = supabase
       .from("Listing")
-      .select("id,title,ownerId")
-      .eq("slug", params.slug)
-      .maybeSingle();
+      .select("id,title,ownerId,slug");
+
+    listingQuery = data.listingId
+      ? listingQuery.eq("id", data.listingId)
+      : listingQuery.eq("slug", params.slug);
+
+    const { data: listing, error: listingError } = await listingQuery.maybeSingle();
     throwDbError(listingError);
-    if (!listing) return json({ error: "Anúncio não encontrado." }, 404);
+    if (!listing) {
+      if (params.slug.startsWith("demo-")) {
+        return json({ error: "Este anúncio demonstrativo não aceita denúncia. Use a denúncia em anúncios reais publicados por usuários." }, 404);
+      }
+      return json({ error: "Não encontramos este anúncio no banco. Atualize a tela e tente novamente." }, 404);
+    }
     if (listing.ownerId === reporter.id) return json({ error: "Você não pode reportar seu próprio anúncio." }, 422);
 
     const { data: reporterAccount, error: reporterError } = await supabase
@@ -130,7 +140,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
         reportId: report?.id,
         caseId: trustCase.id,
         listingId: listing.id,
-        listingSlug: params.slug,
+        listingSlug: listing.slug ?? params.slug,
         listingTitle: listing.title,
         targetUserId: listing.ownerId,
         reporterId: reporter.id,

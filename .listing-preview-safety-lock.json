@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "masterPhraseSha256": "b9692c6d61443cc4641691a8c5d9bcb978e36e5f3e605bbee501f38909d56e63",
+  "protectedFiles": [
+    {
+      "path": "src/components/listing-card.tsx",
+      "sha256": "9d1ab95a656b1288dc79c1d59d5fc8cef0fc2487d82eab67ee782eb7bd64ebfb",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "src/components/listing-results.tsx",
+      "sha256": "8cbf4732c4addafa2bdeb51c5bdfabca130596d9161580178a53c9e133247e23",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "src/components/listing-results-grid.tsx",
+      "sha256": "b46f52d91580266491f7ededd10730e40595d98e5bfe2080a290702e389392d6",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "src/components/listing-result-reel.tsx",
+      "sha256": "96fa37ac1d084a9b622e37730c0aacf05a4d9861ff0db4556e5a17604e7c8030",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "16ff1ca12495bfd6e8fa840e44c8c84133e1b8d9bbb9198ad2e38b994e21062e",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "src/app/favoritos/page.tsx",
+      "sha256": "ff1c7513e4e3f953592e48184ff76e133c54960ee70ccee03768650dbb63ef74",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "src/app/buscar/page.tsx",
+      "sha256": "900b2e6a047a44c7c834ae9757f4e3f154e4f992d80ed4385f4ca73ad717f372",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "src/app/veiculos/page.tsx",
+      "sha256": "47ab14cb5ef847424b9e1d73c0e708a62e6692ad100496d25054168fc824a86d",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "src/app/imoveis/page.tsx",
+      "sha256": "f093408937ebd8b0d141b98ba2dff7431ed5a5555ed6657a38592e658ddbf020",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "scripts/check-listing-preview-safety.ts",
+      "sha256": "7ff62ececef7651a33ee2a201cd2672bfe8f0e7e3b5829eaf735ec57088a2f35",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "package.json",
+      "sha256": "e7412b907d2985c6a767beed67260199af3699cacf784367f05df52d1da93806",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    },
+    {
+      "path": "PRODUCAO_PROTEGIDA.md",
+      "sha256": "bdb484af507d8cab021918f0dac0d159f927bfe5be13173c39eb991035c1701e",
+      "reason": "Preview/reel de anuncios protegido contra abertura direta do anuncio completo"
+    }
+  ]
+}

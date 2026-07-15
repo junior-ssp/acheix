@@ -1,12 +1,12 @@
 {
   "appName": "Achei X",
   "platform": "android",
-  "apkUrl": "/downloads/achei-x-2.3.apk",
-  "latestApkUrl": "/downloads/achei-x-2.3.apk",
-  "fileName": "achei-x-2.3.apk",
+  "apkUrl": "/downloads/achei-x-2.10.apk",
+  "latestApkUrl": "/downloads/achei-x-2.10.apk",
+  "fileName": "achei-x-2.10.apk",
   "sourceFile": "android/app/build/outputs/apk/release/app-release.apk",
-  "sizeBytes": 25846982,
-  "publishedAt": "2026-06-07T22:59:57.871Z",
-  "versionCode": 14,
-  "versionName": "2.3"
+  "sizeBytes": 10881821,
+  "publishedAt": "2026-07-14T21:38:29.501Z",
+  "versionCode": 21,
+  "versionName": "2.10"
 }

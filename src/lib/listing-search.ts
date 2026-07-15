@@ -1,9 +1,12 @@
 ﻿import { demoListings } from "@/lib/constants";
-import { withTimeout } from "@/lib/async";
 import { parseCurrencyToCents, parseFormattedInteger } from "@/lib/formatters";
 import { db, throwDbError } from "@/lib/supabase-db";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { orderAndRecordListingSearchExposure } from "@/lib/listing-search-exposure";
 import { hydrateListingCards, hydrateListings, listingColumns, type ListingCategory, type ListingRecord } from "@/lib/listing-records";
+import { seedListingOwnerEmail, seedListingMarker } from "@/lib/seed-listing-replacement";
+import { shouldApplyTopRefreshBoost, topRefreshSearchBonus } from "@/lib/listing-top-refresh-policy";
+import { normalizeRealEstatePurpose } from "@/lib/real-estate-taxonomy";
 
 export const ELECTRIC_OR_HYBRID_FUEL_FILTER = "ELECTRIC_OR_HYBRID";
 
@@ -32,34 +35,87 @@ export type ListingSearchParams = {
   minAreaM2?: string;
   maxAreaM2?: string;
   sort?: string;
+  searched?: string;
 };
 
 export async function findHomeListings(limit = 8) {
-  return withTimeout(
-    (async () => {
-      const [vehicles, realEstate] = await Promise.all([
-        findHomeListingsByCategory("VEHICLE", limit),
-        findHomeListingsByCategory("REAL_ESTATE", limit)
-      ]);
-      return { vehicles, realEstate };
-    })(),
-    { vehicles: [], realEstate: [] } as { vehicles: ListingRecord[]; realEstate: ListingRecord[] },
-    1800
-  );
+  if (!isSupabaseConfigured()) {
+    return {
+      vehicles: filterDemoListings({}, "VEHICLE").slice(0, limit) as unknown as ListingRecord[],
+      realEstate: filterDemoListings({}, "REAL_ESTATE").slice(0, limit) as unknown as ListingRecord[],
+      products: filterDemoListings({}, "PRODUCT").slice(0, limit) as unknown as ListingRecord[]
+    };
+  }
+
+  return measureListingQuery("home", "ALL", async () => {
+    const [vehicles, realEstate, products] = await Promise.all([
+      safeHomeListingsByCategory("VEHICLE", limit),
+      safeHomeListingsByCategory("REAL_ESTATE", limit),
+      safeHomeListingsByCategory("PRODUCT", limit)
+    ]);
+    return { vehicles, realEstate, products };
+  });
+}
+
+async function safeHomeListingsByCategory(category: ListingCategory, limit: number) {
+  try {
+    return await findHomeListingsByCategory(category, limit);
+  } catch (error) {
+    console.error("home_category_query_failed", {
+      category,
+      error: describeQueryError(error)
+    });
+    return [];
+  }
 }
 
 async function findHomeListingsByCategory(category: ListingCategory, limit: number) {
+  const fetchLimit = Math.max(limit * 2, 16);
   const { data, error } = await db()
     .from("Listing")
     .select(listingColumns())
     .eq("status", "ACTIVE")
     .eq("category", category)
+    .not("searchText", "ilike", `%${seedListingMarker}%`)
+    .order("lastTopRefreshAt", { ascending: false, nullsFirst: false })
     .order("createdAt", { ascending: false })
-    .limit(limit);
+    .limit(fetchLimit);
   throwDbError(error);
   const hydrated = await hydrateListingCards((data ?? []) as any[]);
-  return orderAndRecordListingSearchExposure(hydrated, () => 0);
+  const visible = sortByTopRefresh(hydrated.filter((listing) => !isSeedListing(listing))).slice(0, limit);
+  if (visible.length >= limit) return visible;
+
+  const fallback = await findHomeListingsFallback(category, limit - visible.length, visible.map((listing) => listing.id));
+  return [...visible, ...fallback].slice(0, limit);
 }
+
+async function findHomeListingsFallback(category: ListingCategory, limit: number, excludedIds: string[]) {
+  if (limit <= 0) return [];
+  let query = db()
+    .from("Listing")
+    .select(listingColumns())
+    .eq("status", "ACTIVE")
+    .eq("category", category)
+    .order("lastTopRefreshAt", { ascending: false, nullsFirst: false })
+    .order("createdAt", { ascending: false })
+    .limit(Math.max(limit * 2, limit));
+  if (excludedIds.length) query = query.not("id", "in", `(${excludedIds.join(",")})`);
+  const { data, error } = await query;
+  throwDbError(error);
+  return (await hydrateListingCards((data ?? []) as any[]))
+    .sort((a, b) => {
+      const aIsSeed = isSeedListing(a);
+      const bIsSeed = isSeedListing(b);
+      if (aIsSeed !== bIsSeed) return aIsSeed ? 1 : -1;
+      return compareTopRefresh(b, a);
+    })
+    .slice(0, limit);
+}
+
+function isSeedListing(listing: ListingRecord) {
+  return listing.owner?.email === seedListingOwnerEmail || String(listing.searchText ?? "").includes(seedListingMarker);
+}
+
 export async function findActiveListings(params: ListingSearchParams, forcedCategory?: ListingCategory) {
   const q = normalizeText(params.q);
   const qTerms = q ? q.split(" ").filter((term) => term.length >= 2) : [];
@@ -67,37 +123,69 @@ export async function findActiveListings(params: ListingSearchParams, forcedCate
   const min = normalizePrice(params.min);
   const max = normalizePrice(params.max);
 
-  const listings = await withTimeout(
-    (async () => {
-      let query = db()
-        .from("Listing")
-        .select(listingColumns())
-        .eq("status", "ACTIVE");
+  if (!isSupabaseConfigured()) return filterDemoListings(params, category);
 
-      if (category) query = query.eq("category", category);
-      if (params.type) query = query.eq("type", params.type);
-      if (params.state) query = query.eq("state", params.state.toUpperCase());
-      if (params.city) query = query.ilike("city", `%${params.city}%`);
-      if (params.district) query = query.ilike("district", `%${params.district}%`);
-      for (const term of qTerms) query = query.ilike("searchText", `%${term}%`);
-      if (min !== undefined) query = query.gte("priceCents", min);
-      if (max !== undefined) query = query.lte("priceCents", max);
-      query = applyListingOrder(query, params.sort).limit(60);
+  return measureListingQuery("search", category ?? "ALL", async () => {
+    let query = db()
+      .from("Listing")
+      .select(listingColumns())
+      .eq("status", "ACTIVE");
 
-      const { data, error } = await query;
-      throwDbError(error);
-      const hydrated = await hydrateListings((data ?? []) as any[]);
-      return filterHydratedListings(hydrated, params, category);
-    })(),
-    [],
-    3500
-  );
+    if (category) query = query.eq("category", category);
+    if (params.type) query = query.eq("type", params.type);
+    if (params.state) query = query.eq("state", params.state.toUpperCase());
+    if (params.city) query = query.ilike("city", `%${params.city}%`);
+    if (params.district) query = query.ilike("district", `%${params.district}%`);
+    for (const term of qTerms) query = query.ilike("searchText", `%${term}%`);
+    if (min !== undefined) query = query.gte("priceCents", min);
+    if (max !== undefined) query = query.lte("priceCents", max);
+    query = applyListingOrder(query, params.sort).limit(60);
 
-  if (listings.length) return (await rankListings(listings, params, qTerms)).slice(0, 30);
-  return filterDemoListings(params, category);
+    const { data, error } = await query;
+    throwDbError(error);
+    const hydrated = await hydrateListings((data ?? []) as any[]);
+    const listings = filterHydratedListings(hydrated, params, category);
+
+    if (listings.length) return (await rankListings(listings, params, qTerms)).slice(0, 30);
+    return [];
+  });
+}
+
+async function measureListingQuery<T>(origin: "home" | "search", category: ListingCategory | "ALL", query: () => Promise<T>) {
+  const startedAt = Date.now();
+  try {
+    const result = await query();
+    const durationMs = Date.now() - startedAt;
+    if (durationMs > 2000) {
+      console.warn("listing_query_slow", { origin, category, durationMs });
+    }
+    return result;
+  } catch (error) {
+    console.error("listing_query_failed", {
+      origin,
+      category,
+      durationMs: Date.now() - startedAt,
+      error: describeQueryError(error)
+    });
+    throw error;
+  }
+}
+
+function describeQueryError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const value = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
+    return {
+      code: value.code,
+      message: value.message,
+      details: value.details,
+      hint: value.hint
+    };
+  }
+  return String(error);
 }
 function normalizeCategory(category?: string): ListingCategory | undefined {
-  if (category === "VEHICLE" || category === "REAL_ESTATE") return category;
+  if (category === "VEHICLE" || category === "REAL_ESTATE" || category === "PRODUCT") return category;
   return undefined;
 }
 
@@ -128,7 +216,7 @@ function applyListingOrder(query: any, sort?: string) {
   if (sort === "price_asc") return query.order("priceCents", { ascending: true }).order("createdAt", { ascending: false });
   if (sort === "price_desc") return query.order("priceCents", { ascending: false }).order("createdAt", { ascending: false });
   if (sort === "expiring") return query.order("expiresAt", { ascending: true }).order("createdAt", { ascending: false });
-  return query.order("createdAt", { ascending: false });
+  return query.order("lastTopRefreshAt", { ascending: false, nullsFirst: false }).order("createdAt", { ascending: false });
 }
 
 function filterHydratedListings(listings: ListingRecord[], params: ListingSearchParams, category?: ListingCategory) {
@@ -159,8 +247,9 @@ function filterHydratedListings(listings: ListingRecord[], params: ListingSearch
 
     if (category === "REAL_ESTATE") {
       const realEstate = listing.realEstate;
-      if (!realEstate) return false;
-      if (params.purpose && realEstate.purpose !== params.purpose) return false;
+      const needsRealEstateDetails = Boolean(params.purpose || bedrooms !== undefined || bathrooms !== undefined || parking !== undefined || minAreaM2 !== undefined || maxAreaM2 !== undefined);
+      if (!realEstate) return !needsRealEstateDetails;
+      if (params.purpose && normalizeRealEstatePurpose(realEstate.purpose) !== normalizeRealEstatePurpose(params.purpose)) return false;
       if (bedrooms !== undefined && Number(realEstate.bedrooms ?? 0) < bedrooms) return false;
       if (bathrooms !== undefined && Number(realEstate.bathrooms ?? 0) < bathrooms) return false;
       if (parking !== undefined && Number(realEstate.parking ?? 0) < parking) return false;
@@ -205,19 +294,18 @@ function isElectricOrHybridText(value: string) {
   return text.includes("eletric") || text.includes("hibrid");
 }
 
-async function rankListings<T extends { id: string; title: string; type: string; city: string; state: string; district: string | null; searchText: string; createdAt: Date | string }>(
+async function rankListings<T extends { id: string; ownerId?: string | null; title: string; type: string; city: string; state: string; district: string | null; searchText: string; createdAt: Date | string; lastTopRefreshAt?: Date | string | null; topRefreshBoostUntil?: Date | string | null }>(
   listings: T[],
   params: ListingSearchParams,
   qTerms: string[]
 ) {
   if (params.sort && params.sort !== "relevance") return listings;
   const relevanceScore = (listing: T) => scoreListing(listing, params, qTerms);
-  if (!qTerms.length && !params.city && !params.district) return orderAndRecordListingSearchExposure(listings, () => 0);
 
-  return orderAndRecordListingSearchExposure(listings, relevanceScore);
+  return applyOwnerDiversity(await orderAndRecordListingSearchExposure(listings, relevanceScore));
 }
 
-function scoreListing(listing: { title: string; type: string; city: string; state: string; district: string | null; searchText: string; createdAt: Date | string }, params: ListingSearchParams, qTerms: string[]) {
+function scoreListing(listing: { title: string; type: string; city: string; state: string; district: string | null; searchText: string; createdAt: Date | string; lastTopRefreshAt?: Date | string | null; topRefreshBoostUntil?: Date | string | null }, params: ListingSearchParams, qTerms: string[]) {
   const title = normalizeText(listing.title) ?? "";
   const type = normalizeText(listing.type) ?? "";
   const city = normalizeText(listing.city) ?? "";
@@ -236,8 +324,58 @@ function scoreListing(listing: { title: string; type: string; city: string; stat
   }
   if (wantedCity && city.includes(wantedCity)) score += 10;
   if (wantedDistrict && district.includes(wantedDistrict)) score += 12;
-  score += Math.max(0, 30 - Math.floor((Date.now() - new Date(listing.createdAt).getTime()) / 86400000)) / 30;
+  if (shouldApplyTopRefreshBoost(listing)) score += topRefreshSearchBonus;
+  const freshnessDate = listing.lastTopRefreshAt ?? listing.createdAt;
+  score += Math.max(0, 30 - Math.floor((Date.now() - new Date(freshnessDate).getTime()) / 86400000)) / 30;
   return score;
+}
+
+function sortByTopRefresh<T extends { createdAt: Date | string; lastTopRefreshAt?: Date | string | null; topRefreshBoostUntil?: Date | string | null }>(listings: T[]) {
+  return [...listings].sort((left, right) => compareTopRefresh(right, left));
+}
+
+function compareTopRefresh(left: { createdAt: Date | string; lastTopRefreshAt?: Date | string | null; topRefreshBoostUntil?: Date | string | null }, right: { createdAt: Date | string; lastTopRefreshAt?: Date | string | null; topRefreshBoostUntil?: Date | string | null }) {
+  const leftBoost = shouldApplyTopRefreshBoost(left) ? 1 : 0;
+  const rightBoost = shouldApplyTopRefreshBoost(right) ? 1 : 0;
+  if (leftBoost !== rightBoost) return leftBoost - rightBoost;
+  const leftTop = sortableTime(left.lastTopRefreshAt ?? left.createdAt);
+  const rightTop = sortableTime(right.lastTopRefreshAt ?? right.createdAt);
+  if (leftTop !== rightTop) return leftTop - rightTop;
+  return sortableTime(left.createdAt) - sortableTime(right.createdAt);
+}
+
+function sortableTime(value: Date | string | null | undefined) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function applyOwnerDiversity<T extends { ownerId?: string | null }>(listings: T[]) {
+  const result: T[] = [];
+  const deferred: T[] = [];
+  const ownerCounts = new Map<string, number>();
+
+  for (const listing of listings) {
+    const ownerId = listing.ownerId ?? "";
+    const currentCount = ownerId ? ownerCounts.get(ownerId) ?? 0 : 0;
+    const nextPosition = result.length + 1;
+    const blockedTop10 = ownerId && nextPosition <= 10 && currentCount >= 1;
+    const blockedTop30 = ownerId && nextPosition <= 30 && currentCount >= 3;
+
+    if (blockedTop10 || blockedTop30) {
+      deferred.push(listing);
+      continue;
+    }
+
+    result.push(listing);
+    if (ownerId) ownerCounts.set(ownerId, currentCount + 1);
+  }
+
+  for (const listing of deferred) {
+    result.push(listing);
+  }
+
+  return result;
 }
 
 function filterDemoListings(params: ListingSearchParams, category?: ListingCategory) {
@@ -255,8 +393,8 @@ function filterDemoListings(params: ListingSearchParams, category?: ListingCateg
     if (category === "VEHICLE" && params.brand && !includesText(`${listing.title} ${listing.type}`, params.brand)) return false;
     if (category === "VEHICLE" && isElectricOrHybridFuelFilter(params.fuel) && !isElectricOrHybridDemoListing(listing)) return false;
     if (category === "REAL_ESTATE" && params.purpose) {
-      const demoPurpose = listing.priceCents <= 500000 ? "Locação" : "Venda";
-      if (params.purpose !== demoPurpose) return false;
+      const demoPurpose = listing.priceCents <= 500000 ? "RENT" : "SALE";
+      if (normalizeRealEstatePurpose(params.purpose) !== demoPurpose) return false;
     }
     if (!qTerms.length) return true;
     const haystack = [listing.title, listing.type, listing.city, listing.state]

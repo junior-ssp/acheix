@@ -1,0 +1,1 @@
+ALTER TYPE public."ListingCategory" ADD VALUE IF NOT EXISTS 'PRODUCT';

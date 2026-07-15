@@ -1,13 +1,15 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, ClipboardList, LogOut, Menu, Trash2, UserRound } from "lucide-react";
+import { BarChart3, ClipboardList, FileText, LifeBuoy, LogOut, Menu, MessageCircle, Trash2, UserRound } from "lucide-react";
+import { legalCompany } from "@/lib/legal-info";
 
 export function AccountMenu() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,6 +32,16 @@ export function AccountMenu() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
+
+  useEffect(() => {
+    fetch("/api/messages/unread-counts", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        const count = Number(data?.unreadCount ?? data?.counts?.total ?? 0);
+        if (Number.isFinite(count)) setMessageUnreadCount(Math.max(0, count));
+      })
+      .catch(() => undefined);
+  }, []);
 
 
   function goToDashboardSection(event: React.MouseEvent<HTMLAnchorElement>, sectionId: string, href: string) {
@@ -83,9 +95,21 @@ export function AccountMenu() {
             <p className="text-xs text-neutral-400">Veja sua conta.</p>
           </div>
           <div className="grid p-2">
-            <MenuLink href="/dashboard?meus=ALL#meus-anuncios" icon={<ClipboardList size={18} />} label="Meus Anúncios" onClick={(event) => goToDashboardSection(event, "meus-anuncios", "/dashboard?meus=ALL#meus-anuncios")} />
-            <MenuLink href="/dashboard#performance" icon={<BarChart3 size={18} />} label="Meus Resultados" onClick={(event) => goToDashboardSection(event, "performance", "/dashboard#performance")} />
+            <MenuLink href="/mensagens" icon={<MessageCircle size={18} />} label={messageUnreadCount > 0 ? `Mensagens (${messageUnreadCount > 99 ? "99+" : messageUnreadCount})` : "Mensagens"} onClick={() => setOpen(false)} />
+            <MenuLink href="/dashboard#central-anuncios" icon={<ClipboardList size={18} />} label="Meus Anúncios" onClick={(event) => goToDashboardSection(event, "central-anuncios", "/dashboard#central-anuncios")} />
             <MenuLink href="/dashboard#perfil" icon={<UserRound size={18} />} label="Meus Dados" onClick={(event) => goToDashboardSection(event, "perfil", "/dashboard#perfil")} />
+            <MenuLink href="/dashboard#performance" icon={<BarChart3 size={18} />} label="Meus Resultados" onClick={(event) => goToDashboardSection(event, "performance", "/dashboard#performance")} />
+            <MenuLink href={"/fale-conosco" as Route} icon={<LifeBuoy size={18} />} label="Fale Conosco" onClick={() => setOpen(false)} />
+            <MenuLink href="/sobre-o-achei-x" icon={<FileText size={18} />} label="Informações Legais" onClick={() => setOpen(false)} />
+          </div>
+          <div className="border-t border-white/10 px-4 py-3 text-xs leading-5 text-neutral-300">
+            <p className="font-black text-white">{legalCompany.legalName}</p>
+            <p><a href={`mailto:${legalCompany.contactEmail}`} className="text-yellow-300">{legalCompany.contactEmail}</a></p>
+            <p>{legalCompany.headquarters}</p>
+            <p className="mt-1 flex flex-wrap gap-2">
+              <Link href="/termos-de-uso" onClick={() => setOpen(false)} className="text-yellow-300">Termos</Link>
+              <Link href="/politica-de-privacidade" onClick={() => setOpen(false)} className="text-yellow-300">Privacidade</Link>
+            </p>
           </div>
           <div className="grid gap-2 border-t border-white/10 p-2">
             <button
@@ -121,3 +145,4 @@ function MenuLink({ href, icon, label, onClick }: { href: Route; icon: React.Rea
     </Link>
   );
 }
+

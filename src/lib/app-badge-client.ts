@@ -12,6 +12,17 @@ export async function setAppBadgeCount(count: number) {
   await setWebBadge(safeCount);
 }
 
+export async function syncMessageBadgeFromServer() {
+  const response = await fetch("/api/messages/unread-counts", { cache: "no-store" }).catch(() => null);
+  if (!response?.ok) return null;
+  const data = await response.json().catch(() => null);
+  const count = Number(data?.unreadCount ?? data?.counts?.total ?? 0);
+  if (!Number.isFinite(count)) return null;
+  const safeCount = Math.max(0, count);
+  await setAppBadgeCount(safeCount);
+  return safeCount;
+}
+
 async function setNativeBadge(count: number) {
   try {
     const { Capacitor } = await import("@capacitor/core");
@@ -23,9 +34,19 @@ async function setNativeBadge(count: number) {
       await Badge.set({ count });
     } else {
       await Badge.clear();
+      await clearDeliveredNotifications();
     }
   } catch {
     // Some launchers/devices do not support numeric app icon badges.
+  }
+}
+
+async function clearDeliveredNotifications() {
+  try {
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+    await PushNotifications.removeAllDeliveredNotifications();
+  } catch {
+    // Notification tray cleanup support depends on the native environment.
   }
 }
 

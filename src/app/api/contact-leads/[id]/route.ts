@@ -1,6 +1,7 @@
 ﻿import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { errorResponse, json } from "@/lib/http";
+import { markMessagesRead } from "@/lib/messages";
 import { deliverUserNotice } from "@/lib/notifications";
 import { db, throwDbError, userSelect } from "@/lib/supabase-db";
 
@@ -22,6 +23,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       .select("*")
       .single();
     throwDbError(error);
+    await markMessagesRead({ userId: user.id, sourceId: params.id });
 
     if (data.status === "SOLD" || data.status === "RENTED") {
       const { error: listingUpdateError } = await db()
@@ -66,6 +68,7 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
 
     const { error } = await db().from("ContactLead").delete().eq("id", lead.id);
     throwDbError(error);
+    await markMessagesRead({ userId: user.id, sourceId: lead.id });
     return json({ ok: true });
   } catch (error) {
     return errorResponse(error);

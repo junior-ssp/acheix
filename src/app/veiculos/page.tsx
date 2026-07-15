@@ -1,47 +1,75 @@
 import { ListingResults } from "@/components/listing-results";
+import { SearchResultModal } from "@/components/search-result-modal";
 import { SearchPanel } from "@/components/search-panel";
-import { ELECTRIC_OR_HYBRID_FUEL_FILTER, type ListingSearchParams } from "@/lib/listing-search";
+import { WantedRequestSection } from "@/components/wanted-request-section";
+import { ELECTRIC_OR_HYBRID_FUEL_FILTER, findActiveListings, type ListingSearchParams } from "@/lib/listing-search";
+import { findActiveWantedRequestsByContext } from "@/lib/wanted-requests";
+import { findActiveManualListings } from "@/lib/manual-listings";
 import type { LucideIcon } from "lucide-react";
-import { Bike, BusFront, CarFront, Package, ShipWheel, Truck, Zap } from "lucide-react";
+import { Bike, BusFront, CarFront, Package, Pencil, Search, ShipWheel, Truck, Zap } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default function VehiclesPage({ searchParams }: { searchParams: ListingSearchParams }) {
+export default async function VehiclesPage({ searchParams }: { searchParams: ListingSearchParams & { modo?: string } }) {
   const activeType = normalizeVehicleType(searchParams.type);
   const electricHybridActive = isElectricHybridFuel(searchParams.fuel);
   const priceBands = priceBandsFor(activeType);
   const brands = brandsFor(activeType);
+  const hasSubmittedSearch = searchParams.searched === "1";
+  const showSearchTools = searchParams.modo === "buscar" || hasSubmittedSearch;
+  const [filteredListings, wantedRequests, manualListings] = await Promise.all([
+    hasSubmittedSearch ? findActiveListings(searchParams, "VEHICLE") : Promise.resolve(undefined),
+    searchParams.q ? findActiveWantedRequestsByContext({ q: searchParams.q, context: "VEHICLE", limit: 6 }) : Promise.resolve([]),
+    findActiveManualListings({ categories: ["VEHICLE"], limit: 12 })
+  ]);
+  const resultCount = filteredListings?.length ?? 0;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
+    <main className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:py-8">
       <div className="mb-6">
         <p className="text-sm font-black uppercase text-yellow-300">Veículos</p>
         <h1 className="mt-2 text-3xl font-black">Carro, Moto, Bicicleta e mais</h1>
       </div>
 
-      <SearchPanel
-        q={searchParams.q}
-        category="VEHICLE"
-        type={searchParams.type}
-        brand={searchParams.brand}
-        fuel={searchParams.fuel}
-        min={searchParams.min}
-        max={searchParams.max}
-        sort={searchParams.sort}
-        action="/veiculos"
-        fixedCategory="VEHICLE"
-      />
+      <CategoryActionButtons searchHref="/veiculos?modo=buscar" announceHref="/anunciar?category=VEHICLE" searchLabel="Buscar Veículos" announceLabel="Anunciar Veículos" />
 
-      <section className="mt-4 rounded-3xl border border-white/10 bg-neutral-950/80 p-3 shadow-[0_0_35px_rgba(0,0,0,0.35)] sm:p-4">
+      {showSearchTools ? <div className="mt-5">
+        <SearchPanel
+          q={searchParams.q}
+          category="VEHICLE"
+          type={searchParams.type}
+          brand={searchParams.brand}
+          fuel={searchParams.fuel}
+          min={searchParams.min}
+          max={searchParams.max}
+          sort={searchParams.sort}
+          action="/veiculos"
+          fixedCategory="VEHICLE"
+        />
+      </div> : null}
+
+      {hasSubmittedSearch ? (
+        <SearchResultModal
+          count={resultCount}
+          labelSingular="veículo"
+          labelPlural="veículos"
+          emptyMessage="Nenhum veículo encontrado com esses filtros."
+          resetHref="/veiculos"
+          resultMode="scroll"
+        />
+      ) : null}
+
+
+      {showSearchTools ? <section className="mt-4 rounded-3xl border border-white/10 bg-neutral-950/80 p-3 shadow-[0_0_35px_rgba(0,0,0,0.35)] sm:p-4">
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
           {vehicleTypeOptions.map((option) => (
             <VehicleTypeButton
               key={option.label}
               option={option}
               active={option.value === null ? !activeType && !electricHybridActive : activeType === option.value}
-              href={quickVehicleHref(searchParams, { type: option.value ?? "", brand: "", min: "", max: "" })}
+              href={quickVehicleHref(searchParams, option.value === null ? { type: "", brand: "", fuel: "", min: "", max: "" } : { type: option.value, brand: "", min: "", max: "" })}
             />
           ))}
           <VehicleTypeButton
@@ -50,14 +78,19 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
             href={quickVehicleHref(searchParams, { fuel: electricHybridActive ? "" : ELECTRIC_OR_HYBRID_FUEL_FILTER, min: "", max: "" })}
           />
         </div>
+        <Link href={quickVehicleHref(searchParams, { searched: "1" })} className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-full px-5 text-sm font-black btn-gold">
+          Buscar
+        </Link>
+      </section> : null}
 
-        <div className="mt-5 flex items-end justify-between gap-3">
+      {showSearchTools ? <section className="mt-4 rounded-3xl border border-white/10 bg-neutral-950/80 p-3 shadow-[0_0_35px_rgba(0,0,0,0.35)] sm:p-4">
+        <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-base font-black uppercase text-emerald-300 sm:text-xl">Busca por Valor</p>
             <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">{priceTitle(activeType)}</h2>
           </div>
           {activeType || electricHybridActive ? (
-            <Link href={quickVehicleHref(searchParams, { type: "", brand: "", fuel: "", min: "", max: "" })} prefetch={false} className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white hover:bg-white/10">
+            <Link href={quickVehicleHref(searchParams, { type: "", brand: "", fuel: "", min: "", max: "" })} className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white hover:bg-white/10">
               Ver geral
             </Link>
           ) : null}
@@ -68,7 +101,7 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
             <Link
               key={`${band.label}-${band.value}`}
               href={quickVehicleHref(searchParams, { type: activeType ?? "", min: band.min ?? "", max: band.max ?? "" })}
-              prefetch={false}
+              scroll={false}
               className={`min-h-[76px] rounded-2xl border px-3 py-3 text-center transition hover:-translate-y-0.5 ${
                 isActiveBand(searchParams, band)
                   ? "border-emerald-300 bg-emerald-400 text-black shadow-[0_0_22px_rgba(52,211,153,0.25)]"
@@ -80,15 +113,20 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
             </Link>
           ))}
         </div>
+        <Link href={quickVehicleHref(searchParams, { searched: "1" })} className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-full px-5 text-sm font-black btn-gold">
+          Buscar
+        </Link>
+      </section> : null}
 
-        <div className="mt-6">
+      {showSearchTools ? <section className="mt-4 rounded-3xl border border-white/10 bg-neutral-950/80 p-3 shadow-[0_0_35px_rgba(0,0,0,0.35)] sm:p-4">
+        <div>
           <div className="flex items-end justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase text-emerald-300">Filtro por Marca</p>
               <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">{brandTitle(activeType)}</h2>
             </div>
             {searchParams.brand ? (
-              <Link href={quickVehicleHref(searchParams, { brand: "", min: "", max: "" })} prefetch={false} className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white hover:bg-white/10">
+              <Link href={quickVehicleHref(searchParams, { brand: "" })} scroll={false} className="shrink-0 rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white hover:bg-white/10">
                 Limpar marca
               </Link>
             ) : null}
@@ -98,8 +136,8 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
             {brands.map((brand) => (
               <Link
                 key={`${brand.name}-${brand.type ?? "all"}`}
-                href={quickVehicleHref(searchParams, { type: brand.type ?? activeType ?? "", brand: brand.name, min: "", max: "" })}
-                prefetch={false}
+                href={quickVehicleHref(searchParams, { type: brand.type ?? activeType ?? "", brand: brand.name })}
+                scroll={false}
                 className={`grid min-h-[88px] place-items-center rounded-2xl border px-3 py-3 text-center transition hover:-translate-y-0.5 ${
                   searchParams.brand === brand.name
                     ? "border-emerald-300 bg-emerald-400 text-black shadow-[0_0_22px_rgba(52,211,153,0.25)]"
@@ -113,12 +151,51 @@ export default function VehiclesPage({ searchParams }: { searchParams: ListingSe
               </Link>
             ))}
           </div>
+          <Link href={quickVehicleHref(searchParams, { searched: "1" })} className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-full px-5 text-sm font-black btn-gold">
+            Buscar
+          </Link>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="mt-6">
-        <ListingResults searchParams={searchParams} category="VEHICLE" emptyTitle="Nenhum Veículo ativo encontrado." />
-      </section>
+      {filteredListings ? (
+        <section id="resultados-abertos" className="mt-6 scroll-mt-24">
+          <WantedRequestSection
+            title="Procura-se em veículos"
+            requests={wantedRequests.map((request) => ({
+              id: request.id,
+              title: request.title,
+              description: request.description,
+              expiresAt: request.expiresAt,
+              owner: {
+                name: request.owner.name,
+                city: request.owner.city,
+                state: request.owner.state
+              }
+            }))}
+          />
+          {wantedRequests.length ? <div className="h-6" /> : null}
+          <ListingResults searchParams={searchParams} category="VEHICLE" emptyTitle="Nenhum Veículo ativo encontrado." listings={filteredListings} manualListings={manualListings} />
+        </section>
+      ) : (
+        <section id="resultados-anuncios" className="mt-6 scroll-mt-24">
+          <WantedRequestSection
+            title="Procura-se em veículos"
+            requests={wantedRequests.map((request) => ({
+              id: request.id,
+              title: request.title,
+              description: request.description,
+              expiresAt: request.expiresAt,
+              owner: {
+                name: request.owner.name,
+                city: request.owner.city,
+                state: request.owner.state
+              }
+            }))}
+          />
+          {wantedRequests.length ? <div className="h-6" /> : null}
+          <ListingResults searchParams={searchParams} category="VEHICLE" emptyTitle="Nenhum Veículo ativo encontrado." manualListings={manualListings} />
+        </section>
+      )}
     </main>
   );
 }
@@ -246,17 +323,16 @@ function VehicleTypeButton({ option, active, href }: { option: VehicleTypeOption
   return (
     <Link
       href={href}
-      prefetch={false}
-      className={`grid min-h-[90px] place-items-center rounded-2xl border px-2 py-3 text-center transition hover:-translate-y-0.5 ${
+      className={`grid min-h-[78px] min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-2 overflow-hidden rounded-2xl border px-2.5 py-2 text-left transition hover:-translate-y-0.5 sm:min-h-[86px] sm:grid-cols-1 sm:place-items-center sm:px-2 sm:py-3 sm:text-center ${
         active
           ? "border-emerald-300 bg-emerald-400 text-black shadow-[0_0_24px_rgba(52,211,153,0.28)]"
           : "border-white/12 bg-black/60 text-white hover:border-emerald-300/55"
       }`}
     >
-      <span className={`grid h-11 w-11 place-items-center rounded-2xl ${active ? "bg-black/15" : "bg-emerald-400/15 text-emerald-300"}`}>
+      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl sm:h-11 sm:w-11 sm:rounded-2xl ${active ? "bg-black/15" : "bg-emerald-400/15 text-emerald-300"}`}>
         <Icon size={25} strokeWidth={2.6} />
       </span>
-      <span className="mt-2 block text-xs font-black uppercase leading-tight sm:text-sm">{option.label}</span>
+      <span className="block min-w-0 max-w-full whitespace-normal break-words text-[10px] font-black uppercase leading-tight [overflow-wrap:anywhere] sm:mt-2 sm:text-xs lg:text-sm">{option.label}</span>
     </Link>
   );
 }
@@ -309,7 +385,7 @@ function brandTitle(type: VehicleTypeValue | null) {
   return "Marcas populares";
 }
 
-function quickVehicleHref(searchParams: ListingSearchParams, patch: Partial<Record<"type" | "brand" | "fuel" | "min" | "max", string>>): Route {
+function quickVehicleHref(searchParams: ListingSearchParams, patch: Partial<Record<"type" | "brand" | "fuel" | "min" | "max" | "searched", string>>): Route {
   const params = new URLSearchParams();
   const keepKeys: Array<keyof ListingSearchParams> = ["q", "state", "city", "district", "sort", "model", "minYear", "maxYear", "maxMileageKm"];
   for (const key of keepKeys) {
@@ -321,6 +397,7 @@ function quickVehicleHref(searchParams: ListingSearchParams, patch: Partial<Reco
   if (typeof searchParams.fuel === "string" && searchParams.fuel.trim()) params.set("fuel", searchParams.fuel);
   if (typeof searchParams.min === "string" && searchParams.min.trim()) params.set("min", searchParams.min);
   if (typeof searchParams.max === "string" && searchParams.max.trim()) params.set("max", searchParams.max);
+  params.set("modo", "buscar");
   params.set("category", "VEHICLE");
   for (const [key, value] of Object.entries(patch)) {
     if (value) params.set(key, value);
@@ -332,4 +409,19 @@ function quickVehicleHref(searchParams: ListingSearchParams, patch: Partial<Reco
 
 function isActiveBand(searchParams: ListingSearchParams, band: PriceBand) {
   return (band.min ? searchParams.min === band.min : !searchParams.min) && (band.max ? searchParams.max === band.max : !searchParams.max);
+}
+
+function CategoryActionButtons({ searchHref, announceHref, searchLabel, announceLabel }: { searchHref: Route | string; announceHref: Route | string; searchLabel: string; announceLabel: string }) {
+  return (
+    <section className="grid gap-3 rounded-3xl border border-yellow-300/25 bg-neutral-950/80 p-3 shadow-[0_0_30px_rgba(250,204,21,0.12)] sm:grid-cols-2 sm:p-4">
+      <Link href={searchHref as Route} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#22C55E] px-4 text-center text-sm font-black uppercase text-black shadow-[0_0_18px_rgba(34,197,94,0.22)] transition hover:-translate-y-0.5 hover:bg-[#34D399]">
+        <Search size={20} strokeWidth={2.8} />
+        {searchLabel}
+      </Link>
+      <Link href={announceHref as Route} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-yellow-300 px-4 text-center text-sm font-black uppercase text-black shadow-[0_0_18px_rgba(250,204,21,0.22)] transition hover:-translate-y-0.5 hover:bg-yellow-200">
+        <Pencil size={20} strokeWidth={2.8} />
+        {announceLabel}
+      </Link>
+    </section>
+  );
 }

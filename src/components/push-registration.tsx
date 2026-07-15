@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getToken } from "firebase/messaging";
 import { getFirebaseMessaging } from "@/lib/firebase-client";
 import { setAppBadgeCount } from "@/lib/app-badge-client";
@@ -13,20 +14,20 @@ type TokenPayload = {
 
 const STORAGE_KEY = "acheix:last-push-token";
 
-export function PushRegistration() {
+export function PushRegistration({ showPermissionPrompt = true }: { showPermissionPrompt?: boolean }) {
+  const router = useRouter();
   const [permissionNeeded, setPermissionNeeded] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       try {
-        const { Capacitor } = await import("@capacitor/core");
-        if (Capacitor.isNativePlatform()) return;
+        await import("@capacitor/core");
       } catch {
         // Continue with web push detection when Capacitor is unavailable.
       }
-      registerPush(false).then((status) => {
-        if (status === "permission-needed") setPermissionNeeded(true);
+      registerPush(false, (url) => router.push(url as any)).then((status) => {
+        if (showPermissionPrompt && status === "permission-needed") setPermissionNeeded(true);
       });
     }, 9000);
     return () => window.clearTimeout(timer);
@@ -34,12 +35,12 @@ export function PushRegistration() {
 
   async function enablePush() {
     setBusy(true);
-    const status = await registerPush(true);
+    const status = await registerPush(true, (url) => router.push(url as any));
     setBusy(false);
-    setPermissionNeeded(status === "permission-needed");
+    setPermissionNeeded(isPhoneWebDevice() ? status === "permission-needed" : false);
   }
 
-  if (!permissionNeeded) return null;
+  if (!showPermissionPrompt || !permissionNeeded) return null;
 
   return (
     <div className="fixed left-1/2 top-1/2 z-[55] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-yellow-300/30 bg-black/95 p-3 text-white shadow-2xl shadow-black/50">
@@ -59,13 +60,21 @@ export function PushRegistration() {
   );
 }
 
-async function registerPush(interactive: boolean): Promise<"ok" | "permission-needed" | "unavailable"> {
-  const nativeStatus = await registerNativePush(interactive);
+function isPhoneWebDevice() {
+  if (typeof window === "undefined") return false;
+  const userAgent = navigator.userAgent || "";
+  if (/iPhone|iPod|Windows Phone|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)) return true;
+  if (/Android/i.test(userAgent) && /Mobile/i.test(userAgent)) return true;
+  return window.matchMedia("(max-width: 767px) and (pointer: coarse)").matches;
+}
+
+async function registerPush(interactive: boolean, navigate: (url: string) => void): Promise<"ok" | "permission-needed" | "unavailable"> {
+  const nativeStatus = await registerNativePush(interactive, navigate);
   if (nativeStatus !== "unavailable") return nativeStatus;
   return registerWebPush(interactive);
 }
 
-async function registerNativePush(interactive: boolean): Promise<"ok" | "permission-needed" | "unavailable"> {
+async function registerNativePush(interactive: boolean, navigate: (url: string) => void): Promise<"ok" | "permission-needed" | "unavailable"> {
   try {
     const [{ Capacitor }, { PushNotifications }] = await Promise.all([
       import("@capacitor/core"),
@@ -76,10 +85,26 @@ async function registerNativePush(interactive: boolean): Promise<"ok" | "permiss
 
     let permission = await PushNotifications.checkPermissions();
     if (permission.receive !== "granted") {
-      if (!interactive) return "permission-needed";
+      if (!interactive) {
+        return "permission-needed";
+      }
       permission = await PushNotifications.requestPermissions();
     }
-    if (permission.receive !== "granted") return "permission-needed";
+    if (permission.receive !== "granted") {
+      return "permission-needed";
+    }
+
+    if (Capacitor.getPlatform() === "android" && "createChannel" in PushNotifications) {
+      await PushNotifications.createChannel({
+        id: "messages",
+        name: "Mensagens",
+        description: "Novas mensagens de anúncios e serviços no Achei X",
+        importance: 5,
+        visibility: 1,
+        sound: "default",
+        vibration: true
+      }).catch(() => undefined);
+    }
 
     await PushNotifications.removeAllListeners();
     await PushNotifications.addListener("registration", async ({ value }) => {
@@ -96,8 +121,8 @@ async function registerNativePush(interactive: boolean): Promise<"ok" | "permiss
       else await refreshBadgeFromServer();
     });
     await PushNotifications.addListener("pushNotificationActionPerformed", (event) => {
-      const url = String(event.notification.data?.url || "/dashboard#interesses");
-      window.location.href = url;
+      const url = String(event.notification.data?.url || "/mensagens");
+      navigate(url);
     });
     await PushNotifications.register();
     return "ok";
@@ -107,17 +132,25 @@ async function registerNativePush(interactive: boolean): Promise<"ok" | "permiss
 }
 
 async function registerWebPush(interactive: boolean): Promise<"ok" | "permission-needed" | "unavailable"> {
-  if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) return "unavailable";
+  if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
+    return "unavailable";
+  }
 
   if (Notification.permission !== "granted") {
-    if (!interactive) return Notification.permission === "default" ? "permission-needed" : "unavailable";
+    if (!interactive) {
+      return Notification.permission === "default" ? "permission-needed" : "unavailable";
+    }
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return "permission-needed";
+    if (permission !== "granted") {
+      return "permission-needed";
+    }
   }
 
   const messaging = await getFirebaseMessaging();
   const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
-  if (!messaging || !vapidKey) return "unavailable";
+  if (!messaging || !vapidKey) {
+    return "unavailable";
+  }
 
   const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
   const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });

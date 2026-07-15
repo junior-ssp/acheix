@@ -1,8 +1,12 @@
+﻿"use client";
+
 import { Search, SlidersHorizontal } from "lucide-react";
 import { categories } from "@/lib/constants";
 import { CurrencyInput } from "@/components/currency-input";
 import { IntegerInput } from "@/components/integer-input";
 import { LocationFields } from "@/components/location-fields";
+import { useState } from "react";
+import { normalizeRealEstatePurpose, realEstatePurposeLabels, realEstatePurposes, realEstateTypesByPurpose, type RealEstatePurpose } from "@/lib/real-estate-taxonomy";
 
 const SEARCH_PLACEHOLDER = "O que você procura?";
 
@@ -17,17 +21,21 @@ type SearchPanelProps = {
   purpose?: string;
   sort?: string;
   action?: string;
-  fixedCategory?: "VEHICLE" | "REAL_ESTATE";
+  fixedCategory?: "VEHICLE" | "REAL_ESTATE" | "PRODUCT";
   compact?: boolean;
 };
 
 export function SearchPanel({ q, category, type, min, max, brand, fuel, purpose, sort, action = "/buscar", fixedCategory, compact }: SearchPanelProps) {
   const currentCategory = fixedCategory ?? category;
   const fuelValue = fuel === "ELECTRIC_OR_HYBRID" ? "Elétrico/Híbrido" : fuel;
+  const initialPurpose = normalizeRealEstatePurpose(purpose) ?? "";
+  const [realEstatePurpose, setRealEstatePurpose] = useState<RealEstatePurpose | "">(initialPurpose);
+  const [realEstateType, setRealEstateType] = useState(initialPurpose && realEstateTypesByPurpose[initialPurpose].includes(String(type)) ? String(type) : "");
 
   if (compact) {
     return (
       <form action={action} className="flex items-center gap-2">
+        <input type="hidden" name="searched" value="1" />
         <label className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" size={18} />
           <input
@@ -46,6 +54,7 @@ export function SearchPanel({ q, category, type, min, max, brand, fuel, purpose,
 
   return (
     <form action={action} className="glass-panel rounded-2xl p-2.5 sm:rounded-3xl sm:p-3">
+      <input type="hidden" name="searched" value="1" />
       <div className="grid gap-2 sm:gap-3 md:grid-cols-[1fr_180px_160px_120px]">
         <label className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" size={18} />
@@ -63,6 +72,7 @@ export function SearchPanel({ q, category, type, min, max, brand, fuel, purpose,
             <option value="">Tudo</option>
             <option value="VEHICLE">Veículo</option>
             <option value="REAL_ESTATE">Imóvel</option>
+            <option value="PRODUCT">Produto</option>
           </select>
         )}
         <select name="sort" defaultValue={sort ?? "relevance"} className="h-11 rounded-full border border-white/10 bg-black/70 px-3 text-sm font-bold text-white sm:h-12 sm:text-base">
@@ -81,18 +91,21 @@ export function SearchPanel({ q, category, type, min, max, brand, fuel, purpose,
       <details className="mt-2 rounded-2xl border border-white/10 bg-black/35 p-3 sm:mt-3">
         <summary className="cursor-pointer text-sm font-black text-yellow-300">Filtros avançados</summary>
         <div className="mt-3 grid gap-3 md:grid-cols-4">
-          <select name="type" defaultValue={type ?? ""} className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white">
+          {currentCategory !== "REAL_ESTATE" ? <select name="type" defaultValue={type ?? ""} className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white">
             <option value="">Tipo</option>
-            {(currentCategory === "VEHICLE" ? categories.VEHICLE : currentCategory === "REAL_ESTATE" ? categories.REAL_ESTATE : [...categories.VEHICLE, ...categories.REAL_ESTATE]).map((item) => (
+            {(currentCategory === "VEHICLE" ? categories.VEHICLE : currentCategory === "REAL_ESTATE" ? categories.REAL_ESTATE : currentCategory === "PRODUCT" ? categories.PRODUCT : [...categories.VEHICLE, ...categories.REAL_ESTATE, ...categories.PRODUCT]).map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
-          </select>
+          </select> : <>
+            <select name="purpose" value={realEstatePurpose} onChange={(event) => { setRealEstatePurpose(normalizeRealEstatePurpose(event.target.value) ?? ""); setRealEstateType(""); }} className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white"><option value="">Finalidade</option>{realEstatePurposes.map((item) => <option key={item} value={item}>{realEstatePurposeLabels[item]}</option>)}</select>
+            <select name="type" value={realEstateType} onChange={(event) => setRealEstateType(event.target.value)} disabled={!realEstatePurpose} className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white disabled:opacity-50"><option value="">Tipo do imóvel</option>{realEstatePurpose ? realEstateTypesByPurpose[realEstatePurpose].map((item) => <option key={item}>{item}</option>) : null}</select>
+          </>}
           <LocationFields compact />
           <input name="district" placeholder="Bairro ou região" className="filter-input" />
           <CurrencyInput name="min" defaultValue={min} placeholder="Preço mínimo" className="filter-input" />
           <CurrencyInput name="max" defaultValue={max} placeholder="Preço máximo" className="filter-input" />
 
-          {currentCategory !== "REAL_ESTATE" && (
+          {currentCategory === "VEHICLE" && (
             <>
               <input name="brand" defaultValue={brand} placeholder="Marca" className="filter-input" />
               <input name="model" placeholder="Modelo" className="filter-input" />
@@ -105,14 +118,8 @@ export function SearchPanel({ q, category, type, min, max, brand, fuel, purpose,
             </>
           )}
 
-          {currentCategory !== "VEHICLE" && (
+          {currentCategory === "REAL_ESTATE" && (
             <>
-              <select name="purpose" defaultValue={purpose ?? ""} className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white">
-                <option value="">Venda ou locação</option>
-                <option value="Venda">Venda</option>
-                <option value="Temporada">Temporada</option>
-                <option value="Locação">Locação</option>
-              </select>
               <input name="bedrooms" type="number" min="0" placeholder="Quartos min." className="filter-input" />
               <input name="bathrooms" type="number" min="0" placeholder="Banheiros min." className="filter-input" />
               <input name="parking" type="number" min="0" placeholder="Vagas min." className="filter-input" />

@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const bucket = process.env.REPORT_EVIDENCE_BUCKET || process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "listing-photos";
+    const bucket = process.env.REPORT_EVIDENCE_BUCKET || "report-evidence";
 
     if (!supabaseUrl || !serviceRoleKey) {
       return json({ error: "Upload não configurado no servidor." }, 500);
@@ -38,8 +38,8 @@ export async function POST(request: Request) {
 
     if (error) return json({ error: error.message }, 400);
 
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return json({ url: data.publicUrl });
+    const privateReference = `supabase-private://report-evidence/${encodeURIComponent(path)}`;
+    return json({ url: privateReference });
   } catch (error) {
     return errorResponse(error);
   }

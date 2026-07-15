@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "masterPhraseSha256": "17b23c283bef507a3d9790599d8b341403bee2231810b2f767dfabf845455aaf",
+  "protectedFiles": [
+    {
+      "path": "src/app/api/auth/register/route.ts",
+      "sha256": "15a901964411b5f2716bcda4494f2aab41a964d78a40306ecf96e394ce5f69c6",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "src/components/auth-form.tsx",
+      "sha256": "63e0b06bec6bdbab109011e086156f5e9fd75289dfad041a0b1aa4e5665b87c0",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "src/app/cadastro/page.tsx",
+      "sha256": "fbd3092f4ff4f2cdc0d6614a9a4231adf0143b8ccb1d995d02938ba7136a723e",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "src/lib/validators.ts",
+      "sha256": "7c882da60c4ddc2888ca7c6445239fd0bc1af9d3518537b9b563d7144aca15ce",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "src/lib/supabase-db.ts",
+      "sha256": "486cb66fe940b634326aefa02440555cf8e219592c8ffd884050df5efbf7312b",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "src/lib/http.ts",
+      "sha256": "8864828b440fc56c077deeadef9b2465b7a4db6bbb4cebd8ce57502edace4e9f",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "supabase/migrations/20260617_user_registration_hardening.sql",
+      "sha256": "51ca15f7a135a72df48a8f3c568b65b1f3abfcd8709c8df5de595ee87199c8fb",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "scripts/check-registration-safety.ts",
+      "sha256": "151cd850dcf36ff15383cc6ae5693e7ba960aa373df39d35a627118b8b3ab587",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "package.json",
+      "sha256": "e7412b907d2985c6a767beed67260199af3699cacf784367f05df52d1da93806",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "PRODUCAO_PROTEGIDA.md",
+      "sha256": "bdb484af507d8cab021918f0dac0d159f927bfe5be13173c39eb991035c1701e",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": ".githooks/pre-commit",
+      "sha256": "7f1cbc49fee6962a032e8e12e0070fa781e62868d8ec89e8ced1b7e38051eae9",
+      "reason": "Cadastro em producao protegido contra quebra de criacao de usuario"
+    },
+    {
+      "path": "supabase/migrations/20260617_user_email_verification.sql",
+      "sha256": "a11bd6753f8c889b6ecfdf1ae560c9df89a76e21baacaf30a6bc5c75af065170",
+      "reason": "Cadastro em producao protegido contra quebra de validacao de email"
+    }
+  ]
+}

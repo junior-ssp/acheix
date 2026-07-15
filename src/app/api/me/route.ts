@@ -1,10 +1,13 @@
 ﻿import { clearSessionCookie, getCurrentUser, requireUser } from "@/lib/auth";
+import { validateCpfWithProviders } from "@/lib/cpf-validation";
+import { canShareCpfBetween } from "@/lib/cpf-sharing-exceptions";
 import { completeLocationFromUserAndDdd } from "@/lib/ddd-autocomplete";
 import { onlyDigits } from "@/lib/formatters";
 import { errorResponse, json } from "@/lib/http";
+import { identityNameMatches, identityNameMismatchMessage } from "@/lib/identity-name-match";
 import { getSupabaseAdminClient } from "@/lib/supabase-auth";
-import { db, isUniqueViolation, throwDbError } from "@/lib/supabase-db";
-import { profileSchema } from "@/lib/validators";
+import { db, isUniqueViolation, throwDbError, uniqueViolationFields } from "@/lib/supabase-db";
+import { isValidCnpj, isValidCpf, profileSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +21,14 @@ export async function PATCH(request: Request) {
     const user = await requireUser();
     const data = profileSchema.parse(await request.json());
     const username = data.username || null;
+    const cpf = data.cpf !== undefined ? onlyDigits(data.cpf) : user.cpf;
+    const cnpj = data.cnpj !== undefined ? onlyDigits(data.cnpj) : user.cnpj;
     const phone = data.phone ? onlyDigits(data.phone) : null;
     const whatsapp = data.whatsapp ? onlyDigits(data.whatsapp) : null;
+    const cpfChanged = cpf !== user.cpf;
+    const cnpjChanged = cnpj !== user.cnpj;
+    const phoneChanged = phone !== user.phone;
+    const whatsappChanged = whatsapp !== user.whatsapp;
     const location = await completeLocationFromUserAndDdd({ cep: data.cep, state: data.state, city: data.city, district: data.district }, {
       cep: user.cep,
       state: user.state,
@@ -40,13 +49,60 @@ export async function PATCH(request: Request) {
       if (existingUsername) return json({ error: "Este username já está em uso. Escolha outro." }, 409);
     }
 
+    if (user.accountType === "CPF" && !isValidCpf(cpf ?? "")) {
+      return json({ error: "Informe um CPF válido para continuar com pagamentos pelo Asaas." }, 422);
+    }
+    if (user.accountType === "CPF" && user.cpf && cpfChanged) {
+      return json({ error: "Para alterar CPF, envie documento com foto e selfie para análise do Admin." }, 403);
+    }
+    if (user.accountType === "CPF" && cpf && (cpfChanged || data.name.trim() !== String(user.name ?? "").trim())) {
+      const cpfValidation = await validateCpfWithProviders(cpf);
+      if (!cpfValidation.valid) {
+        return json({ error: cpfValidation.error ?? "Informe um CPF válido." }, 422);
+      }
+      if (cpfValidation.name && !identityNameMatches(data.name, cpfValidation.name)) {
+        return json({ error: identityNameMismatchMessage() }, 422);
+      }
+    }
+    if (user.accountType === "CNPJ" && !isValidCnpj(cnpj ?? "")) {
+      return json({ error: "Informe um CNPJ válido para continuar com pagamentos pelo Asaas." }, 422);
+    }
+
+    if (cpfChanged && cpf) {
+      const { data: existingCpf, error: cpfError } = await db()
+        .from("User")
+        .select("id,email")
+        .eq("cpf", cpf)
+        .neq("id", user.id);
+      throwDbError(cpfError);
+      const blockedDuplicate = (existingCpf ?? []).find((item) => !canShareCpfBetween(user.email, item.email));
+      if (blockedDuplicate) return json({ error: "Este CPF já está cadastrado em outra conta." }, 409);
+    }
+
+    if (cnpjChanged && cnpj) {
+      const { data: existingCnpj, error: cnpjError } = await db()
+        .from("User")
+        .select("id")
+        .eq("cnpj", cnpj)
+        .neq("id", user.id)
+        .maybeSingle();
+      throwDbError(cnpjError);
+      if (existingCnpj) return json({ error: "Este CNPJ já está cadastrado em outra conta." }, 409);
+    }
+
     const { data: updated, error } = await db()
       .from("User")
       .update({
         name: data.name,
         username,
+        cpf: user.accountType === "CPF" ? cpf : user.cpf,
+        cnpj: user.accountType === "CNPJ" ? cnpj : user.cnpj,
+        ...(cpfChanged ? { cpfVerifiedAt: null, identityVerifiedAt: null } : {}),
+        ...(cnpjChanged ? { identityVerifiedAt: null } : {}),
         phone,
         whatsapp,
+        ...(phoneChanged ? { phoneVerifiedAt: null } : {}),
+        ...(whatsappChanged ? { whatsappVerifiedAt: null } : {}),
         cep: data.cep ? onlyDigits(data.cep) : null,
         address: data.address || null,
         number: data.number || null,
@@ -56,13 +112,18 @@ export async function PATCH(request: Request) {
         state: location.state || null
       })
       .eq("id", user.id)
-      .select("name,username,phone,whatsapp,cep,address,number,complement,district,city,state")
+      .select("name,username,cpf,cnpj,phone,whatsapp,cep,address,number,complement,district,city,state")
       .single();
     throwDbError(error);
 
     return json({ user: updated });
   } catch (error) {
-    if (isUniqueViolation(error)) return json({ error: "Este username já está em uso. Escolha outro." }, 409);
+    if (isUniqueViolation(error)) {
+      const fields = uniqueViolationFields(error);
+      if (fields.cpf) return json({ error: "Este CPF já está cadastrado em outra conta." }, 409);
+      if (fields.cnpj) return json({ error: "Este CNPJ já está cadastrado em outra conta." }, 409);
+      return json({ error: "Este username já está em uso. Escolha outro." }, 409);
+    }
     return errorResponse(error);
   }
 }

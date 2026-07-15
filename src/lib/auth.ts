@@ -1,11 +1,11 @@
 ﻿import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import { withTimeout } from "@/lib/async";
 import { db, throwDbError, userSelect } from "@/lib/supabase-db";
 
-const cookieName = "acheix_token";
-const adminCookieName = "acheix_admin_token";
+export const cookieName = "acheix_token";
+export const adminCookieName = "acheix_admin_token";
+export const loggedOutCookieName = "acheix_logged_out";
 
 export type SessionRole = "USER" | "ADMIN";
 export type SessionNotificationChannel = "IN_APP" | "PUSH" | "EMAIL" | "SMS" | "WHATSAPP";
@@ -15,6 +15,7 @@ export type SessionUser = {
   name: string;
   username: string | null;
   email: string;
+  emailVerifiedAt: string | Date | null;
   accountType: string;
   cpf: string;
   cnpj: string | null;
@@ -35,6 +36,9 @@ export type SessionUser = {
   state: string | null;
   notificationChannel: SessionNotificationChannel;
   notificationChannels: SessionNotificationChannel[];
+  allowPublicPhone: boolean;
+  allowPublicWhatsapp: boolean;
+  allowPublicEmail: boolean;
   role: SessionRole;
   accountBlockedAt: string | Date | null;
   accountBlockedReason: string | null;
@@ -72,17 +76,23 @@ export function signSession(payload: JwtPayload) {
 }
 
 export function signAdminSession(payload: Omit<AdminJwtPayload, "kind">) {
-  return jwt.sign({ ...payload, kind: "ADMIN_SESSION" }, jwtSecret(), { expiresIn: "20m" });
+  return jwt.sign({ ...payload, kind: "ADMIN_SESSION" }, jwtSecret(), { expiresIn: "8h" });
 }
 
-export function setSessionCookie(token: string) {
-  cookies().set(cookieName, token, {
+function sessionCookieOptions(maxAge?: number) {
+  return {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7
-  });
+    ...(process.env.NODE_ENV === "production" ? { domain: ".acheix.com.br" } : {}),
+    ...(maxAge === undefined ? {} : { maxAge })
+  } as const;
+}
+
+export function setSessionCookie(token: string, options: { remember?: boolean } = {}) {
+  cookies().set(cookieName, token, sessionCookieOptions(options.remember ? 60 * 60 * 24 * 7 : undefined));
+  clearLoggedOutCookie();
 }
 
 export function setAdminSessionCookie(token: string) {
@@ -91,36 +101,68 @@ export function setAdminSessionCookie(token: string) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 20
+    maxAge: 60 * 60 * 8
   });
 }
 
 export function clearSessionCookie() {
-  cookies().delete(cookieName);
+  cookies().set(cookieName, "", sessionCookieOptions(0));
 }
 
 export function clearAdminSessionCookie() {
-  cookies().delete(adminCookieName);
+  cookies().set(adminCookieName, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0
+  });
 }
 
 export function clearAllSessionCookies() {
   clearSessionCookie();
   clearAdminSessionCookie();
+  setLoggedOutCookie();
+}
+
+export function setLoggedOutCookie() {
+  cookies().set(loggedOutCookieName, "1", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365
+  });
+}
+
+export function clearLoggedOutCookie() {
+  cookies().set(loggedOutCookieName, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0
+  });
 }
 
 export async function getCurrentUser() {
+  if (cookies().get(loggedOutCookieName)?.value === "1") return null;
   const token = cookies().get(cookieName)?.value;
   if (!token) return null;
 
+  let payload: JwtPayload;
   try {
-    const payload = jwt.verify(token, jwtSecret()) as JwtPayload;
-    return findUserForSession(payload.userId);
+    payload = jwt.verify(token, jwtSecret()) as JwtPayload;
   } catch {
     return null;
   }
+  const user = await findUserForSession(payload.userId);
+  if (user?.accountBlockedAt) return null;
+  return user;
 }
 
 export async function getCurrentAdminSessionUser() {
+  if (cookies().get(loggedOutCookieName)?.value === "1") return null;
   const token = cookies().get(adminCookieName)?.value;
   if (!token) return null;
 
@@ -136,19 +178,13 @@ export async function getCurrentAdminSessionUser() {
 }
 
 async function findUserForSession(userId: string) {
-  return withTimeout(
-    (async () => {
-      const { data, error } = await db()
-        .from("User")
-        .select(userSelect())
-        .eq("id", userId)
-        .maybeSingle();
-      throwDbError(error);
-      return data as SessionUser | null;
-    })(),
-    null,
-    5000
-  );
+  const { data, error } = await db()
+    .from("User")
+    .select(userSelect())
+    .eq("id", userId)
+    .maybeSingle();
+  throwDbError(error);
+  return data as SessionUser | null;
 }
 
 export async function requireUser() {

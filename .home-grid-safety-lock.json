@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "masterPhraseSha256": "a84487c4859234bfd1be884f495463498d0f809e0cfd8222bb6a0cc5f2215e47",
+  "protectedFiles": [
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "16ff1ca12495bfd6e8fa840e44c8c84133e1b8d9bbb9198ad2e38b994e21062e",
+      "reason": "Home desktop com VEICULOS, IMOVEIS e PROFISSIONAIS protegida contra mudanca visual sem autorizacao"
+    },
+    {
+      "path": "src/components/sponsored-banner-carousel.tsx",
+      "sha256": "ea78a5b330a409d67ee42edf3f3819bf0ee2a7116b5dc0519c5b92252f47d926",
+      "reason": "Carrossel visual de banners patrocinados protegido contra remocao sem autorizacao"
+    },
+    {
+      "path": "src/components/listing-results-grid.tsx",
+      "sha256": "b46f52d91580266491f7ededd10730e40595d98e5bfe2080a290702e389392d6",
+      "reason": "Preview/reel da home protegido contra mudanca visual sem autorizacao"
+    },
+    {
+      "path": "scripts/check-home-grid-safety.ts",
+      "sha256": "35082632b96e0e0ddf9d2b2ff4344bffe78b2f8320bc9158e20476a50e112411",
+      "reason": "Regra de seguranca da home protegida contra remocao sem autorizacao"
+    },
+    {
+      "path": "package.json",
+      "sha256": "e7412b907d2985c6a767beed67260199af3699cacf784367f05df52d1da93806",
+      "reason": "Scripts de build com trava da home protegidos contra mudanca sem autorizacao"
+    },
+    {
+      "path": "PRODUCAO_PROTEGIDA.md",
+      "sha256": "bdb484af507d8cab021918f0dac0d159f927bfe5be13173c39eb991035c1701e",
+      "reason": "Documentacao de producao protegida contra mudanca sem autorizacao"
+    }
+  ]
+}

@@ -23,6 +23,9 @@ export function PlanIcon({ code, name, size = 22 }: PlanIconProps) {
 
 export function planIconClassName(code?: string | null) {
   if (code === "FREE") return "text-emerald-400";
+  if (code === "PRODUCT_MINI") return "text-orange-300";
+  if (code === "PRODUCT_START") return "text-amber-300";
+  if (code === "PRODUCT_BASIC") return "text-yellow-200";
   if (code === "BRONZE") return "text-amber-700";
   if (code === "SILVER") return "text-slate-300";
   if (code === "GOLD") return "text-yellow-300";

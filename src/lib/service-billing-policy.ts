@@ -65,14 +65,18 @@ export function refreshServiceBillingStatus(billing: ServiceBillingInfo, now = n
 }
 
 export function activateServiceProBilling(existing: unknown, paidAt = new Date()): ServiceBillingInfo {
+  return activateServicePaidBilling(existing, { code: "SERVICE_PRO", priceCents: serviceBillingPolicy.renewalPriceCents, durationMonths: serviceBillingPolicy.renewalCycleMonths }, paidAt);
+}
+
+export function activateServicePaidBilling(existing: unknown, plan: { code: string; priceCents: number; durationMonths: number }, paidAt = new Date()): ServiceBillingInfo {
   const startsAt = paidAt.toISOString();
-  const endsAt = addMonths(paidAt, serviceBillingPolicy.renewalCycleMonths).toISOString();
+  const endsAt = addMonths(paidAt, plan.durationMonths).toISOString();
   return {
     ...ensureServiceBilling(existing, paidAt),
-    planCode: "SERVICE_PRO",
+    planCode: plan.code,
     launchOffer: false,
-    renewalPriceCents: serviceBillingPolicy.renewalPriceCents,
-    cycleMonths: serviceBillingPolicy.renewalCycleMonths,
+    renewalPriceCents: plan.priceCents,
+    cycleMonths: plan.durationMonths,
     currentPeriodStartedAt: startsAt,
     currentPeriodEndsAt: endsAt,
     graceEndsAt: addDays(new Date(endsAt), serviceBillingPolicy.graceDays).toISOString(),
@@ -127,13 +131,13 @@ export function serviceBillingAlertText(key: ServiceBillingAlertKey, billing: Se
   if (key === "before_due") {
     return {
       title: "Renovação do seu serviço Achei X",
-      message: `Seu perfil de serviços vence em 3 dias, em ${dueDate}. A renovação será ${price} no Plano PRO por 12 meses, com tolerância até ${graceDate}.`
+      message: `Seu perfil de serviços vence em 3 dias, em ${dueDate}. A renovação será ${price}, com tolerância até ${graceDate}.`
     };
   }
   if (key === "due") {
     return {
       title: "Seu serviço vence hoje",
-      message: `Seu perfil de serviços vence hoje (${dueDate}). Renove pelo Plano PRO por ${price} para manter a exibição por mais 12 meses. Tolerância até ${graceDate}.`
+      message: `Seu perfil de serviços vence hoje (${dueDate}). Renove por ${price} para manter a exibição. Tolerância até ${graceDate}.`
     };
   }
   return {

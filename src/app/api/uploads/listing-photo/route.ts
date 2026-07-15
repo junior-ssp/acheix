@@ -2,10 +2,14 @@ import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
 import { errorResponse, json } from "@/lib/http";
 import { blockedImageMessage, createImageModerationToken, finalizeApprovedImageModeration, moderateListingImage } from "@/lib/image-moderation";
+import { extractManualListingOcrHints } from "@/lib/manual-listing-ocr";
+import { canManageManualListings } from "@/lib/manual-listings";
 
 export const dynamic = "force-dynamic";
 
-const maxFileSize = 10 * 1024 * 1024;
+// Keep the multipart request safely below the hosting function body limit.
+// Larger originals are reduced in the browser before reaching this route.
+const maxFileSize = 4 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
@@ -20,9 +24,11 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const file = formData.get("file");
+    const shouldExtractManualListingHints = formData.get("manualListingOcr") === "true" && canManageManualListings(user);
+    const originProof = formData.get("originProof") === "true";
     if (!(file instanceof File)) return json({ error: "Arquivo inválido." }, 422);
     if (!file.type.startsWith("image/")) return json({ error: "Envie apenas imagens." }, 422);
-    if (file.size > maxFileSize) return json({ error: "Imagem maior que 10 MB." }, 422);
+    if (file.size > maxFileSize) return json({ error: "Não foi possível reduzir a imagem antes do envio. Selecione-a novamente." }, 422);
 
     const bytes = Buffer.from(await file.arrayBuffer());
     const moderation = await moderateListingImage({
@@ -30,6 +36,7 @@ export async function POST(request: Request) {
       fileName: file.name,
       mimeType: file.type,
       bytes,
+      originProof,
       request
     });
 
@@ -55,7 +62,8 @@ export async function POST(request: Request) {
 
     return json({
       url: data.publicUrl,
-      moderationToken: createImageModerationToken({ userId: user.id, url: data.publicUrl, hash: moderation.hash, moderationId: moderation.moderationId })
+      moderationToken: createImageModerationToken({ userId: user.id, url: data.publicUrl, hash: moderation.hash, moderationId: moderation.moderationId }),
+      manualListingHints: shouldExtractManualListingHints ? extractManualListingOcrHints(moderation.ocrText) : undefined
     });
   } catch (error) {
     return errorResponse(error);

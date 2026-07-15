@@ -55,7 +55,7 @@ export function ServiceProfileActivityPanel({ initialStatus, initialLastActiveAt
   }
 
   return (
-    <section className={`mt-4 rounded-lg border p-4 ${needsAttention ? "border-yellow-300/40 bg-yellow-300/10" : "border-white/10 bg-neutral-900"}`}>
+    <section className={`mt-4 rounded-lg border p-4 shadow-[0_0_26px_rgba(217,70,239,0.10)] ${needsAttention ? "border-yellow-300/55 bg-yellow-300/10" : "border-fuchsia-400/50 bg-[linear-gradient(145deg,#101010_0%,#171021_60%,#1b0824_100%)]"}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase text-yellow-300">Perfil de Servicos</p>
@@ -67,7 +67,7 @@ export function ServiceProfileActivityPanel({ initialStatus, initialLastActiveAt
           </p>
           {billingSummary ? (
             <p className="mt-1 text-sm text-neutral-300">
-              Plano: {billingSummary.status === "TRIALING" ? "grátis por 6 meses" : "Plano PRO"} - renovação R$ {(billingSummary.renewalPriceCents / 100).toFixed(2).replace(".", ",")} por 12 meses - vence em {new Date(billingSummary.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - tolerância até {new Date(billingSummary.graceEndsAt).toLocaleDateString("pt-BR")}.
+              Plano: {billingSummary.status === "TRIALING" ? "grátis por 6 meses" : "plano pago"} - renovação R$ {(billingSummary.renewalPriceCents / 100).toFixed(2).replace(".", ",")} - vence em {new Date(billingSummary.currentPeriodEndsAt).toLocaleDateString("pt-BR")} - tolerância até {new Date(billingSummary.graceEndsAt).toLocaleDateString("pt-BR")}.
             </p>
           ) : null}
         </div>

@@ -2,7 +2,7 @@
 import { CreditCard, QrCode } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { formatCurrencyBRL } from "@/lib/formatters";
-import { parseServiceProviderRef } from "@/lib/payments";
+import { parseBannerProviderRef, parseServiceProviderRef } from "@/lib/payments";
 import { db, throwDbError } from "@/lib/supabase-db";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: { pa
   const payment = user && searchParams.paymentId
     ? await findPayment(searchParams.paymentId, user.id)
     : null;
+  const isBannerPayment = parseBannerProviderRef(payment?.providerRef);
 
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
@@ -25,7 +26,9 @@ export default async function PaymentPage({ searchParams }: { searchParams: { pa
             <p><strong className="text-yellow-300">Valor:</strong> {formatCurrencyBRL(payment.amountCents)}</p>
             <p><strong className="text-yellow-300">Status:</strong> {translatePaymentStatus(payment.status)}</p>
             <p className="rounded-2xl border border-yellow-300/25 bg-yellow-300/10 p-3 font-bold text-yellow-100">
-              O Plano selecionado será ativado automaticamente assim que o pagamento for confirmado.
+              {isBannerPayment
+                ? "O banner será ativado automaticamente no Banner Carrossel assim que o pagamento for confirmado."
+                : "O Plano selecionado será ativado automaticamente assim que o pagamento for confirmado."}
             </p>
           </div>
         ) : (
@@ -39,7 +42,9 @@ export default async function PaymentPage({ searchParams }: { searchParams: { pa
               GERAR PIX
             </Link>
           ) : null}
-          <Link href={parseServiceProviderRef(payment?.providerRef) ? "/servicos/planos" : "/planos"} className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Ver Planos</Link>
+          <Link href={isBannerPayment ? "/dashboard#meus-banners" : parseServiceProviderRef(payment?.providerRef) ? "/servicos/planos" : "/planos"} className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">
+            {isBannerPayment ? "Meus banners" : "Ver Planos"}
+          </Link>
         </div>
       </section>
     </main>

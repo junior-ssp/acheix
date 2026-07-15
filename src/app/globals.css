@@ -36,75 +36,6 @@ body {
   color: #f7f7f7;
 }
 
-.theme-light {
-  color-scheme: light;
-}
-
-.theme-light body {
-  background: #ffffff !important;
-  color: #111111;
-}
-
-.theme-light main {
-  background-color: #ffffff;
-}
-
-.theme-light header,
-.theme-light footer,
-.theme-light nav.fixed.bottom-0 {
-  border-color: rgb(0 0 0 / 0.10) !important;
-  background: rgb(255 255 255 / 0.96) !important;
-  color: #111111;
-}
-
-.theme-light header a:not(.btn-gold),
-.theme-light header button,
-.theme-light footer,
-.theme-light footer a,
-.theme-light nav.fixed.bottom-0 a {
-  color: #111111;
-}
-
-.theme-light header a:not(.btn-gold):hover,
-.theme-light header button:hover,
-.theme-light footer a:hover {
-  color: #b08a00;
-}
-
-.theme-light header .bg-white\/5,
-.theme-light header button.bg-white\/5 {
-  background: rgb(0 0 0 / 0.04) !important;
-  border-color: rgb(0 0 0 / 0.12) !important;
-}
-
-.theme-light nav.fixed.bottom-0 .bottom-nav-link.is-active {
-  background: transparent !important;
-  color: #7200e8 !important;
-  box-shadow: none !important;
-}
-
-.theme-light nav.fixed.bottom-0 .bottom-nav-icon.is-active,
-.theme-light nav.fixed.bottom-0 .bottom-nav-icon.is-active.gradient-gold {
-  background: #7200e8 !important;
-  color: #ffffff !important;
-  box-shadow: none !important;
-  --tw-ring-color: transparent !important;
-}
-
-.theme-light .filter-input,
-.theme-light .location-trigger,
-.theme-light .location-trigger-compact {
-  border-color: rgb(0 0 0 / 0.14);
-  background: rgb(255 255 255 / 0.92);
-  color: #111111;
-}
-
-.theme-light .input {
-  border-color: rgb(0 0 0 / 0.14);
-  background: #ffffff;
-  color: #111111;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -112,6 +43,7 @@ body {
 html {
   min-width: 0;
   overflow-x: hidden;
+  scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
 }
@@ -122,6 +54,53 @@ canvas,
 svg {
   max-width: 100%;
   image-rendering: auto;
+}
+
+.acheix-rainbow-banner {
+  background: conic-gradient(from 0deg, #ff2d00, #ffd600, #22c55e, #06b6d4, #2563eb, #a855f7, #ff2d00);
+  background-size: 160% 160%;
+  animation: acheiXRainbowBannerGlow 10s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acheix-rainbow-banner {
+    animation: none;
+  }
+}
+
+@keyframes acheiXRainbowBannerGlow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.acheix-download-pulse {
+  animation: acheiXDownloadPulse 2.8s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgb(34 197 94 / 0.42), 0 0 18px rgb(34 197 94 / 0.22);
+}
+
+@keyframes acheiXDownloadPulse {
+  0%,
+  100% {
+    transform: translateZ(0) scale(1);
+    box-shadow: 0 0 0 0 rgb(34 197 94 / 0.36), 0 0 18px rgb(34 197 94 / 0.24);
+  }
+
+  45% {
+    transform: translateZ(0) scale(1.045);
+    box-shadow: 0 0 0 8px rgb(34 197 94 / 0), 0 0 28px rgb(34 197 94 / 0.42);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acheix-download-pulse {
+    animation: none;
+  }
 }
 
 button,
@@ -224,6 +203,10 @@ button[aria-disabled="true"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   button,
   [role="button"],
   .interactive-button,
@@ -239,6 +222,30 @@ button[aria-disabled="true"] {
   a[href].rounded-3xl {
     transition: none;
   }
+}
+
+.web-desktop-layout body {
+  background: #050505;
+}
+
+.web-desktop-layout .app-safe-top {
+  background: rgba(0, 0, 0, 0.98);
+}
+
+.web-desktop-layout .bottom-nav-link {
+  display: none !important;
+}
+
+.web-desktop-layout .app-safe-bottom {
+  padding-bottom: 1rem !important;
+}
+
+.web-desktop-layout .soft-card {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.web-desktop-layout .desktop-max-width {
+  max-width: 96rem;
 }
 
 .input {
@@ -365,6 +372,32 @@ a.action-button:hover {
   font-weight: 900;
 }
 
+.btn-green {
+  background: var(--achei-green) !important;
+  color: #07110d !important;
+  font-weight: 900;
+}
+
+.btn-green:hover {
+  background: var(--achei-green-hover) !important;
+}
+
+button.bg-emerald-400,
+a.bg-emerald-400,
+label.bg-emerald-400 {
+  background: var(--achei-green) !important;
+  color: #07110d !important;
+}
+
+button.bg-emerald-400:hover,
+a.bg-emerald-400:hover,
+label.bg-emerald-400:hover,
+button.hover\:bg-emerald-300:hover,
+a.hover\:bg-emerald-300:hover,
+label.hover\:bg-emerald-300:hover {
+  background: var(--achei-green-hover) !important;
+}
+
 .glass-panel {
   border: 1px solid rgb(250 204 21 / 0.18);
   background: rgb(18 18 18 / 0.82);
@@ -377,22 +410,6 @@ a.action-button:hover {
   background: linear-gradient(180deg, rgb(26 26 26 / 0.96), rgb(12 12 12 / 0.96));
   color: #ffffff;
   box-shadow: 0 16px 42px rgb(0 0 0 / 0.26);
-}
-
-.theme-light .soft-card,
-.theme-light .soft-card h1,
-.theme-light .soft-card h2,
-.theme-light .soft-card h3,
-.theme-light .soft-card p,
-.theme-light .soft-card span,
-.theme-light .soft-card small,
-.theme-light .soft-card a {
-  color: #ffffff;
-}
-
-.theme-light .soft-card .text-yellow-300,
-.theme-light .soft-card .text-emerald-400 {
-  color: inherit;
 }
 
 .app-safe-top {

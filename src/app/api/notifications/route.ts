@@ -1,5 +1,6 @@
-﻿import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { errorResponse, json } from "@/lib/http";
+import { getUnreadMessageCounts } from "@/lib/messages";
 import { db, throwDbError } from "@/lib/supabase-db";
 
 export const dynamic = "force-dynamic";
@@ -7,13 +8,19 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const user = await requireUser();
-    const [{ data: notifications, error }, { count: unreadCount, error: countError }] = await Promise.all([
+    const [{ data: notifications, error }, { count: unreadCount, error: countError }, messageUnreadCounts] = await Promise.all([
       db().from("Notification").select("id,title,message,linkLabel,linkUrl,primaryActionLabel,primaryActionUrl,contactLeadId").eq("userId", user.id).is("readAt", null).order("createdAt", { ascending: false }).limit(5),
-      db().from("Notification").select("id", { count: "exact", head: true }).eq("userId", user.id).is("readAt", null)
+      db().from("Notification").select("id", { count: "exact", head: true }).eq("userId", user.id).is("readAt", null),
+      getUnreadMessageCounts(user.id)
     ]);
     throwDbError(error);
     throwDbError(countError);
-    return json({ notifications: notifications ?? [], unreadCount: unreadCount ?? 0 });
+    return json({
+      notifications: notifications ?? [],
+      unreadCount: messageUnreadCounts.total || unreadCount || 0,
+      notificationUnreadCount: unreadCount ?? 0,
+      messageUnreadCounts
+    });
   } catch (error) {
     return errorResponse(error);
   }
