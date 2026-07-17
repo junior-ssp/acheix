@@ -5,7 +5,7 @@ export type ThreadMessage = { id:string;body:string;createdAt:string;editedAt:st
 
 export function MessageBubble({message,contactName,editing,editBody,setEditBody,beginEdit,cancelEdit,saveEdit,deleteMessage,busy}:{message:ThreadMessage;contactName:string;editing:boolean;editBody:string;setEditBody:(v:string)=>void;beginEdit:(m:ThreadMessage)=>void;cancelEdit:()=>void;saveEdit:(id:string)=>Promise<void>;deleteMessage:(id:string)=>Promise<void>;busy:boolean}){
   const editable=message.mine&&!message.pending&&!message.failed&&!message.readAt;
-  const color=message.mine?"rounded-br-md border-emerald-300/25 bg-[#128c55] text-white":"rounded-bl-md border-yellow-200/35 bg-yellow-300 text-black";
+  const color=message.mine?"rounded-br-md border-emerald-300/35 bg-[linear-gradient(145deg,#15803d,#0b5f31)] text-white shadow-[0_0_22px_rgba(34,197,94,0.14)]":"rounded-bl-md border-yellow-200/40 bg-[linear-gradient(145deg,#fde047,#eab308)] text-black shadow-[0_0_22px_rgba(250,204,21,0.14)]";
   return <div className={`flex max-w-[82%] flex-col ${message.mine?"ml-auto items-end":"mr-auto items-start"}`}>
     <span className="mb-0.5 px-1 text-[9px] font-black uppercase tracking-wide text-neutral-500">{message.mine?"Você":contactName}</span>
     <div className={`relative min-w-20 rounded-2xl border px-3 py-2 shadow-sm ${color}`}>

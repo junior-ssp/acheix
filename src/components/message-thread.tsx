@@ -150,7 +150,7 @@ export function MessageThread({ conversationKey }: { conversationKey: string }) 
 
   const blocked = Boolean(conversation?.blockState.blocked);
   return (
-    <main className="relative flex min-h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-[#07090c] pb-28 text-white">
+    <main className="acheix-neon-screen relative flex min-h-[calc(100dvh-4rem)] flex-col overflow-hidden pb-28 text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(250,204,21,0.07),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.06),transparent_35%)]" />
       <ThreadHeader conversation={conversation} blocked={blocked} blockUser={blockUser} />
       <section className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-4 py-5">
@@ -169,7 +169,7 @@ export function MessageThread({ conversationKey }: { conversationKey: string }) 
 
 function ThreadHeader({ conversation, blocked, blockUser }: { conversation: Conversation | null; blocked: boolean; blockUser: () => Promise<void> }) {
   return (
-    <header className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 border-b border-white/10 bg-[#090b0f]/95 px-4 py-3 shadow-lg shadow-black/20 backdrop-blur-xl sm:top-[calc(4rem+env(safe-area-inset-top,0px))]">
+    <header className="acheix-glass-panel sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 rounded-b-[1.75rem] border-x-0 border-t-0 px-4 py-3 sm:top-[calc(4rem+env(safe-area-inset-top,0px))]">
       <div className="mx-auto flex max-w-2xl items-center gap-3">
         <Link href="/mensagens" prefetch={false} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.04] transition hover:bg-white/10" aria-label="Voltar"><ArrowLeft size={20} /></Link>
         {conversation?.imageUrl ? <img src={conversation.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-2xl border border-white/10 object-cover shadow-md" /> : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-neutral-800 text-lg font-black">{conversation?.title?.charAt(0) ?? "A"}</span>}

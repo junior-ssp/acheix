@@ -44,6 +44,7 @@ export function userSelect() {
     "birthDate",
     "phone",
     "whatsapp",
+    "whatsapp2",
     "cpfVerifiedAt",
     "phoneVerifiedAt",
     "whatsappVerifiedAt",

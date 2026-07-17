@@ -12,7 +12,7 @@ import { formatPlanCurrencyBRL, parseCurrencyToCents, parseFormattedInteger } fr
 import { PlanIcon } from "@/components/plan-icon";
 import { VehicleFields } from "@/components/vehicle-fields";
 import { getTopRefreshBenefitLabel } from "@/lib/listing-top-refresh-policy";
-import { getProductValuePlanRange, isCnpjAccount, isPlanAllowedForCategory, isProfessionalPlanCode } from "@/lib/plan-rules";
+import { getProductValuePlanRange, isPlanAllowedForCategory } from "@/lib/plan-rules";
 import { hasPublicContactInText, publicContactDescriptionMessage } from "@/lib/public-contact-guard";
 import { identifyProduct, inferProductCategoryFromText } from "@/lib/product-intelligence";
 import { RealEstatePurposeFields } from "@/components/real-estate-purpose-fields";
@@ -27,8 +27,6 @@ const listingDraftTtlMs = 24 * 60 * 60 * 1000;
 export function ListingForm({
   initialCategory = "VEHICLE",
   initialPlanCode = "FREE",
-  accountType = "CPF",
-  cnpj = null,
   initialState = "",
   initialCity = "",
   contactPermissions = { phone: false, whatsapp: false, email: false },
@@ -36,8 +34,6 @@ export function ListingForm({
 }: {
   initialCategory?: ListingCategory;
   initialPlanCode?: (typeof planCatalog)[number]["code"];
-  accountType?: string | null;
-  cnpj?: string | null;
   initialState?: string | null;
   initialCity?: string | null;
   contactPermissions?: { phone?: boolean; whatsapp?: boolean; email?: boolean };
@@ -53,7 +49,7 @@ export function ListingForm({
   const productDeclarationRef = useRef<HTMLElement>(null);
   const category = initialCategory;
   const [planOptions, setPlanOptions] = useState<readonly PlanOption[]>(plans);
-  const allowedPlans = planOptions.filter((plan) => isPlanAllowedForCategory(plan.code, category) && (!isProfessionalPlanCode(plan.code) || isCnpjAccount({ accountType, cnpj })));
+  const allowedPlans = planOptions.filter((plan) => isPlanAllowedForCategory(plan.code, category));
   const [listingType, setListingType] = useState<string>(initialCategory === "PRODUCT" ? productSubcategories[categories.PRODUCT[0]][0] : categories[initialCategory][0]);
   const [planCode, setPlanCode] = useState<(typeof planCatalog)[number]["code"]>(initialPlanCode);
   const [message, setMessage] = useState("");
@@ -653,11 +649,6 @@ export function ListingForm({
             );
           })}
         </div>
-        {!isCnpjAccount({ accountType, cnpj }) ? (
-          <p className="rounded-md border border-white/10 bg-black/30 p-3 text-sm text-neutral-300">
-            Planos X Profissionais aparecem apenas para conta com CNPJ.
-          </p>
-        ) : null}
       </section>
 
       <section className="grid gap-3 rounded-lg border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-900">
@@ -693,10 +684,8 @@ export function ListingForm({
 
       <section className="grid gap-3 rounded-lg border border-yellow-300/25 bg-yellow-300/10 p-4">
         <div>
-          <p className="text-xs font-black uppercase text-yellow-300">Contato público deste anúncio</p>
-          <p className="mt-1 text-sm text-neutral-300">
-            Estes canais começam desligados por segurança. Ative apenas o que deseja liberar para interessados nos seus anúncios.
-          </p>
+          <p className="text-xs font-black uppercase text-yellow-300">Contato do anúncio</p>
+          <p className="mt-1 text-sm text-neutral-300">Escolha como os interessados podem falar com você.</p>
         </div>
         {contactPermissions.whatsapp ? (
           <label className="flex items-start gap-2 text-sm font-bold text-white">
@@ -718,12 +707,17 @@ export function ListingForm({
         ) : null}
         {!contactPermissions.whatsapp && !contactPermissions.phone && !contactPermissions.email ? (
           <p className="rounded-md border border-white/10 bg-black/30 p-3 text-sm text-neutral-300">
-            Nenhum canal externo está autorizado no seu perfil. O anúncio ainda poderá receber mensagens pelo chat interno.
+            Nenhum contato externo ativado. O chat do Achei X continua disponível.
           </p>
         ) : null}
-        <label className="flex items-start gap-2 text-sm font-bold text-white">
+        <label className="flex items-start gap-2 text-sm text-white">
           <input name="retainChatAudit" type="checkbox" defaultChecked className="mt-1 accent-yellow-300" />
-          Manter registro mínimo de segurança quando o chat for limpo na exclusão definitiva
+          <span>
+            <strong className="block font-bold">Guardar um registro de segurança</strong>
+            <span className="mt-1 block text-xs font-normal leading-relaxed text-neutral-300">
+              Se houver denúncia, golpe ou disputa, esse registro poderá ajudar o Achei X a verificar o que aconteceu. Ele não ficará visível no seu chat nem será público.
+            </span>
+          </span>
         </label>
       </section>
 

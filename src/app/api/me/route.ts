@@ -8,11 +8,13 @@ import { identityNameMatches, identityNameMismatchMessage } from "@/lib/identity
 import { getSupabaseAdminClient } from "@/lib/supabase-auth";
 import { db, isUniqueViolation, throwDbError, uniqueViolationFields } from "@/lib/supabase-db";
 import { isValidCnpj, isValidCpf, profileSchema } from "@/lib/validators";
+import { reconcilePendingAsaasPaymentsForUser } from "@/lib/payment-reconciliation";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await getCurrentUser();
+  if (user) await reconcilePendingAsaasPaymentsForUser(user.id).catch(() => null);
   return json({ user });
 }
 
@@ -25,6 +27,7 @@ export async function PATCH(request: Request) {
     const cnpj = data.cnpj !== undefined ? onlyDigits(data.cnpj) : user.cnpj;
     const phone = data.phone ? onlyDigits(data.phone) : null;
     const whatsapp = data.whatsapp ? onlyDigits(data.whatsapp) : null;
+    const whatsapp2 = data.whatsapp2 ? onlyDigits(data.whatsapp2) : null;
     const cpfChanged = cpf !== user.cpf;
     const cnpjChanged = cnpj !== user.cnpj;
     const phoneChanged = phone !== user.phone;
@@ -101,6 +104,7 @@ export async function PATCH(request: Request) {
         ...(cnpjChanged ? { identityVerifiedAt: null } : {}),
         phone,
         whatsapp,
+        whatsapp2,
         ...(phoneChanged ? { phoneVerifiedAt: null } : {}),
         ...(whatsappChanged ? { whatsappVerifiedAt: null } : {}),
         cep: data.cep ? onlyDigits(data.cep) : null,
@@ -112,7 +116,7 @@ export async function PATCH(request: Request) {
         state: location.state || null
       })
       .eq("id", user.id)
-      .select("name,username,cpf,cnpj,phone,whatsapp,cep,address,number,complement,district,city,state")
+      .select("name,username,cpf,cnpj,phone,whatsapp,whatsapp2,cep,address,number,complement,district,city,state")
       .single();
     throwDbError(error);
 

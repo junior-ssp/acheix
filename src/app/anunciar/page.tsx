@@ -4,7 +4,7 @@ import { ListingForm } from "@/components/listing-form";
 import { PublishLoginPrompt } from "@/components/publish-login-prompt";
 import { requireUser } from "@/lib/auth";
 import { planCatalog } from "@/lib/constants";
-import { isCnpjAccount, isPlanAllowedForCategory, isProfessionalPlanCode } from "@/lib/plan-rules";
+import { isPlanAllowedForCategory } from "@/lib/plan-rules";
 
 export default async function NewListingPage({ searchParams }: { searchParams: { category?: string; planCode?: string } }) {
   const hasCategory = searchParams.category === "PRODUCT" || searchParams.category === "REAL_ESTATE" || searchParams.category === "VEHICLE";
@@ -20,11 +20,7 @@ export default async function NewListingPage({ searchParams }: { searchParams: {
     return <PublishLoginPrompt nextPath={nextPath} />;
   }
 
-  const allowedPlans = planCatalog.filter((plan) => !isProfessionalPlanCode(plan.code) || isCnpjAccount(user));
-  const requestedPlan = planCatalog.find((plan) => plan.code === searchParams.planCode);
-  if (requestedPlan && isProfessionalPlanCode(requestedPlan.code) && !isCnpjAccount(user)) {
-    return <ProfessionalPlanAccountNotice planName={requestedPlan.name} />;
-  }
+  const allowedPlans = planCatalog;
   const allowedInitialPlan = allowedPlans.some((plan) => plan.code === searchParams.planCode && isPlanAllowedForCategory(plan.code, initialCategory));
   const initialPlanCode = allowedInitialPlan ? searchParams.planCode as (typeof planCatalog)[number]["code"] : initialCategory === "PRODUCT" ? "PRODUCT_MINI" : "FREE";
   const title = initialCategory === "VEHICLE" ? "Anunciar Veículo" : initialCategory === "REAL_ESTATE" ? "Anunciar Imóvel" : "Anunciar Produto";
@@ -37,8 +33,6 @@ export default async function NewListingPage({ searchParams }: { searchParams: {
       <ListingForm
         initialCategory={initialCategory}
         initialPlanCode={initialPlanCode}
-        accountType={user.accountType}
-        cnpj={user.cnpj}
         initialState={user.state}
         initialCity={user.city}
         contactPermissions={{
@@ -71,9 +65,11 @@ function AnnounceCategoryChooser({ planCode }: { planCode?: string }) {
     <main className="mx-auto max-w-6xl px-4 py-8">
       <p className="text-sm font-black uppercase text-yellow-300">Anunciar</p>
       <h1 className="mt-2 text-3xl font-black">Escolha a categoria do anúncio</h1>
-      <p className="mt-2 max-w-2xl text-sm text-neutral-300">
-        {selectedPlan ? `Plano selecionado: ${selectedPlan.name}. Agora escolha uma categoria compatível.` : "Escolha uma categoria para ver os planos e o formulário correto."}
-      </p>
+      {selectedPlan ? (
+        <p className="mt-2 max-w-2xl text-sm text-neutral-300">
+          Plano selecionado: {selectedPlan.name}. Agora escolha uma categoria compatível.
+        </p>
+      ) : null}
       <section className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5">
         {options.map((option) => {
           const Icon = option.icon;
@@ -94,22 +90,6 @@ function AnnounceCategoryChooser({ planCode }: { planCode?: string }) {
             </Link>
           );
         })}
-      </section>
-    </main>
-  );
-}
-
-function ProfessionalPlanAccountNotice({ planName }: { planName: string }) {
-  return (
-    <main className="mx-auto max-w-2xl px-4 py-10">
-      <section className="rounded-3xl border border-yellow-300/40 bg-yellow-300/10 p-6 text-white">
-        <p className="text-xs font-black uppercase text-yellow-300">Plano profissional</p>
-        <h1 className="mt-2 text-3xl font-black">{planName} exige uma conta com CNPJ</h1>
-        <p className="mt-3 text-sm leading-relaxed text-neutral-200">O plano escolhido não foi trocado. Atualize sua conta para CNPJ ou selecione outro plano compatível.</p>
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <Link href="/dashboard" className="inline-flex h-11 items-center justify-center rounded-full bg-yellow-300 px-4 text-sm font-black text-black">Atualizar minha conta</Link>
-          <Link href="/planos" className="inline-flex h-11 items-center justify-center rounded-full border border-white/15 px-4 text-sm font-black text-white">Escolher outro plano</Link>
-        </div>
       </section>
     </main>
   );

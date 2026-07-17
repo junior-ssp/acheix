@@ -1,26 +1,13 @@
+import { PublicShareButton } from "@/components/public-share-button";
 import { MarketingFocusScroll } from "./marketing-focus-scroll";
 
 export const marketingBanners = [
   {
-    id: "profissoes",
-    title: "Profissões",
-    pagePath: "/marketing/profissoes.png",
-    imagePath: "/marketing-assets/profissoes.png",
-    socialImagePath: "/marketing-social/profissoes.jpg"
-  },
-  {
-    id: "veiculos",
-    title: "Veículos",
-    pagePath: "/marketing/veiculos.png",
-    imagePath: "/marketing-assets/veiculos.png",
-    socialImagePath: "/marketing-social/veiculos.jpg"
-  },
-  {
-    id: "imoveis",
-    title: "Imóveis",
-    pagePath: "/marketing/imoveis.png",
-    imagePath: "/marketing-assets/imoveis.png",
-    socialImagePath: "/marketing-social/imoveis.jpg"
+    id: "geral",
+    title: "Banner Geral",
+    pagePath: "/marketing/banner-achei-x.png",
+    imagePath: "/marketing-assets/banner-geral.png",
+    socialImagePath: "/marketing-social/banner-geral-contain-v2.jpg"
   }
 ] as const;
 
@@ -37,14 +24,13 @@ export function MarketingBannersPage({ focusId }: { focusId?: MarketingBannerId 
       <h1 className="text-2xl font-black sm:text-3xl">Marketing</h1>
       <div className="mt-5 grid gap-5">
         {marketingBanners.map((banner) => (
-          <section
-            key={banner.id}
-            id={banner.id}
-            className={`scroll-mt-5 overflow-hidden rounded-lg border bg-black shadow ${focusId === banner.id ? "border-yellow-300" : "border-white/10"}`}
-          >
-            <a href="/" aria-label={`Ir para a página inicial - ${banner.title}`} className="block">
+          <section key={banner.id} id={banner.id} className={`relative scroll-mt-5 overflow-hidden rounded-lg border bg-black shadow ${focusId === banner.id ? "border-yellow-300" : "border-white/10"}`}>
+            <a href="https://www.acheix.com.br" aria-label={`Ir para a página inicial - ${banner.title}`} className="block">
               <img src={banner.imagePath} alt={`Banner Achei X - ${banner.title}`} className="h-auto w-full" />
             </a>
+            <div className="absolute right-3 top-3">
+              <PublicShareButton title="Banner Geral Achei X" path={banner.pagePath} />
+            </div>
           </section>
         ))}
       </div>

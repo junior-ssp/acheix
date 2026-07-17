@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/pending-payment-reconciliation",
+      "schedule": "5 4 * * *"
+    },
+    {
       "path": "/api/cron/service-profile-activity",
       "schedule": "20 6 * * *"
     },

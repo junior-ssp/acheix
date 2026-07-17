@@ -1,5 +1,5 @@
 ﻿import { db, newDbId, throwDbError } from "@/lib/supabase-db";
-import type { SessionUser } from "@/lib/auth";
+import { getCurrentUser, type SessionUser } from "@/lib/auth";
 import { onlyDigits } from "@/lib/formatters";
 
 export const manualListingOwnerEmail = "junior.representacoes.br@gmail.com";
@@ -282,20 +282,50 @@ export async function findManagerManualListings(user: Pick<SessionUser, "id" | "
   return findUserManualListings(data.id);
 }
 
-export async function findActiveManualListings(input: { categories?: ManualListingCategory[]; limit?: number } = {}) {
+export async function findActiveManualListings(input: { categories?: ManualListingCategory[]; limit?: number; preferViewerLocation?: boolean; preferredState?: string; preferredCity?: string } = {}) {
   await refreshManualListingTopPositions();
+  const requestedLimit = input.limit ?? 12;
   let query = db()
     .from("ManualListing")
     .select(await getManualListingColumns())
     .gt("expiresAt", new Date().toISOString())
     .order("lastTopRefreshAt", { ascending: false })
     .order("createdAt", { ascending: false })
-    .limit(input.limit ?? 12);
+    .limit(input.preferViewerLocation ? Math.max(requestedLimit * 5, 60) : requestedLimit);
   if (input.categories?.length) query = query.in("category", input.categories);
   const { data, error } = await query;
   if (isMissingManualListingRelation(error)) return [];
   throwDbError(error);
-  return hydrateManualListings((data ?? []) as unknown as ManualListingRow[]);
+  const listings = await hydrateManualListings((data ?? []) as unknown as ManualListingRow[]);
+  if (!input.preferViewerLocation) return listings;
+  const user = input.preferredState || input.preferredCity ? null : await getCurrentUser().catch(() => null);
+  return prioritizeManualListingsByLocation(
+    listings,
+    input.preferredState ?? user?.state,
+    input.preferredCity ?? user?.city
+  ).slice(0, requestedLimit);
+}
+
+function prioritizeManualListingsByLocation(listings: ManualListing[], state?: string | null, city?: string | null) {
+  const preferredState = normalizeLocationToken(state);
+  const preferredCity = normalizeLocationToken(city);
+  if (!preferredState && !preferredCity) return listings;
+  return listings
+    .map((listing, index) => ({ listing, index, score: manualListingLocationScore(listing, preferredState, preferredCity) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ listing }) => listing);
+}
+
+function manualListingLocationScore(listing: ManualListing, preferredState: string, preferredCity: string) {
+  const address = normalizeLocationToken(listing.address);
+  let score = 0;
+  if (preferredState && (address.includes(`/${preferredState}`) || address.includes(` ${preferredState} `))) score += 1;
+  if (preferredCity && address.includes(preferredCity)) score += 2;
+  return score;
+}
+
+function normalizeLocationToken(value?: string | null) {
+  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
 export async function findPublicManualListing(id: string) {

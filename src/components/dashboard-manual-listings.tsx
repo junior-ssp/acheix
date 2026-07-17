@@ -19,7 +19,7 @@ import {
   manualListingDurations,
   type ManualListing,
   type ManualListingCategory
-} from "@/lib/manual-listings";
+} from "@/lib/manual-listings-shared";
 
 type Draft = {
   id?: string;

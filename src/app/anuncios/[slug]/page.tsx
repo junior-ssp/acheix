@@ -12,7 +12,7 @@ import { canUseContactFeatures, verifiedAccountRequiredMessage } from "@/lib/acc
 import { demoListings } from "@/lib/constants";
 import { realEstatePurposeLabel } from "@/lib/real-estate-taxonomy";
 import { formatCurrencyBRL, formatIntegerBR } from "@/lib/formatters";
-import { absolutePublicUrl, imageContentType, normalizeImageUrl, optimizedOpenGraphImageUrl } from "@/lib/image-url";
+import { absolutePublicUrl, imageContentType, normalizeImageUrl } from "@/lib/image-url";
 import { findListingBySlug } from "@/lib/listing-records";
 import { db, throwDbError } from "@/lib/supabase-db";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -24,7 +24,7 @@ function money(cents: number) {
   return formatCurrencyBRL(cents);
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: { params: { slug: string }; searchParams?: { v?: string } }): Promise<Metadata> {
   const listing = await findPublicListing(params.slug);
   if (!listing) {
     return {
@@ -35,7 +35,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   const title = `${listing.title} - ${money(listing.priceCents)} - Achei X`;
   const description = compactText(`${listing.type} em ${listing.city}, ${listing.state}. ${listing.description || "Confira este anúncio no Achei X."}`, 155);
-  const imageUrl = optimizedOpenGraphImageUrl(listing.photos[0]?.url);
+  const version = searchParams?.v || "1";
+  const imageUrl = absolutePublicUrl(`/anuncios/${listing.slug}/share-image.jpg?v=${encodeURIComponent(version)}`);
   const url = absolutePublicUrl(`/anuncios/${listing.slug}`);
 
   return {
@@ -94,7 +95,7 @@ export default async function ListingPage({ params }: { params: { slug: string }
   const responseMetrics = calculateResponseMetrics(ownerLeads);
   const serviceScore = responseMetrics.score === null ? null : Math.round(responseMetrics.score / 10);
   const canInteractWithOwner = Boolean(user && canUseContactFeatures(user));
-  const publicContact = canInteractWithOwner ? buildPublicContact(listing) : { phone: null, whatsapp: null, email: null };
+  const publicContact = canInteractWithOwner ? buildPublicContact(listing) : { phone: null, whatsapp: null, whatsapp2: null, email: null };
 
   return (
     <main className="min-h-[calc(100vh-65px)] bg-neutral-950 text-white">
@@ -262,6 +263,7 @@ function getDemoListing(slug: string) {
       identityVerifiedAt: null,
       phone: "11948437423",
       whatsapp: "11948437423",
+      whatsapp2: null,
       email: "teste@acheix.com.br",
       allowPublicPhone: true,
       allowPublicWhatsapp: true,
@@ -281,6 +283,7 @@ function buildPublicContact(listing: any) {
   const owner = listing.owner;
   return {
     whatsapp: listing.showWhatsapp && owner?.allowPublicWhatsapp ? owner.whatsapp ?? null : null,
+    whatsapp2: listing.showWhatsapp && owner?.allowPublicWhatsapp ? owner.whatsapp2 ?? null : null,
     phone: listing.showPhone && owner?.allowPublicPhone ? owner.phone ?? null : null,
     email: listing.showEmail && owner?.allowPublicEmail ? owner.email ?? null : null
   };

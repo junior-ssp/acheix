@@ -1,8 +1,8 @@
 import { requireUser } from "@/lib/auth";
-import { fetchAsaasPayment, findAsaasPaymentByInternalPaymentId, isAsaasConfigured, isAsaasPaidStatus } from "@/lib/asaas";
 import { findBannerCampaign } from "@/lib/banner-campaigns";
 import { errorResponse, json } from "@/lib/http";
-import { confirmRenewalPayment, parseBannerProviderRef, parsePublishProviderRef, parseRenewProviderRef, parseServiceProviderRef } from "@/lib/payments";
+import { parseBannerProviderRef, parsePublishProviderRef, parseRenewProviderRef, parseServiceProviderRef } from "@/lib/payments";
+import { reconcileAsaasPayment } from "@/lib/payment-reconciliation";
 import { db, throwDbError } from "@/lib/supabase-db";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,8 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     throwDbError(error);
     if (!paymentRow) return json({ error: "Pagamento não encontrado." }, 404);
 
-    const payment = await reconcileAsaasPayment(paymentRow as PaymentStatusRow);
+    const reconciliation = await reconcileAsaasPayment(paymentRow as PaymentStatusRow).catch(() => ({ status: "unavailable" as const, payment: paymentRow as PaymentStatusRow }));
+    const payment = { ...(paymentRow as PaymentStatusRow), status: reconciliation.payment.status };
 
     const publish = parsePublishProviderRef(payment.providerRef);
     const renew = parseRenewProviderRef(payment.providerRef);
@@ -54,21 +55,4 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   } catch (error) {
     return errorResponse(error);
   }
-}
-
-async function reconcileAsaasPayment(payment: PaymentStatusRow) {
-  if (payment.status !== "PENDING" || !isAsaasConfigured()) return payment;
-
-  const asaasPaymentRef = await findAsaasPaymentByInternalPaymentId(payment.id).catch(() => null);
-  if (!asaasPaymentRef?.asaasPaymentId) return payment;
-
-  const asaasPayment = await fetchAsaasPayment(asaasPaymentRef.asaasPaymentId).catch(() => null);
-  if (!asaasPayment || !isAsaasPaidStatus(asaasPayment.status)) return payment;
-
-  if (typeof asaasPayment.value === "number" && Number.isFinite(asaasPayment.value)) {
-    const receivedAmountCents = Math.round(asaasPayment.value * 100);
-    if (receivedAmountCents !== payment.amountCents) return payment;
-  }
-
-  return confirmRenewalPayment(payment.id);
 }

@@ -1,12 +1,14 @@
 ﻿import { requireUser } from "@/lib/auth";
 import { errorResponse, json } from "@/lib/http";
 import { db, throwDbError } from "@/lib/supabase-db";
+import { reconcilePendingAsaasPaymentsForUser } from "@/lib/payment-reconciliation";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const user = await requireUser();
+    await reconcilePendingAsaasPaymentsForUser(user.id).catch(() => null);
     const { data: listings, error } = await db()
       .from("Listing")
       .select("*,plan:Plan(*)")

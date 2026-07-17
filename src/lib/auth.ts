@@ -22,6 +22,7 @@ export type SessionUser = {
   birthDate: string | Date | null;
   phone: string | null;
   whatsapp: string | null;
+  whatsapp2: string | null;
   cpfVerifiedAt: string | Date | null;
   phoneVerifiedAt: string | Date | null;
   whatsappVerifiedAt: string | Date | null;

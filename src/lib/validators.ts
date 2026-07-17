@@ -118,6 +118,7 @@ export const profileSchema = z.object({
   cnpj: z.string().optional(),
   phone: z.string().optional().refine(isValidOptionalPhone, phoneMessage),
   whatsapp: z.string().optional().refine(isValidOptionalWhatsapp, whatsappMessage),
+  whatsapp2: z.string().optional().refine(isValidOptionalWhatsapp, whatsappMessage),
   cep: z.string().optional(),
   address: z.string().optional(),
   number: z.string().optional(),
@@ -276,8 +277,8 @@ export const listingSchema = z.object({
     originDeclarationAccepted: z.boolean().refine(Boolean, "Confirme que o produto é lícito e possui origem comprovável.")
   }).optional()
 }).superRefine((data, ctx) => {
-  const allowed = data.category === "VEHICLE" ? categories.VEHICLE : data.category === "REAL_ESTATE" ? categories.REAL_ESTATE : [...categories.PRODUCT, ...legacyProductCategories];
-  if (!(allowed as readonly string[]).includes(data.type)) {
+  const allowed = data.category === "VEHICLE" ? categories.VEHICLE : [...categories.PRODUCT, ...legacyProductCategories];
+  if (data.category !== "REAL_ESTATE" && !(allowed as readonly string[]).includes(data.type)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["type"], message: "Categoria não permitida" });
   }
   if (data.category === "VEHICLE" && !data.vehicle) {

@@ -7,6 +7,7 @@ import { hydrateListingCards, hydrateListings, listingColumns, type ListingCateg
 import { seedListingOwnerEmail, seedListingMarker } from "@/lib/seed-listing-replacement";
 import { shouldApplyTopRefreshBoost, topRefreshSearchBonus } from "@/lib/listing-top-refresh-policy";
 import { normalizeRealEstatePurpose } from "@/lib/real-estate-taxonomy";
+import { getCurrentUser } from "@/lib/auth";
 
 export const ELECTRIC_OR_HYBRID_FUEL_FILTER = "ELECTRIC_OR_HYBRID";
 
@@ -36,6 +37,8 @@ export type ListingSearchParams = {
   maxAreaM2?: string;
   sort?: string;
   searched?: string;
+  preferredState?: string;
+  preferredCity?: string;
 };
 
 export async function findHomeListings(limit = 8) {
@@ -117,6 +120,7 @@ function isSeedListing(listing: ListingRecord) {
 }
 
 export async function findActiveListings(params: ListingSearchParams, forcedCategory?: ListingCategory) {
+  const rankedParams = await withPreferredLocation(params);
   const q = normalizeText(params.q);
   const qTerms = q ? q.split(" ").filter((term) => term.length >= 2) : [];
   const category = forcedCategory ?? normalizeCategory(params.category);
@@ -126,29 +130,56 @@ export async function findActiveListings(params: ListingSearchParams, forcedCate
   if (!isSupabaseConfigured()) return filterDemoListings(params, category);
 
   return measureListingQuery("search", category ?? "ALL", async () => {
-    let query = db()
-      .from("Listing")
-      .select(listingColumns())
-      .eq("status", "ACTIVE");
-
-    if (category) query = query.eq("category", category);
-    if (params.type) query = query.eq("type", params.type);
-    if (params.state) query = query.eq("state", params.state.toUpperCase());
-    if (params.city) query = query.ilike("city", `%${params.city}%`);
-    if (params.district) query = query.ilike("district", `%${params.district}%`);
-    for (const term of qTerms) query = query.ilike("searchText", `%${term}%`);
-    if (min !== undefined) query = query.gte("priceCents", min);
-    if (max !== undefined) query = query.lte("priceCents", max);
-    query = applyListingOrder(query, params.sort).limit(60);
-
-    const { data, error } = await query;
-    throwDbError(error);
-    const hydrated = await hydrateListings((data ?? []) as any[]);
+    const nationalQuery = buildActiveListingSearchQuery(params, category, qTerms, min, max).limit(120);
+    const shouldFetchPreferredState = !params.state && (!params.sort || params.sort === "relevance") && Boolean(rankedParams.preferredState);
+    const regionalQuery = shouldFetchPreferredState
+      ? buildActiveListingSearchQuery(params, category, qTerms, min, max, rankedParams.preferredState).limit(60)
+      : null;
+    const [nationalResult, regionalResult] = await Promise.all([nationalQuery, regionalQuery]);
+    throwDbError(nationalResult.error);
+    if (regionalResult) throwDbError(regionalResult.error);
+    const rows = [...(regionalResult?.data ?? []), ...(nationalResult.data ?? [])];
+    const uniqueRows = [...new Map(rows.map((row: any) => [row.id, row])).values()];
+    const hydrated = await hydrateListings(uniqueRows as any[]);
     const listings = filterHydratedListings(hydrated, params, category);
 
-    if (listings.length) return (await rankListings(listings, params, qTerms)).slice(0, 30);
+    if (listings.length) return (await rankListings(listings, rankedParams, qTerms)).slice(0, 30);
     return [];
   });
+}
+
+function buildActiveListingSearchQuery(
+  params: ListingSearchParams,
+  category: ListingCategory | undefined,
+  qTerms: string[],
+  min: number | undefined,
+  max: number | undefined,
+  preferredState?: string
+) {
+  let query = db().from("Listing").select(listingColumns()).eq("status", "ACTIVE");
+  if (category) query = query.eq("category", category);
+  if (params.type) query = query.eq("type", params.type);
+  if (params.state) query = query.eq("state", params.state.toUpperCase());
+  else if (preferredState) query = query.eq("state", preferredState.toUpperCase());
+  if (params.city) query = query.ilike("city", `%${params.city}%`);
+  if (params.district) query = query.ilike("district", `%${params.district}%`);
+  for (const term of qTerms) query = query.ilike("searchText", `%${term}%`);
+  if (min !== undefined) query = query.gte("priceCents", min);
+  if (max !== undefined) query = query.lte("priceCents", max);
+  return applyListingOrder(query, params.sort);
+}
+
+async function withPreferredLocation(params: ListingSearchParams): Promise<ListingSearchParams> {
+  if (params.preferredState || params.preferredCity) return params;
+  if (params.state || params.city) {
+    return { ...params, preferredState: params.state, preferredCity: params.city };
+  }
+  const user = await getCurrentUser().catch(() => null);
+  return {
+    ...params,
+    preferredState: user?.state ?? undefined,
+    preferredCity: user?.city ?? undefined
+  };
 }
 
 async function measureListingQuery<T>(origin: "home" | "search", category: ListingCategory | "ALL", query: () => Promise<T>) {
@@ -313,6 +344,9 @@ function scoreListing(listing: { title: string; type: string; city: string; stat
   const searchText = normalizeText(listing.searchText) ?? "";
   const wantedCity = normalizeText(params.city) ?? "";
   const wantedDistrict = normalizeText(params.district) ?? "";
+  const preferredState = normalizeText(params.preferredState) ?? "";
+  const preferredCity = normalizeText(params.preferredCity) ?? "";
+  const state = normalizeText(listing.state) ?? "";
 
   let score = 0;
   for (const term of qTerms) {
@@ -324,6 +358,8 @@ function scoreListing(listing: { title: string; type: string; city: string; stat
   }
   if (wantedCity && city.includes(wantedCity)) score += 10;
   if (wantedDistrict && district.includes(wantedDistrict)) score += 12;
+  if (preferredState && state === preferredState) score += 100;
+  if (preferredCity && city === preferredCity && (!preferredState || state === preferredState)) score += 100;
   if (shouldApplyTopRefreshBoost(listing)) score += topRefreshSearchBonus;
   const freshnessDate = listing.lastTopRefreshAt ?? listing.createdAt;
   score += Math.max(0, 30 - Math.floor((Date.now() - new Date(freshnessDate).getTime()) / 86400000)) / 30;

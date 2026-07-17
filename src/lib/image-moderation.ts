@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import type { SessionUser } from "@/lib/auth";
 import { db, newDbId } from "@/lib/supabase-db";
+import { moderateProductListing } from "@/lib/product-intelligence";
 
 export const blockedImageMessage = "Imagem não permitida. Selecione outra imagem!";
 
@@ -40,6 +41,7 @@ type ProviderResult = {
 type ModerationDecision = {
   status: ModerationStatus;
   hash: string;
+  perceptualHash: string | null;
   riskScore: number;
   riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   findings: ProviderFinding[];
@@ -106,8 +108,10 @@ const ocrBlockedTerms = [
 
 export async function moderateListingImage(input: ModerationInput): Promise<ModerationDecision> {
   const hash = createHash("sha256").update(input.bytes).digest("hex");
-  const providerResult = await callImageModerationProvider(input, hash);
-  const decision = decideImageModeration(hash, providerResult, Boolean(input.originProof));
+  const perceptualHash = await createPerceptualImageHash(input.bytes);
+  const knownRejection = await findKnownRejectedImage(hash, perceptualHash);
+  const providerResult = knownRejection ?? await callImageModerationProvider(input, hash);
+  const decision = { ...decideImageModeration(hash, providerResult, Boolean(input.originProof)), perceptualHash };
   const moderationId = newDbId();
   const url = null;
   const withId = { ...decision, moderationId };
@@ -217,7 +221,7 @@ export function assertListingPhotosApproved(userId: string, photos: ApprovedPhot
   return { ok: true };
 }
 
-function decideImageModeration(hash: string, providerResult: ProviderResult, originProof = false): Omit<ModerationDecision, "moderationId" | "token"> {
+function decideImageModeration(hash: string, providerResult: ProviderResult, originProof = false): Omit<ModerationDecision, "moderationId" | "token" | "perceptualHash"> {
   const findings = normalizeFindings(providerResult);
   const ocrText = String(providerResult.ocrText ?? providerResult.text ?? "");
   const ocrFindings = findBlockedOcrTerms(ocrText, originProof).map((term) => ({
@@ -225,7 +229,8 @@ function decideImageModeration(hash: string, providerResult: ProviderResult, ori
     confidence: 0.91,
     label: `ocr:${term}`
   }));
-  const allFindings = [...findings, ...ocrFindings];
+  const policyOcrFindings = findBlockedOcrPolicySignals(ocrText);
+  const allFindings = [...findings, ...ocrFindings, ...policyOcrFindings];
   const maxBlockedConfidence = Math.max(0, ...allFindings.filter((item) => blockedCategories.has(item.category)).map((item) => item.confidence));
   const explicitDecision = String(providerResult.decision ?? providerResult.status ?? "").toUpperCase();
   const blockThreshold = numberEnv("IMAGE_MODERATION_BLOCK_THRESHOLD", 0.62);
@@ -290,6 +295,12 @@ async function callImageModerationProvider(input: ModerationInput, hash: string)
         sha256: hash,
         imageBase64: input.bytes.toString("base64"),
         requireOcr: true,
+        dataRetention: "none",
+        referenceMatching: {
+          enabled: true,
+          storeSourceImage: false,
+          returnOnlyCategoriesAndScores: true
+        },
         policy: moderationPolicySummary()
       })
     });
@@ -305,6 +316,72 @@ async function callImageModerationProvider(input: ModerationInput, hash: string)
       raw: { error: error instanceof Error ? error.message : "provider_failed" }
     };
   }
+}
+
+async function findKnownRejectedImage(hash: string, perceptualHash: string | null): Promise<ProviderResult | null> {
+  const { data: exact, error: exactError } = await db()
+    .from("ImageModerationLog")
+    .select("status,riskScore,categories")
+    .eq("imageHash", hash)
+    .in("status", ["REJECTED", "NEEDS_REVIEW"])
+    .order("createdAt", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!exactError && exact) return knownSignatureResult(exact, "REJECTED", "known-rejected-hash", 0);
+  if (!perceptualHash) return null;
+
+  const { data: references, error } = await db()
+    .from("ImageModerationLog")
+    .select("riskScore,categories,perceptualHash")
+    .in("status", ["REJECTED", "NEEDS_REVIEW"])
+    .not("perceptualHash", "is", null)
+    .order("createdAt", { ascending: false })
+    .limit(500);
+  if (error) return null;
+  const match = (references ?? [])
+    .map((reference: any) => ({ reference, distance: perceptualHashDistance(perceptualHash, String(reference.perceptualHash ?? "")) }))
+    .filter((item) => item.distance <= 4)
+    .sort((left, right) => left.distance - right.distance)[0];
+  return match ? knownSignatureResult(match.reference, "NEEDS_REVIEW", "similar-rejected-image", match.distance) : null;
+}
+
+function knownSignatureResult(data: any, decision: "REJECTED" | "NEEDS_REVIEW", label: string, distance: number): ProviderResult {
+  const categories = Array.isArray(data.categories) ? data.categories : [];
+  return {
+    decision,
+    confidence: Math.max(decision === "REJECTED" ? 0.99 : 0.55, Number(data.riskScore ?? 90) / 100),
+    findings: categories.length ? categories : [{ category: "other", confidence: decision === "REJECTED" ? 0.99 : 0.55, label }],
+    provider: "known-rejected-signature",
+    raw: { matchedRejectedSignature: true, distance }
+  };
+}
+
+async function createPerceptualImageHash(bytes: Buffer) {
+  try {
+    const sharp = (await import("sharp")).default;
+    const { data } = await sharp(bytes, { failOn: "error" }).rotate().resize(9, 8, { fit: "fill" }).greyscale().raw().toBuffer({ resolveWithObject: true });
+    let bits = "";
+    for (let row = 0; row < 8; row += 1) {
+      for (let column = 0; column < 8; column += 1) {
+        const offset = row * 9 + column;
+        bits += data[offset] > data[offset + 1] ? "1" : "0";
+      }
+    }
+    return BigInt(`0b${bits}`).toString(16).padStart(16, "0");
+  } catch {
+    return null;
+  }
+}
+
+function perceptualHashDistance(left: string, right: string) {
+  if (!/^[0-9a-f]{16}$/i.test(left) || !/^[0-9a-f]{16}$/i.test(right)) return Number.POSITIVE_INFINITY;
+  let difference = BigInt(`0x${left}`) ^ BigInt(`0x${right}`);
+  let distance = 0;
+  while (difference) {
+    distance += Number(difference & 1n);
+    difference >>= 1n;
+  }
+  return distance;
 }
 
 function isImageModerationStandby() {
@@ -350,6 +427,27 @@ function findBlockedOcrTerms(text: string, originProof = false) {
   return ocrBlockedTerms.filter((term) => !(originProof && allowedOnPrivateProof.has(term)) && normalized.includes(normalizeText(term))).slice(0, 20);
 }
 
+function findBlockedOcrPolicySignals(text: string): ProviderFinding[] {
+  if (!text.trim()) return [];
+  const decision = moderateProductListing({ title: text });
+  if (decision.status !== "BLOCKED") return [];
+  return decision.reasons.slice(0, 10).map((reason) => ({
+    category: moderationReasonCategory(reason),
+    confidence: 0.94,
+    label: `ocr-policy:${reason}`
+  }));
+}
+
+function moderationReasonCategory(reason: string): ModerationCategory {
+  if (reason.startsWith("WEAPON") || reason === "AMMUNITION" || reason === "EXPLOSIVE" || reason === "OTHER_WEAPON") return "weapons";
+  if (reason === "MEDICINE") return "contraband";
+  if (reason === "ILLEGAL_DRUG") return "drugs";
+  if (reason === "ADULT_CONTENT") return "adult";
+  if (reason === "CHILD_SEXUAL_ABUSE") return "child_safety";
+  if (["FRAUD_TOOL", "STOLEN_GOODS", "CRIMINAL_SERVICE", "ACCOUNT_RESALE"].includes(reason)) return "criminal_activity";
+  return "other";
+}
+
 function imageModerationEndpoint() {
   if (process.env.IMAGE_MODERATION_ENDPOINT) return process.env.IMAGE_MODERATION_ENDPOINT;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -383,6 +481,7 @@ async function recordImageModeration(input: Omit<ModerationDecision, "token"> & 
     moderationId: input.moderationId,
     status: input.status,
     hash: input.hash,
+    perceptualHash: input.perceptualHash,
     riskScore: input.riskScore,
     riskLevel: input.riskLevel,
     findings: redactFindings(input.findings),
@@ -397,12 +496,13 @@ async function recordImageModeration(input: Omit<ModerationDecision, "token"> & 
   };
   await tryInsertAudit(input.userId, `image_moderation.${input.status.toLowerCase()}`, metadata);
 
-  const { error } = await db().from("ImageModerationLog").insert({
+  const logRecord = {
     id: input.moderationId,
     userId: input.userId,
     url: input.url,
     storagePath: input.storagePath,
     imageHash: input.hash,
+    perceptualHash: input.perceptualHash,
     status: input.status,
     riskScore: input.riskScore,
     riskLevel: input.riskLevel,
@@ -412,7 +512,12 @@ async function recordImageModeration(input: Omit<ModerationDecision, "token"> & 
     providerRaw: input.providerRaw,
     ip: input.ip,
     userAgent: input.userAgent
-  } as any);
+  } as any;
+  let { error } = await db().from("ImageModerationLog").insert(logRecord);
+  if (error && String(error.message ?? "").toLowerCase().includes("perceptualhash")) {
+    const { perceptualHash: _perceptualHash, ...legacyLogRecord } = logRecord;
+    ({ error } = await db().from("ImageModerationLog").insert(legacyLogRecord));
+  }
   if (error) await tryInsertAudit(input.userId, "image_moderation.log_table_unavailable", { ...metadata, error: error.message });
 }
 
@@ -499,6 +604,7 @@ function moderationPolicySummary() {
       "extreme violence, excessive blood, gore, torture, corpses or mutilation",
       "illegal drugs, narcotics or equipment for illegal drug use or sale",
       "firearms, ammunition, explosives or weapons illegal under Brazilian law",
+      "air guns, carbines, airsoft weapons, weapon replicas or weapon components",
       "RG, CPF, CNH, passport, bank cards, financial receipts, suspicious QR codes, fraud or third-party documents",
       "stolen goods, cybercrime, sale of personal data, card/account cloning or illegal tools",
       "protected wildlife, illegal animal trade, illegal hunting products or illegal flora/fauna",
@@ -510,6 +616,8 @@ function moderationPolicySummary() {
       "children in ordinary family context without exploitation, exposure or risk"
     ],
     ocr: true,
+    referenceMatching: "compare semantic image features and known prohibited signatures without retaining the submitted image",
+    retention: "do not retain source images or imageBase64 after returning the decision",
     responseFormat: "JSON with decision/status, findings/category/confidence and ocrText"
   };
 }

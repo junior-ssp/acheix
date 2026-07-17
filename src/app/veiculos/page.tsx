@@ -22,7 +22,7 @@ export default async function VehiclesPage({ searchParams }: { searchParams: Lis
   const [filteredListings, wantedRequests, manualListings] = await Promise.all([
     hasSubmittedSearch ? findActiveListings(searchParams, "VEHICLE") : Promise.resolve(undefined),
     searchParams.q ? findActiveWantedRequestsByContext({ q: searchParams.q, context: "VEHICLE", limit: 6 }) : Promise.resolve([]),
-    findActiveManualListings({ categories: ["VEHICLE"], limit: 12 })
+    findActiveManualListings({ categories: ["VEHICLE"], limit: 12, preferViewerLocation: hasSubmittedSearch, preferredState: searchParams.state, preferredCity: searchParams.city })
   ]);
   const resultCount = filteredListings?.length ?? 0;
 

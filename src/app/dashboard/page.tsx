@@ -24,6 +24,7 @@ import { parsePublishProviderRef, parseRenewProviderRef, parseServiceProviderRef
 import { findUserWantedRequests } from "@/lib/wanted-requests";
 import { canManageManualListings, findManagerManualListings } from "@/lib/manual-listings";
 import { findDashboardListings } from "@/lib/dashboard-listings-data";
+import { reconcilePendingAsaasPaymentsForUser } from "@/lib/payment-reconciliation";
 
 export const dynamic = "force-dynamic";
 const showDashboardChatInAccount = false;
@@ -31,6 +32,7 @@ const showDashboardChatInAccount = false;
 export default async function DashboardPage() {
   const user = await requireUser().catch(() => null);
   if (!user) redirect("/entrar");
+  await reconcilePendingAsaasPaymentsForUser(user.id).catch(() => null);
   const supabase = getSupabaseAdmin();
   const manualListingManager = canManageManualListings(user);
   const [listings, payments, serviceProfileResult, leadsResult, bannerCampaigns, wantedRequests, manualListings] = await Promise.all([
@@ -74,7 +76,7 @@ export default async function DashboardPage() {
   const profileFields = [user.phone, user.whatsapp, user.cep, user.address, user.number, user.district, user.city, user.state];
   const profileCompletion = Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100);
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
+    <main className="acheix-neon-dashboard mx-auto max-w-6xl px-4 py-8">
       <div className="flex items-center justify-between gap-3">
         <h1 className="min-w-0 text-2xl font-black sm:text-3xl">Minha Conta</h1>
         <LogoutButton className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-white/10 px-2.5 text-xs font-black text-white hover:bg-white/10 disabled:opacity-60 sm:px-4 sm:text-sm" label="Sair / Trocar Login" />
@@ -92,6 +94,7 @@ export default async function DashboardPage() {
         cpf: user.cpf,
         phone: user.phone,
         whatsapp: user.whatsapp,
+        whatsapp2: user.whatsapp2,
         phoneVerifiedAt: user.phoneVerifiedAt,
         whatsappVerifiedAt: user.whatsappVerifiedAt,
         cep: user.cep,
@@ -505,9 +508,6 @@ function serviceSearchImpressions(complement: string | null | undefined) {
   const views = Number(exposure.searchImpressions ?? 0);
   return Number.isFinite(views) && views > 0 ? Math.floor(views) : 0;
 }
-
-
-
 
 
 

@@ -52,6 +52,12 @@ export async function createUserMessageAndNotify(input: CreateUserMessageInput) 
       body: input.push.body ?? `Você recebeu uma nova mensagem em ${messageCategoryLabel(input.category)}.`,
       url: input.push.url,
       unreadCounts: counts
+    }).catch((error) => {
+      console.error("message.push_notification_failed", {
+        messageId: message.id,
+        recipientId: input.recipientId,
+        error: error instanceof Error ? error.message : String(error)
+      });
     });
   }
   return { message, unreadCounts: counts };

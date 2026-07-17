@@ -8,7 +8,7 @@ import { findActiveListings } from "@/lib/listing-search";
 import { findListingBySlug } from "@/lib/listing-records";
 import { listingTopRefreshActivationFields } from "@/lib/listing-top-refresh-policy";
 import { deliverUserNotice } from "@/lib/notifications";
-import { getProductValuePlanId, isCnpjAccount, isPlanAllowedForCategory, isProfessionalPlanCode, isProductPlanAvailableForPrice, productPlanPriceRangeMessage } from "@/lib/plan-rules";
+import { getProductValuePlanId, isPlanAllowedForCategory, isProductPlanAvailableForPrice, productPlanPriceRangeMessage } from "@/lib/plan-rules";
 import { isPlatformComplimentaryUser } from "@/lib/platform-complimentary-users";
 import { planCatalog } from "@/lib/constants";
 import { canAutoApproveProductListing } from "@/lib/product-auto-approval";
@@ -71,9 +71,6 @@ export async function POST(request: Request) {
     if (!plan) return json({ error: "Plano não encontrado" }, 400);
 
     const planProvidedByAdmin = Boolean(adminPlanGrant);
-    if (isProfessionalPlanCode(plan.code) && !isCnpjAccount(user) && !planProvidedByAdmin) {
-      return json({ error: "Plano X Profissional é exclusivo para conta com CNPJ." }, 403);
-    }
     if (!isPlanAllowedForCategory(plan.code, data.category)) {
       return json({ error: "Este plano é exclusivo para anúncios de produtos." }, 422);
     }
@@ -111,6 +108,25 @@ export async function POST(request: Request) {
       return json({
         error: "Identificamos que este anúncio pode conter um produto incompatível com as Políticas de Publicação do Achei X.",
         code: "PRODUCT_BLOCKED_BY_POLICY",
+        moderation: productModeration
+      }, 422);
+    }
+    if (productModeration?.status === "NEEDS_REVIEW") {
+      await db().from("AuditLog").insert({
+        id: newDbId(),
+        userId: user.id,
+        action: "product_moderation.review_required_before_payment",
+        metadata: {
+          title: data.title,
+          category: data.product?.productCategory,
+          subcategory: data.product?.subcategory,
+          riskScore: productModeration.riskScore,
+          reasons: productModeration.reasons
+        }
+      });
+      return json({
+        error: "Este anúncio precisa de uma verificação de segurança antes de poder ser publicado. Nenhuma cobrança foi gerada.",
+        code: "PRODUCT_REVIEW_REQUIRED_BEFORE_PAYMENT",
         moderation: productModeration
       }, 422);
     }

@@ -25,22 +25,24 @@ const allowedContextTerms = [
   "remedio caseiro",
   "remedio para plantas",
   "receita caseira",
-  "cha natural",
-  "farmacia",
-  "veterinario",
-  "brinquedo"
+  "cha natural"
 ];
 
 const blockedPolicySignals: Array<{ code: string; pattern: RegExp }> = [
-  { code: "WEAPON_FIREARM", pattern: /\b(arma de fogo|revolver|pistola|fuzil|espingarda|metralhadora|glock|calibre)\b/ },
-  { code: "AMMUNITION", pattern: /\b(municao|municoes|cartucho|cartuchos)\b/ },
-  { code: "EXPLOSIVE", pattern: /\b(explosivo|dinamite|granada|bomba caseira)\b/ },
-  { code: "CONTROLLED_MEDICINE", pattern: /\b(mounjaro|ozempic|wegovy|sibutramina|anabolizante|hormonio|medicamento controlado|remedio controlado|receita medica falsa)\b/ },
-  { code: "ILLEGAL_DRUG", pattern: /\b(cocaina|crack|maconha|lsd|ecstasy|droga ilicita)\b/ },
+  { code: "WEAPON_FIREARM", pattern: /\b(arma(s)? de fogo|revolver(es)?|pistola(s)?|fuzil(is)?|rifle(s)?|carabina(s)?|espingarda(s)?|escopeta(s)?|metralhadora(s)?|submetralhadora(s)?|mosquetao|bacamarte|garrucha(s)?|glock|arma artesanal|arma caseira|calibre\s*\.?\s*\d+)\b/ },
+  { code: "WEAPON_AIR_REPLICA", pattern: /\b(arma(s)? de pressao|carabina(s)? de pressao|espingarda(s)? de pressao|espingarda(s)? de chumbo|airsoft|airgun|bb gun|arma(s)? de chumbinho|marcador(es)? de paintball|replica(s)? de arma)\b/ },
+  { code: "WEAPON_COMPONENT", pattern: /\b(silenciador(es)? de arma|supressor(es)? de arma|cano(s)? de arma|carregador(es)? de (pistola|fuzil|rifle|carabina)|mira(s)? para (pistola|fuzil|rifle|carabina)|gatilho(s)? de arma)\b/ },
+  { code: "OTHER_WEAPON", pattern: /\b(soco ingles|taser|arma de choque|spray de pimenta|faca tatica|faca de combate|canivete automatico|besta de caca)\b/ },
+  { code: "AMMUNITION", pattern: /\b(municao|municoes|cartucho(s)? de municao|cartucho(s)? calibre|bala(s)? calibre|projetil(eis)? de arma|espoleta(s)?|polvora|chumbinho(s)? para (arma|carabina|espingarda))\b/ },
+  { code: "EXPLOSIVE", pattern: /\b(explosivo(s)?|dinamite|granada(s)?|bomba caseira|artefato explosivo|coquetel molotov|detonador(es)?)\b/ },
+  { code: "MEDICINE", pattern: /\b(remedio(s)?|medicamento(s)?|farmaco(s)?|antibiotico(s)?|antidepressivo(s)?|ansiolitico(s)?|tarja preta|insulina|semaglutida|tirzepatida|mounjaro|ozempic|wegovy|sibutramina|anabolizante(s)?|esteroide(s)?|hormonio(s)?|rivotril|clonazepam|diazepam|zolpidem|venvanse|ritalina|codeina|tramadol|amoxicilina|azitromicina|dipirona|paracetamol|ibuprofeno|receita medica falsa)\b/ },
+  { code: "ILLEGAL_DRUG", pattern: /\b(cocaina|crack|maconha|haxixe|heroina|metanfetamina|lsd|ecstasy|mdma|droga(s)? ilicita(s)?|entorpecente(s)?|narcotico(s)?)\b/ },
   { code: "ACCOUNT_RESALE", pattern: /\b(conta netflix|conta spotify|conta instagram|conta tiktok|iptv)\b/ },
-  { code: "FRAUD_TOOL", pattern: /\b(hack|cheat|cartao clonado|clonagem|dados pessoais|documento falso|rg falso|cpf falso|cnh falsa|diploma falso)\b/ },
-  { code: "ADULT_CONTENT", pattern: /\b(pornografia|conteudo adulto|sexo explicito|programa sexual)\b/ },
-  { code: "STOLEN_GOODS", pattern: /\b(produto roubado|produto furtado|sem procedencia|carga roubada)\b/ }
+  { code: "FRAUD_TOOL", pattern: /\b(hack|cheat|cartao clonado|clonagem de cartao|dados pessoais|documento(s)? falso(s)?|rg falso|cpf falso|cnh falsa|passaporte falso|diploma falso|atestado falso|nota(s)? falsa(s)?|dinheiro falso|maquininha adulterada|chupa cabra|phishing|painel de fraude)\b/ },
+  { code: "ADULT_CONTENT", pattern: /\b(pornografia|pornografico(s)?|conteudo adulto|conteudo sexual|sexo explicito|video(s)? de sexo|foto(s)? de sexo|nude(s|z)?|onlyfans|acompanhante sexual|programa sexual|servico(s)? sexual(is)?|massagem erotica)\b/ },
+  { code: "CHILD_SEXUAL_ABUSE", pattern: /\b(pedofilia|pedofilo(s)?|conteudo pedofilo|pornografia infantil|conteudo sexual infantil|sexo com menor|nude(s|z)? de menor|foto(s)? intima(s)? de menor|video(s)? intimo(s)? de menor|exploracao sexual infantil|abuso sexual infantil|material sexual de crianca|material sexual de adolescente)\b/ },
+  { code: "STOLEN_GOODS", pattern: /\b(produto(s)? roubado(s)?|produto(s)? furtado(s)?|sem procedencia|carga roubada|mercadoria roubada|objeto furtado|receptacao|desmanche ilegal|peca(s)? de veiculo roubado)\b/ },
+  { code: "CRIMINAL_SERVICE", pattern: /\b(servico de agiotagem|agiota|lavagem de dinheiro|laranja para conta|conta bancaria de terceiro|invasao de conta|clonar whatsapp|desbloqueio ilegal|fraude bancaria)\b/ }
 ];
 
 const reviewPolicyTerms = [
@@ -80,28 +82,31 @@ export function moderateProductListing(input: {
   model?: string;
   userRiskScore?: number | null;
 }): ProductModerationDecision {
-  const text = normalize([
+  const text = stripAllowedContexts(normalize([
     input.title,
     input.description,
     input.category,
     input.subcategory,
     input.brand,
     input.model
-  ].filter(Boolean).join(" "));
+  ].filter(Boolean).join(" ")));
 
-  const allowedContext = allowedContextTerms.some((term) => text.includes(normalize(term)));
-  const blocked = allowedContext ? [] : blockedPolicySignals.filter((signal) => signal.pattern.test(text)).map((signal) => signal.code);
+  const blocked = blockedPolicySignals.filter((signal) => signal.pattern.test(text)).map((signal) => signal.code);
   if (blocked.length) {
     return { status: "BLOCKED", riskScore: 90, reasons: blocked.slice(0, 5) };
   }
 
-  const review = allowedContext ? [] : reviewPolicyTerms.filter((term) => text.includes(normalize(term)));
+  const review = reviewPolicyTerms.filter((term) => text.includes(normalize(term)));
   const userRisk = Number(input.userRiskScore ?? 0);
   if (review.length || userRisk >= 105) {
     return { status: "NEEDS_REVIEW", riskScore: Math.max(45, Math.min(85, review.length * 18 + Math.floor(userRisk / 3))), reasons: review.slice(0, 5) };
   }
 
   return { status: "APPROVED", riskScore: 10, reasons: [] };
+}
+
+function stripAllowedContexts(value: string) {
+  return allowedContextTerms.reduce((text, term) => text.replaceAll(normalize(term), " "), value).replace(/\s+/g, " ").trim();
 }
 
 export function requiresProductOriginDeclaration(category: string, subcategory: string) {

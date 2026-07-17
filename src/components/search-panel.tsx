@@ -6,7 +6,7 @@ import { CurrencyInput } from "@/components/currency-input";
 import { IntegerInput } from "@/components/integer-input";
 import { LocationFields } from "@/components/location-fields";
 import { useState } from "react";
-import { normalizeRealEstatePurpose, realEstatePurposeLabels, realEstatePurposes, realEstateTypesByPurpose, type RealEstatePurpose } from "@/lib/real-estate-taxonomy";
+import { allRealEstateTypes, normalizeRealEstatePurpose, realEstatePurposeLabels, realEstatePurposes, realEstateTypesByPurpose, type RealEstatePurpose } from "@/lib/real-estate-taxonomy";
 
 const SEARCH_PLACEHOLDER = "O que você procura?";
 
@@ -93,7 +93,7 @@ export function SearchPanel({ q, category, type, min, max, brand, fuel, purpose,
         <div className="mt-3 grid gap-3 md:grid-cols-4">
           {currentCategory !== "REAL_ESTATE" ? <select name="type" defaultValue={type ?? ""} className="h-11 rounded-full border border-white/10 bg-black/70 px-3 font-bold text-white">
             <option value="">Tipo</option>
-            {(currentCategory === "VEHICLE" ? categories.VEHICLE : currentCategory === "REAL_ESTATE" ? categories.REAL_ESTATE : currentCategory === "PRODUCT" ? categories.PRODUCT : [...categories.VEHICLE, ...categories.REAL_ESTATE, ...categories.PRODUCT]).map((item) => (
+            {(currentCategory === "VEHICLE" ? categories.VEHICLE : currentCategory === "REAL_ESTATE" ? allRealEstateTypes : currentCategory === "PRODUCT" ? categories.PRODUCT : [...categories.VEHICLE, ...allRealEstateTypes, ...categories.PRODUCT]).map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
           </select> : <>

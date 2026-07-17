@@ -84,7 +84,7 @@ export function AppChrome({ children, initialAdminShell = false }: { children: R
               Planos
             </Link>
             <a
-              className="acheix-download-pulse inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#22C55E] px-3 text-xs font-black text-white transition hover:bg-[#34D399] sm:px-4 sm:text-sm"
+              className="acheix-download-neon inline-flex h-10 shrink-0 items-center justify-center rounded-full px-3 text-xs sm:px-4 sm:text-sm"
               href="/baixar-app"
               aria-label="Baixar App Android"
               title="Baixar App Android"

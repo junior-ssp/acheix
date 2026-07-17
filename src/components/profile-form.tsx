@@ -12,6 +12,7 @@ type ProfileData = {
   cnpj?: string | null;
   phone: string | null;
   whatsapp: string | null;
+  whatsapp2: string | null;
   phoneVerifiedAt?: string | Date | null;
   whatsappVerifiedAt?: string | Date | null;
   cep: string | null;
@@ -29,6 +30,7 @@ export function ProfileForm({ user, profileCompletion }: { user: ProfileData; pr
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [phone, setPhone] = useState(formatPhone(user.phone ?? ""));
   const [whatsapp, setWhatsapp] = useState(formatPhone(user.whatsapp ?? ""));
+  const [whatsapp2, setWhatsapp2] = useState(formatPhone(user.whatsapp2 ?? ""));
   const [cpf, setCpf] = useState(formatCpf(user.cpf ?? ""));
   const [cnpj, setCnpj] = useState(formatCnpj(user.cnpj ?? ""));
   const [documentFile, setDocumentFile] = useState<File | null>(null);
@@ -170,12 +172,13 @@ export function ProfileForm({ user, profileCompletion }: { user: ProfileData; pr
         />
         <ContactField
           kind="whatsapp"
-          label="WhatsApp"
+          label="WhatsApp 1"
           name="whatsapp"
           value={whatsapp}
           verifiedAt={whatsappVerifiedAt}
           onChange={changeWhatsapp}
         />
+        <input name="whatsapp2" value={whatsapp2} onChange={(event) => setWhatsapp2(formatPhone(event.currentTarget.value))} inputMode="numeric" maxLength={15} placeholder="WhatsApp 2 (opcional)" aria-label="WhatsApp 2" className="input" />
         <input name="cep" inputMode="numeric" maxLength={9} onChange={(event) => maskInput(event, formatCep)} onBlur={lookupCep} defaultValue={formatCep(user.cep ?? "")} placeholder={cepLoading ? "Buscando CEP..." : "CEP"} className="input" />
         <input name="address" defaultValue={user.address ?? ""} placeholder="Endereço" className="input" />
         <input name="number" defaultValue={user.number ?? ""} placeholder="Número" className="input" />

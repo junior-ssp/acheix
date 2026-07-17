@@ -42,6 +42,7 @@ export type ListingRecord = {
     email: string;
     phone: string | null;
     whatsapp: string | null;
+    whatsapp2: string | null;
     city: string | null;
     state: string | null;
     allowPublicPhone: boolean;
@@ -88,7 +89,7 @@ export async function hydrateListings(rows: ListingRow[]): Promise<ListingRecord
     db().from("RealEstate").select(realEstateColumns).in("listingId", listingIds),
     db().from("Product").select(productColumns).in("listingId", listingIds),
     planIds.length ? db().from("Plan").select("id,code,name,priceCents,durationDays,photoLimit,listingLimit").in("id", planIds) : Promise.resolve({ data: [], error: null }),
-    ownerIds.length ? db().from("User").select("id,name,email,phone,whatsapp,city,state,allowPublicPhone,allowPublicWhatsapp,allowPublicEmail,acceptedTermsAt,identityVerifiedAt,createdAt").in("id", ownerIds) : Promise.resolve({ data: [], error: null }),
+    ownerIds.length ? db().from("User").select("id,name,email,phone,whatsapp,whatsapp2,city,state,allowPublicPhone,allowPublicWhatsapp,allowPublicEmail,acceptedTermsAt,identityVerifiedAt,createdAt").in("id", ownerIds) : Promise.resolve({ data: [], error: null }),
     ownerIds.length ? db().from("Listing").select("ownerId").in("ownerId", ownerIds).eq("status", "ACTIVE") : Promise.resolve({ data: [], error: null })
   ]);
 
@@ -132,7 +133,7 @@ export async function hydrateListingCards(rows: ListingRow[]): Promise<ListingRe
     db().from("RealEstate").select(realEstateColumns).in("listingId", listingIds),
     db().from("Product").select(productColumns).in("listingId", listingIds),
     planIds.length ? db().from("Plan").select("id,code,name,priceCents,durationDays,photoLimit,listingLimit").in("id", planIds) : Promise.resolve({ data: [], error: null }),
-    ownerIds.length ? db().from("User").select("id,name,email,phone,whatsapp,city,state,allowPublicPhone,allowPublicWhatsapp,allowPublicEmail,acceptedTermsAt,identityVerifiedAt,createdAt").in("id", ownerIds) : Promise.resolve({ data: [], error: null })
+    ownerIds.length ? db().from("User").select("id,name,email,phone,whatsapp,whatsapp2,city,state,allowPublicPhone,allowPublicWhatsapp,allowPublicEmail,acceptedTermsAt,identityVerifiedAt,createdAt").in("id", ownerIds) : Promise.resolve({ data: [], error: null })
   ]);
 
   for (const result of [photosResult, realEstateResult, productResult, plansResult, ownersResult]) {

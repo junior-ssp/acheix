@@ -77,7 +77,7 @@ export const planCatalog = [
     listingLimit: 10,
     benefits: [
       "Até 10 anúncios ativos simultaneamente",
-      "Exclusivo para conta com CNPJ",
+      "Disponível para pessoa física ou jurídica",
       "Veículos ou Imóveis",
       "Validade de 6 meses",
       "Edição ilimitada dos anúncios",
@@ -99,7 +99,7 @@ export const planCatalog = [
     listingLimit: 20,
     benefits: [
       "Até 20 anúncios ativos simultaneamente",
-      "Exclusivo para conta com CNPJ",
+      "Disponível para pessoa física ou jurídica",
       "Veículos ou Imóveis",
       "Validade de 12 meses",
       "Edição ilimitada dos anúncios",

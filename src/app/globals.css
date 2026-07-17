@@ -10,6 +10,27 @@
   --achei-green-hover: #34d399;
 }
 
+/* Dark Glassmorphism Neon — identidade visual Achei X */
+.acheix-neon-screen {
+  background: radial-gradient(circle at 12% 8%, rgb(250 204 21 / 0.12), transparent 28rem), radial-gradient(circle at 88% 28%, rgb(34 197 94 / 0.10), transparent 30rem), linear-gradient(155deg, #030403 0%, #090b08 50%, #020302 100%);
+}
+.acheix-glass-panel {
+  border: 1px solid rgb(250 204 21 / 0.22);
+  background: linear-gradient(145deg, rgb(24 24 20 / 0.88), rgb(5 8 6 / 0.78));
+  box-shadow: 0 18px 55px rgb(0 0 0 / 0.48), 0 0 28px rgb(250 204 21 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(20px) saturate(125%);
+}
+.acheix-neon-dashboard { position: relative; isolation: isolate; }
+.acheix-neon-dashboard::before {
+  position: fixed; inset: 0; z-index: -1; content: ""; pointer-events: none;
+  background: radial-gradient(circle at 15% 15%, rgb(250 204 21 / 0.10), transparent 30rem), radial-gradient(circle at 85% 40%, rgb(34 197 94 / 0.09), transparent 32rem);
+}
+.acheix-neon-dashboard > section {
+  border-radius: 1.75rem;
+  backdrop-filter: blur(18px) saturate(120%);
+  box-shadow: 0 20px 55px rgb(0 0 0 / 0.38), 0 0 26px rgb(250 204 21 / 0.06), inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+
 .dark {
   color-scheme: dark;
 }
@@ -80,25 +101,54 @@ svg {
 }
 
 .acheix-download-pulse {
-  animation: acheiXDownloadPulse 2.8s ease-in-out infinite;
-  box-shadow: 0 0 0 0 rgb(34 197 94 / 0.42), 0 0 18px rgb(34 197 94 / 0.22);
+  animation: acheiXDownloadPulse 1.8s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgb(250 204 21 / 0.48), 0 0 18px rgb(34 197 94 / 0.3);
+  color: #fde047;
 }
 
 @keyframes acheiXDownloadPulse {
   0%,
   100% {
     transform: translateZ(0) scale(1);
-    box-shadow: 0 0 0 0 rgb(34 197 94 / 0.36), 0 0 18px rgb(34 197 94 / 0.24);
+    box-shadow: 0 0 0 0 rgb(250 204 21 / 0.4), 0 0 18px rgb(34 197 94 / 0.3);
   }
 
-  45% {
-    transform: translateZ(0) scale(1.045);
-    box-shadow: 0 0 0 8px rgb(34 197 94 / 0), 0 0 28px rgb(34 197 94 / 0.42);
+  50% {
+    transform: translateZ(0) scale(1.08);
+    box-shadow: 0 0 0 9px rgb(250 204 21 / 0), 0 0 30px rgb(34 197 94 / 0.58);
+  }
+}
+
+/* Botão Baixar App — pulsação + ciclo VERDE → AZUL a cada 6s (3s cada cor) */
+.acheix-download-neon {
+  animation: acheiXDownloadNeon 6s ease-in-out infinite;
+  font-weight: 900;
+}
+
+@keyframes acheiXDownloadNeon {
+  0% {
+    background: #22c55e;
+    color: #0a1a3a;
+    box-shadow: 0 0 0 0 rgb(34 197 94 / 0.5), 0 0 24px rgb(34 197 94 / 0.4);
+    transform: scale(1);
+  }
+  50% {
+    background: #2563eb;
+    color: #fef08a;
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 0.4), 0 0 28px rgb(37 99 235 / 0.4);
+    transform: scale(1.06);
+  }
+  100% {
+    background: #22c55e;
+    color: #0a1a3a;
+    box-shadow: 0 0 0 0 rgb(34 197 94 / 0.5), 0 0 24px rgb(34 197 94 / 0.4);
+    transform: scale(1);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .acheix-download-pulse {
+  .acheix-download-pulse,
+  .acheix-download-neon {
     animation: none;
   }
 }

@@ -8,7 +8,7 @@ import { planCatalog } from "@/lib/constants";
 import { formatCurrencyBRL, formatPlanCurrencyBRL } from "@/lib/formatters";
 import { normalizeImageUrl } from "@/lib/image-url";
 import { PlanIcon } from "@/components/plan-icon";
-import { isCnpjAccount, isPlanAllowedForCategory, isProductPlanAvailableForPrice, isProfessionalPlanCode } from "@/lib/plan-rules";
+import { isPlanAllowedForCategory, isProductPlanAvailableForPrice } from "@/lib/plan-rules";
 
 type DashboardListing = {
   id: string;
@@ -51,7 +51,7 @@ const filters = [
 
 export function DashboardListings({ listings, accountType, cnpj, initialFilter = "ALL", plans = planCatalog }: { listings: DashboardListing[]; accountType?: string | null; cnpj?: string | null; initialFilter?: string; plans?: readonly PlanOption[] }) {
   const [planOptions, setPlanOptions] = useState<readonly PlanOption[]>(plans);
-  const paidPlans = planOptions.filter((plan) => plan.code !== "FREE" && (!isProfessionalPlanCode(plan.code) || isCnpjAccount({ accountType, cnpj })));
+  const paidPlans = planOptions.filter((plan) => plan.code !== "FREE");
   const [items, setItems] = useState(listings);
   const [filter, setFilter] = useState(filters.some((item) => item.value === initialFilter) ? initialFilter : "ALL");
   const [message, setMessage] = useState("");

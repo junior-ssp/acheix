@@ -30,7 +30,7 @@ export default async function RealEstatePage({ searchParams }: { searchParams: L
   const [filteredListings, wantedRequests, manualListings] = await Promise.all([
     hasSubmittedSearch ? findActiveListings(searchParams, "REAL_ESTATE") : Promise.resolve(undefined),
     searchParams.q ? findActiveWantedRequestsByContext({ q: searchParams.q, context: "REAL_ESTATE", limit: 6 }) : Promise.resolve([]),
-    findActiveManualListings({ categories: ["REAL_ESTATE"], limit: 12 })
+    findActiveManualListings({ categories: ["REAL_ESTATE"], limit: 12, preferViewerLocation: hasSubmittedSearch, preferredState: searchParams.state, preferredCity: searchParams.city })
   ]);
   const resultCount = filteredListings?.length ?? 0;
 

@@ -3,7 +3,6 @@ import { confirmBannerPayment, parseBannerProviderRef } from "@/lib/banner-campa
 import { planCatalog } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications";
 import { getProductValuePlanId } from "@/lib/plan-rules";
-import { canAutoApproveProductListing } from "@/lib/product-auto-approval";
 import { listingTopRefreshActivationFields } from "@/lib/listing-top-refresh-policy";
 import { activateServicePaidBilling } from "@/lib/service-billing-policy";
 import { parseServiceComplement } from "@/lib/service-contact-disclosure";
@@ -112,8 +111,7 @@ export async function confirmRenewalPayment(paymentId: string) {
   }
 
   const expiresAt = addDays(paidAt, paymentPlan.durationDays);
-  const owner = Array.isArray((listingResult.data as any).owner) ? (listingResult.data as any).owner[0] : (listingResult.data as any).owner;
-  const statusAfterPayment = publish && listingResult.data.category === "PRODUCT" && !canAutoApproveProductListing(owner) ? "PENDING_REVIEW" : "ACTIVE";
+  const statusAfterPayment = await paidListingStatusAfterModeration(listingResult.data.id, listingResult.data.category);
   const topRefreshFields = statusAfterPayment === "ACTIVE" ? listingTopRefreshActivationFields(paymentPlan.code, paidAt) : {};
   const { error: updateListingError } = await supabase
     .from("Listing")
@@ -164,6 +162,20 @@ export async function confirmRenewalPayment(paymentId: string) {
   );
 
   return paidPayment;
+}
+
+async function paidListingStatusAfterModeration(listingId: string, category: string) {
+  if (category !== "PRODUCT") return "ACTIVE";
+  const { data, error } = await db()
+    .from("AuditLog")
+    .select("metadata,createdAt")
+    .eq("action", "product_moderation.evaluated")
+    .contains("metadata", { listingId })
+    .order("createdAt", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  throwDbError(error);
+  return data?.metadata?.status === "APPROVED" ? "ACTIVE" : "PENDING_REVIEW";
 }
 
 async function confirmServicePayment(payment: PaymentForConfirmation, reference: { profileId: string; planCode: ServicePlanCode }) {

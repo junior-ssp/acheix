@@ -18,7 +18,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   const showSearchTools = currentSearchParams.modo === "buscar" || hasSubmittedSearch;
   const [listings, manualListings] = await Promise.all([
     findActiveListings(hasSubmittedSearch ? currentSearchParams : {}, "PRODUCT"),
-    findActiveManualListings({ categories: ["PRODUCT"], limit: 24 })
+    findActiveManualListings({ categories: ["PRODUCT"], limit: 24, preferViewerLocation: currentSearchParams.searched === "1", preferredState: currentSearchParams.state, preferredCity: currentSearchParams.city })
   ]);
   const resultCount = listings.length;
 

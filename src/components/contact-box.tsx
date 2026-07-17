@@ -8,6 +8,7 @@ import { formatPhone } from "@/lib/formatters";
 type PublicContact = {
   phone: string | null;
   whatsapp: string | null;
+  whatsapp2: string | null;
   email: string | null;
 };
 
@@ -52,7 +53,9 @@ export function ContactBox({
   const [message, setMessage] = useState("");
   const [contactOpen, setContactOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const bestCopyContact = contact.whatsapp ?? contact.phone ?? contact.email;
+  const preferredWhatsapp = contact.whatsapp ?? contact.whatsapp2;
+  const bestCopyContact = preferredWhatsapp ?? contact.phone ?? contact.email;
+  const hasExternalContact = Boolean(bestCopyContact);
   const blockedMessage = interactionDisabledReason ?? "Atualize seu perfil para interagir com o anunciante.";
 
   function sendInterest(event: FormEvent<HTMLFormElement>) {
@@ -67,13 +70,13 @@ export function ContactBox({
       setMessage("Escreva uma mensagem antes de enviar.");
       return;
     }
-    if (!contact.whatsapp) {
+    if (!preferredWhatsapp) {
       setMessage("WhatsApp não liberado pelo anunciante, use o CHAT.");
       return;
     }
     const listingUrl = new URL(`/anuncios/${slug}`, window.location.origin).toString();
     const finalMessage = `Como vai, tudo bem? Tenho interesse em seu anúncio "${listingUrl}".\n\n${text}`;
-    window.open(`https://wa.me/55${onlyDigits(contact.whatsapp)}?text=${encodeURIComponent(finalMessage)}`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/55${onlyDigits(preferredWhatsapp)}?text=${encodeURIComponent(finalMessage)}`, "_blank", "noopener,noreferrer");
   }
 
   async function copyContact() {
@@ -102,7 +105,7 @@ export function ContactBox({
   }
 
   return (
-    <div className="mt-3 grid gap-3">
+    <div className="acheix-glass-panel mt-3 grid gap-3 rounded-3xl p-3">
       {!canInteract ? (
         <div className="rounded-md border border-black/10 bg-white/30 p-3 text-sm font-bold text-black">
           <p className="flex items-center gap-2">
@@ -111,16 +114,16 @@ export function ContactBox({
           <a href="/dashboard" className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md btn-gold">Atualizar perfil</a>
         </div>
       ) : null}
-      <form onSubmit={sendInterest} className="grid gap-2">
+      {hasExternalContact ? <form onSubmit={sendInterest} className="grid gap-2">
         <textarea
           value={interestMessage}
           onChange={(event) => setInterestMessage(event.target.value)}
           maxLength={280}
           rows={4}
-          placeholder={contact.whatsapp ? "Escreva seu interesse para abrir no WhatsApp" : "WhatsApp não liberado pelo anunciante, use o CHAT"}
-          className="min-h-28 w-full rounded-md border border-black/15 bg-white/90 p-3 text-black outline-none placeholder:text-neutral-500 focus:border-yellow-500"
+          placeholder={preferredWhatsapp ? "Escreva seu interesse para abrir no WhatsApp" : "WhatsApp não liberado pelo anunciante, use o CHAT"}
+          className="min-h-28 w-full rounded-2xl border border-yellow-300/20 bg-black/55 p-3 text-white outline-none placeholder:text-neutral-500 focus:border-yellow-300 focus:shadow-[0_0_20px_rgba(250,204,21,0.12)]"
         />
-        <button disabled={canInteract && !contact.whatsapp} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-black px-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-45">
+        <button disabled={canInteract && !preferredWhatsapp} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-black px-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-45">
           <Send size={17} />
           Enviar Interesse
         </button>
@@ -128,13 +131,18 @@ export function ContactBox({
           <MessageCircle size={17} />
           CHAT
         </button>
-      </form>
+      </form> : (
+        <button type="button" onClick={() => setChatOpen(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-yellow-300 px-3 font-black text-black hover:bg-yellow-200">
+          <MessageCircle size={18} />
+          CHAT
+        </button>
+      )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => canInteract ? setContactOpen((current) => !current) : setMessage(blockedMessage)} className="inline-flex h-10 items-center justify-center rounded-md border border-black/15 bg-white/80 px-3 text-sm font-black text-black">
+      {hasExternalContact ? <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => canInteract ? setContactOpen((current) => !current) : setMessage(blockedMessage)} className="inline-flex h-10 items-center justify-center rounded-full border border-yellow-300/25 bg-white/[0.06] px-3 text-sm font-black text-white backdrop-blur-xl">
           Ver Contato
         </button>
-        <button type="button" onClick={copyContact} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md border border-black/15 bg-white/80 px-3 text-sm font-black text-black">
+        <button type="button" onClick={copyContact} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 text-sm font-black text-emerald-100 backdrop-blur-xl">
           <Copy size={16} />
           Copiar Contato
         </button>
@@ -144,7 +152,7 @@ export function ContactBox({
             Ligar
           </a>
         ) : null}
-      </div>
+      </div> : null}
 
       {contactOpen ? <ContactDetails contact={contact} /> : null}
       {message ? <p className="text-sm font-bold text-black">{message}</p> : null}
@@ -154,13 +162,14 @@ export function ContactBox({
 }
 
 function ContactDetails({ contact }: { contact: PublicContact }) {
-  if (!contact.whatsapp && !contact.phone && !contact.email) {
+  if (!contact.whatsapp && !contact.whatsapp2 && !contact.phone && !contact.email) {
     return <p className="rounded-md border border-black/10 bg-white/70 p-3 text-sm font-bold text-black">O anunciante não liberou contato externo. Use o CHAT.</p>;
   }
 
   return (
-    <div className="grid gap-1 rounded-md border border-black/10 bg-white/80 p-3 text-sm text-black">
-      {contact.whatsapp ? <p><strong>WhatsApp:</strong> {formatPhone(contact.whatsapp)}</p> : null}
+    <div className="acheix-glass-panel grid gap-1 rounded-2xl p-3 text-sm text-white">
+      {contact.whatsapp ? <p><strong>WhatsApp 1:</strong> {formatPhone(contact.whatsapp)}</p> : null}
+      {contact.whatsapp2 ? <p><strong>WhatsApp 2:</strong> {formatPhone(contact.whatsapp2)}</p> : null}
       {contact.phone ? <p><strong>Telefone:</strong> {formatPhone(contact.phone)}</p> : null}
       {contact.email ? <p><strong>E-mail:</strong> {contact.email}</p> : null}
     </div>
@@ -355,8 +364,8 @@ function ChatModal({ slug, currentUserId, onClose }: { slug: string; currentUser
   }
 
   return (
-    <div className="fixed inset-0 z-[200] grid place-items-end bg-black/70 p-3 sm:place-items-center">
-      <div className="grid max-h-[88vh] w-full max-w-lg grid-rows-[auto_1fr_auto] overflow-hidden rounded-xl border border-white/10 bg-neutral-950 text-white shadow-2xl">
+    <div className="fixed inset-0 z-[200] grid place-items-end bg-black/80 p-3 backdrop-blur-md sm:place-items-center">
+      <div className="acheix-glass-panel grid max-h-[88vh] w-full max-w-lg grid-rows-[auto_1fr_auto] overflow-hidden rounded-[2rem] text-white">
         <div className="border-b border-white/10 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -431,9 +440,9 @@ function ChatModal({ slug, currentUserId, onClose }: { slug: string; currentUser
             maxLength={1000}
             rows={3}
             placeholder="Escreva uma mensagem"
-            className="w-full rounded-md border border-white/10 bg-black p-3 text-white outline-none placeholder:text-neutral-500 focus:border-yellow-300"
+            className="w-full rounded-2xl border border-yellow-300/20 bg-black/55 p-3 text-white outline-none placeholder:text-neutral-500 focus:border-yellow-300 focus:shadow-[0_0_20px_rgba(250,204,21,0.12)]"
           />
-          <button disabled={busy || !body.trim() || (mode === "OWNER" && !activeConversation)} className="h-10 rounded-md btn-gold disabled:cursor-not-allowed disabled:opacity-50">
+          <button disabled={busy || !body.trim() || (mode === "OWNER" && !activeConversation)} className="h-11 rounded-full btn-gold shadow-[0_0_24px_rgba(250,204,21,0.18)] disabled:cursor-not-allowed disabled:opacity-50">
             {busy ? "Enviando..." : "Enviar no chat"}
           </button>
         </form>

@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { planCatalog } from "@/lib/constants";
 import { errorResponse, json } from "@/lib/http";
-import { getProductValuePlanId, isCnpjAccount, isPlanAllowedForCategory, isProfessionalPlanCode, isProductPlanAvailableForPrice, productPlanPriceRangeMessage } from "@/lib/plan-rules";
+import { getProductValuePlanId, isPlanAllowedForCategory, isProductPlanAvailableForPrice, productPlanPriceRangeMessage } from "@/lib/plan-rules";
 import { db, newDbId, throwDbError } from "@/lib/supabase-db";
 import { z } from "zod";
 
@@ -47,9 +47,6 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     const fallbackProductPlanId = getProductValuePlanId(data.planCode);
     const plan = dbPlan && catalogPlan ? { ...catalogPlan, ...dbPlan, id: dbPlan.id } : dbPlan ?? (catalogPlan && fallbackProductPlanId ? { ...catalogPlan, id: fallbackProductPlanId } : null);
     if (!plan) return json({ error: "Plano não encontrado" }, 400);
-    if (isProfessionalPlanCode(plan.code) && !isCnpjAccount(user)) {
-      return json({ error: "Plano X Profissional é exclusivo para conta com CNPJ." }, 403);
-    }
     if (!isPlanAllowedForCategory(plan.code, listing.category as any)) {
       return json({ error: "Este plano é exclusivo para anúncios de produtos." }, 422);
     }

@@ -34,7 +34,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Listi
         query ? findActiveWantedRequestsByContext({ q: query, context: "VEHICLE", limit: 3 }) : Promise.resolve([]),
         query ? findActiveWantedRequestsByContext({ q: query, context: "REAL_ESTATE", limit: 3 }) : Promise.resolve([]),
         query ? findActiveWantedRequestsByContext({ q: query, context: "SERVICE", limit: 3 }) : Promise.resolve([]),
-        findGlobalManualListings(query),
+        findGlobalManualListings(query, searchParams),
         findGlobalServices(query)
       ])
     : [[], [], [], [], []];
@@ -53,11 +53,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Listi
           <h2 className="mb-3 text-xl font-black">Anúncios encontrados</h2>
           <ListingResults searchParams={searchParams} manualListings={manualListings} emptyTitle="Nenhum anúncio encontrado na busca geral." />
         </section>
-      ) : (
-        <section className="mt-6 rounded-2xl border border-white/10 bg-neutral-950/80 p-4 text-sm text-neutral-300">
-          Digite o que procura acima ou escolha uma categoria para buscar em uma área específica.
-        </section>
-      )}
+      ) : null}
 
       {hasSubmittedSearch && services.length ? (
         <section className="mt-8">
@@ -127,9 +123,9 @@ function ServiceSearchCard({ service }: { service: SearchService }) {
   );
 }
 
-async function findGlobalManualListings(query: string): Promise<ManualListing[]> {
+async function findGlobalManualListings(query: string, searchParams: ListingSearchParams): Promise<ManualListing[]> {
   try {
-    const listings = await findActiveManualListings({ limit: 60 });
+    const listings = await findActiveManualListings({ limit: 60, preferViewerLocation: true, preferredState: searchParams.state, preferredCity: searchParams.city });
     const terms = normalizeTerms(query);
     if (!terms.length) return listings.slice(0, 12);
     return listings.filter((listing) => {

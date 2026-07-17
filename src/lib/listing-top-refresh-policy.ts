@@ -1,6 +1,6 @@
 export type ListingTopRefreshPlanCode = "FREE" | "PRODUCT_MINI" | "PRODUCT_START" | "PRODUCT_BASIC" | "BRONZE" | "SILVER" | "GOLD" | "X6" | "X12";
 
-export const topRefreshBoostHours = 18;
+export const topRefreshBoostHours = 8;
 export const professionalTopRefreshOwnerCooldownHours = 6;
 export const topRefreshSearchBonus = 6;
 

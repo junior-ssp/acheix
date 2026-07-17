@@ -216,8 +216,8 @@ export function EditListingForm({
 
       <section className="grid gap-2 rounded-lg border border-yellow-300/25 bg-yellow-300/10 p-3">
         <div>
-          <p className="text-xs font-black uppercase text-yellow-300">Contato público deste anúncio</p>
-          <p className="mt-1 text-xs text-neutral-300">Só canais autorizados no seu perfil podem ser liberados neste anúncio.</p>
+          <p className="text-xs font-black uppercase text-yellow-300">Contato do anúncio</p>
+          <p className="mt-1 text-xs text-neutral-300">Escolha como os interessados podem falar com você.</p>
         </div>
         {contactPermissions.whatsapp ? (
           <label className="flex items-start gap-2 text-sm font-bold text-white">
@@ -237,9 +237,14 @@ export function EditListingForm({
             Liberar E-MAIL
           </label>
         ) : null}
-        <label className="flex items-start gap-2 text-sm font-bold text-white">
+        <label className="flex items-start gap-2 text-sm text-white">
           <input name="retainChatAudit" type="checkbox" defaultChecked={listing.retainChatAudit !== false} className="mt-1 accent-yellow-300" />
-          Manter registro mínimo de segurança quando o chat for limpo
+          <span>
+            <strong className="block font-bold">Guardar um registro de segurança</strong>
+            <span className="mt-1 block text-xs font-normal leading-relaxed text-neutral-300">
+              Se houver denúncia, golpe ou disputa, esse registro poderá ajudar o Achei X a verificar o que aconteceu. Ele não ficará visível no seu chat nem será público.
+            </span>
+          </span>
         </label>
       </section>
 
