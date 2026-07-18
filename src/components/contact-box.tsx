@@ -123,16 +123,16 @@ export function ContactBox({
           placeholder={preferredWhatsapp ? "Escreva seu interesse para abrir no WhatsApp" : "WhatsApp não liberado pelo anunciante, use o CHAT"}
           className="min-h-28 w-full rounded-2xl border border-yellow-300/20 bg-black/55 p-3 text-white outline-none placeholder:text-neutral-500 focus:border-yellow-300 focus:shadow-[0_0_20px_rgba(250,204,21,0.12)]"
         />
-        <button disabled={canInteract && !preferredWhatsapp} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-black px-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-45">
+        <button disabled={canInteract && !preferredWhatsapp} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-cyan-300/25 bg-cyan-400/10 px-3 font-black text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.12)] backdrop-blur-xl hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-45">
           <Send size={17} />
           Enviar Interesse
         </button>
-        <button type="button" onClick={() => setChatOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-yellow-300 px-3 font-black text-black hover:bg-yellow-200">
+        <button type="button" onClick={() => setChatOpen(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-300/35 bg-emerald-400/15 px-3 font-black text-emerald-100 shadow-[0_0_22px_rgba(52,211,153,0.16)] backdrop-blur-xl hover:bg-emerald-400/25">
           <MessageCircle size={17} />
           CHAT
         </button>
       </form> : (
-        <button type="button" onClick={() => setChatOpen(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-yellow-300 px-3 font-black text-black hover:bg-yellow-200">
+        <button type="button" onClick={() => setChatOpen(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-300/35 bg-emerald-400/15 px-3 font-black text-emerald-100 shadow-[0_0_22px_rgba(52,211,153,0.16)] backdrop-blur-xl hover:bg-emerald-400/25">
           <MessageCircle size={18} />
           CHAT
         </button>

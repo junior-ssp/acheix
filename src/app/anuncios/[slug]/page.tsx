@@ -192,8 +192,8 @@ export default async function ListingPage({ params }: { params: { slug: string }
             </div>
           </section>
 
-          <div className="rounded-lg border border-emerald-300/30 bg-[#22C55E] p-4 text-black shadow-[0_0_22px_rgb(34_197_94_/_0.18)]">
-            <h3 className="font-black">Entre em Contato</h3>
+          <div className="acheix-glass-panel rounded-3xl border border-emerald-300/30 bg-[linear-gradient(145deg,rgba(5,20,16,0.94),rgba(8,12,20,0.9))] p-4 text-white shadow-[0_0_28px_rgba(34,197,94,0.16)] backdrop-blur-xl">
+            <h3 className="font-black text-emerald-200">Entre em Contato</h3>
             <ContactBox
               slug={listing.slug}
               authenticated={Boolean(user)}

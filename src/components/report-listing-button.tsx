@@ -75,7 +75,7 @@ export function ReportListingButton({
   }
 
   return (
-    <section className="rounded-2xl border border-[#ff2800] bg-[#ff2800] p-3 shadow-[0_0_24px_rgb(255_40_0_/_0.22)]">
+    <section className="acheix-glass-panel rounded-3xl border border-red-400/35 bg-[linear-gradient(145deg,rgba(30,8,12,0.92),rgba(9,11,18,0.94))] p-4 shadow-[0_0_28px_rgba(248,113,113,0.16)] backdrop-blur-xl">
       <button
         type="button"
         onClick={() => {
@@ -123,7 +123,7 @@ export function ReportListingButton({
               className="text-xs font-bold text-white file:mr-3 file:rounded-full file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-black file:text-[#ff2800]"
             />
           </label>
-          <button disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/35 bg-white px-4 text-sm font-black text-[#ff2800] hover:bg-white/90 disabled:opacity-60">
+          <button disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-red-300/40 bg-red-400/15 px-4 text-sm font-black text-red-100 shadow-[0_0_20px_rgba(248,113,113,0.12)] backdrop-blur-xl hover:bg-red-400/25 disabled:opacity-60">
             <Flag size={16} />
             {busy ? "Enviando..." : "Enviar"}
           </button>

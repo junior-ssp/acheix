@@ -87,6 +87,18 @@ export default async function DashboardPage() {
         <Link href="/dashboard#meus-servicos" className="inline-flex h-11 items-center justify-center rounded-full bg-[#22C55E] px-4 text-sm font-black text-black hover:bg-[#34D399]">Meu CARD</Link>
         <Link href="/servicos/anunciar" className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm btn-gold">Sou Prestador</Link>
       </div>
+      <section id="central-anuncios" className="mt-6 scroll-mt-24 rounded-lg border border-yellow-300/60 bg-[linear-gradient(145deg,#111111_0%,#151515_55%,#0b0b0b_100%)] p-4 shadow-[0_0_28px_rgba(250,204,21,0.16)]">
+        <div>
+          <p className="text-xs font-black uppercase text-yellow-300">Central de Anúncios</p>
+          <p className="mt-1 text-sm text-neutral-400">Cada opção abre uma página própria, sem misturar todos os blocos na mesma tela.</p>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <DashboardAreaLink href="/dashboard/meus-anuncios#meus-anuncios" label="Meus Anúncios" count={`${listings.length} anúncio${listings.length === 1 ? "" : "s"}`} icon="listings" color="green" />
+          <DashboardAreaLink href="/dashboard/procura-se" label="Procura-se" count={`${wantedRequests.filter((item) => new Date(item.expiresAt).getTime() > Date.now()).length} ativo(s)`} icon="wanted" color="yellow" />
+          {manualListingManager ? <DashboardAreaLink href="/dashboard/anuncios-avulsos" label="Anúncio Avulso" count={`${manualListings.filter((item) => new Date(item.expiresAt).getTime() > Date.now()).length} ativo(s)`} icon="manual" color="blue" /> : null}
+          <DashboardAreaLink href="/dashboard/banners" label="Meus Banners" count={`${bannerCampaigns.length} banner${bannerCampaigns.length === 1 ? "" : "s"}`} icon="banners" color="pink" />
+        </div>
+      </section>
       <div id="perfil" className="scroll-mt-24">
       <ProfileForm profileCompletion={profileCompletion} user={{
         name: user.name,
@@ -108,44 +120,6 @@ export default async function DashboardPage() {
         cnpj: user.cnpj
       }} />
       </div>
-      <section id="central-anuncios" className="mt-6 scroll-mt-24 rounded-lg border border-yellow-300/60 bg-[linear-gradient(145deg,#111111_0%,#151515_55%,#0b0b0b_100%)] p-4 shadow-[0_0_28px_rgba(250,204,21,0.16)]">
-        <div>
-          <p className="text-xs font-black uppercase text-yellow-300">Central de Anúncios</p>
-          <p className="mt-1 text-sm text-neutral-400">Cada opção abre uma página própria, sem misturar todos os blocos na mesma tela.</p>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <DashboardAreaLink
-            href="/dashboard/meus-anuncios#meus-anuncios"
-            label="Meus Anúncios"
-            count={`${listings.length} anúncio${listings.length === 1 ? "" : "s"}`}
-            icon="listings"
-            color="green"
-          />
-          <DashboardAreaLink
-            href="/dashboard/procura-se"
-            label="Procura-se"
-            count={`${wantedRequests.filter((item) => new Date(item.expiresAt).getTime() > Date.now()).length} ativo(s)`}
-            icon="wanted"
-            color="yellow"
-          />
-          {manualListingManager ? (
-            <DashboardAreaLink
-              href="/dashboard/anuncios-avulsos"
-              label="Anúncio Avulso"
-              count={`${manualListings.filter((item) => new Date(item.expiresAt).getTime() > Date.now()).length} ativo(s)`}
-              icon="manual"
-              color="blue"
-            />
-          ) : null}
-          <DashboardAreaLink
-            href="/dashboard/banners"
-            label="Meus Banners"
-            count={`${bannerCampaigns.length} banner${bannerCampaigns.length === 1 ? "" : "s"}`}
-            icon="banners"
-            color="pink"
-          />
-        </div>
-      </section>
       <CommunicationPreferences
         initialChannels={user.notificationChannels?.length ? user.notificationChannels : [user.notificationChannel ?? "IN_APP"]}
         initialPublicPermissions={{
