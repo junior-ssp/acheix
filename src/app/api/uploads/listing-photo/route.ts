@@ -4,6 +4,7 @@ import { errorResponse, json } from "@/lib/http";
 import { blockedImageMessage, createImageModerationToken, finalizeApprovedImageModeration, moderateListingImage } from "@/lib/image-moderation";
 import { extractManualListingOcrHints } from "@/lib/manual-listing-ocr";
 import { canManageManualListings } from "@/lib/manual-listings";
+import { inspectListingImage } from "@/lib/listing-image-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,8 @@ export async function POST(request: Request) {
     if (file.size > maxFileSize) return json({ error: "Não foi possível reduzir a imagem antes do envio. Selecione-a novamente." }, 422);
 
     const bytes = Buffer.from(await file.arrayBuffer());
+    const inspected = await inspectListingImage(bytes).catch(() => ({ error: "A imagem está corrompida, é incompatível ou não corresponde a um formato seguro." }));
+    if ("error" in inspected) return json({ error: inspected.error }, 422);
     const moderation = await moderateListingImage({
       user,
       fileName: file.name,
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     const path = `listings/${user.id}/${Date.now()}-${crypto.randomUUID()}-${cleanName}`;
     const { error } = await supabase.storage.from(bucket).upload(path, bytes, {
       cacheControl: "31536000",
-      contentType: file.type,
+      contentType: inspected.mimeType,
       upsert: false
     });
 
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
     return json({
       url: data.publicUrl,
       moderationToken: createImageModerationToken({ userId: user.id, url: data.publicUrl, hash: moderation.hash, moderationId: moderation.moderationId }),
+      media: { width: inspected.width, height: inspected.height, mimeType: inspected.mimeType, orientation: inspected.orientation },
       manualListingHints: shouldExtractManualListingHints ? extractManualListingOcrHints(moderation.ocrText) : undefined
     });
   } catch (error) {

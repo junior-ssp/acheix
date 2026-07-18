@@ -354,7 +354,7 @@ function ListingMini({ listing, remaining }: { listing: DashboardListing; remain
     <div className="flex min-w-0 gap-3">
       <a href={`/anuncios/${listing.slug}`} aria-label={`Abrir anúncio ${listing.title}`} className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-neutral-800">
         {photo ? (
-          <Image src={photoUrl} alt={photo.alt ?? listing.title} fill sizes="96px" quality={76} className="object-cover" />
+          <Image src={photoUrl} alt={photo.alt ?? listing.title} fill sizes="96px" quality={76} className="bg-black object-contain" />
         ) : (
           <div className="grid h-full place-items-center text-[10px] font-bold text-neutral-400">Sem foto</div>
         )}

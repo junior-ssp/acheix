@@ -107,7 +107,7 @@ function ServiceSearchCard({ service }: { service: SearchService }) {
   return (
     <Link href={`/servicos/${service.id}` as Route} className="flex min-h-28 gap-3 rounded-2xl border border-purple-300/35 bg-neutral-950/90 p-3 transition hover:-translate-y-0.5 hover:border-purple-200">
       {service.imageUrl ? (
-        <img src={service.imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" />
+        <img src={service.imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-xl bg-black object-contain" />
       ) : (
         <span className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-purple-400 text-black">
           <Search size={26} strokeWidth={2.8} />

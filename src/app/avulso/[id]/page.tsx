@@ -6,6 +6,7 @@ import { PublicShareButton } from "@/components/public-share-button";
 import { absolutePublicUrl, imageContentType, normalizeImageUrl, optimizedOpenGraphImageUrl } from "@/lib/image-url";
 import { displayManualListingAddress, displayManualListingTitle, findPublicManualListing, manualListingPhoneUrl, manualListingWhatsappUrl, type ManualListing } from "@/lib/manual-listings";
 import { formatCurrencyBRL } from "@/lib/formatters";
+import { ListingMedia } from "@/components/listing-media";
 
 export const dynamic = "force-dynamic";
 
@@ -86,8 +87,8 @@ export default async function ManualListingSharePage({ params }: ManualListingPa
           {listing.photos.length ? (
             <div className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth">
               {listing.photos.map((photo, index) => (
-                <figure id={`foto-${index + 1}`} key={photo.id} className="relative aspect-[4/3] max-h-[620px] min-w-full snap-center sm:aspect-[16/9]">
-                  <img src={normalizeImageUrl(photo.url)} alt={photo.alt ?? `${title} - foto ${index + 1}`} className="h-full w-full object-cover" />
+                <figure id={`foto-${index + 1}`} key={photo.id} className="relative aspect-[9/16] max-h-[calc(100svh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-5rem)] min-w-full snap-center sm:aspect-[4/5]">
+                  <ListingMedia src={normalizeImageUrl(photo.url)} alt={photo.alt ?? `${title} - foto ${index + 1}`} sizes="(max-width: 768px) 100vw, 960px" priority={index === 0} />
                 </figure>
               ))}
             </div>

@@ -387,7 +387,7 @@ function MessageConversationRow({ conversation }: { conversation: ApiConversatio
 
 function ConversationImage({ title, imageUrl, isService }: { title?: string | null; imageUrl?: string | null; isService: boolean }) {
   if (imageUrl) {
-    return <img src={imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-md border border-white/10 object-cover" />;
+    return <img src={imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-md border border-white/10 bg-black object-contain" />;
   }
   const initial = String(title ?? "A").trim().charAt(0).toUpperCase() || "A";
   return (

@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { Clock, MapPin } from "lucide-react";
 import { normalizeImageUrl } from "@/lib/image-url";
 import { displayManualListingAddress, displayManualListingTitle, type ManualListing } from "@/lib/manual-listings-shared";
 import { PublicShareButton } from "@/components/public-share-button";
+import { ListingMedia } from "@/components/listing-media";
 
 export function ManualListingCard({ listing }: { listing: ManualListing }) {
   const router = useRouter();
@@ -36,9 +36,9 @@ export function ManualListingCard({ listing }: { listing: ManualListing }) {
         }}
         className="soft-card flex h-full cursor-pointer flex-col overflow-hidden rounded-[0.9rem] sm:rounded-[1.35rem]"
       >
-        <div className="relative aspect-[4/3] min-h-0 flex-1 bg-neutral-200 dark:bg-neutral-800">
+        <div className="relative aspect-[9/16] min-h-0 flex-1 bg-black sm:aspect-[4/3]">
           {photo ? (
-            <Image src={normalizeImageUrl(photo.url)} alt={photo.alt ?? title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" quality={78} className="object-cover" />
+            <ListingMedia src={normalizeImageUrl(photo.url)} alt={photo.alt ?? title} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" quality={78} />
           ) : (
             <div className="grid h-full place-items-center text-sm font-bold text-neutral-400">Sem foto</div>
           )}

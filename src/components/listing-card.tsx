@@ -1,12 +1,12 @@
 ﻿"use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Clock, MapPin } from "lucide-react";
 import { ShareMenu } from "@/components/share-menu";
 import { formatCurrencyBRL } from "@/lib/formatters";
 import { realEstatePurposeLabel } from "@/lib/real-estate-taxonomy";
 import { normalizeImageUrl } from "@/lib/image-url";
+import { ListingMedia } from "@/components/listing-media";
 
 type Listing = {
   slug: string;
@@ -50,9 +50,9 @@ export function ListingCard({ listing, onOpenPreview }: { listing: Listing; onOp
   const realEstatePurpose = listing.category === "REAL_ESTATE" ? normalizePurposeLabel(listing.realEstate?.purpose) : null;
   const content = (
     <>
-      <div className="relative aspect-[4/3] min-h-0 flex-1 bg-neutral-200 dark:bg-neutral-800">
+      <div className="relative aspect-[9/16] min-h-0 flex-1 bg-black sm:aspect-[4/3]">
         {photo ? (
-          <Image src={photoUrl} alt={photo.alt ?? listing.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" quality={78} className="object-cover" />
+          <ListingMedia src={photoUrl} alt={photo.alt ?? listing.title} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" quality={78} />
         ) : (
           <div className="grid h-full place-items-center text-sm font-bold text-neutral-400">Sem foto</div>
         )}

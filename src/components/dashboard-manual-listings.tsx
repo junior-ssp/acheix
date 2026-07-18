@@ -306,7 +306,7 @@ export function DashboardManualListings({ initialItems }: { initialItems: Manual
             const url = draft.photos[index];
             return url ? (
               <div key={url} className="relative aspect-square overflow-hidden rounded-lg border border-yellow-300/30 bg-black">
-                <img src={url} alt="" className="h-full w-full object-cover" />
+                <img src={url} alt="" className="h-full w-full bg-black object-contain" />
                 <button type="button" onClick={() => setDraft((current) => ({ ...current, photos: current.photos.filter((item) => item !== url) }))} className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/75 text-white">
                   <X size={14} />
                 </button>
@@ -533,7 +533,7 @@ export function DashboardManualListings({ initialItems }: { initialItems: Manual
                       fill
                       sizes="96px"
                       quality={60}
-                      className="object-cover"
+                      className="object-contain bg-black"
                     />
                   ) : (
                     <div className="grid h-full place-items-center text-xs font-bold text-neutral-400">Sem foto</div>
@@ -640,7 +640,7 @@ function ManualListingPhotoInput({ disabled, onFiles }: { disabled: boolean; onF
   return (
     <input
       type="file"
-      accept="image/*"
+      accept="image/jpeg,image/png,image/webp,image/avif,.heic,.heif"
       multiple
       disabled={disabled}
       className="sr-only"

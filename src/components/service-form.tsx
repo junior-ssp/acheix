@@ -525,7 +525,7 @@ export function ServiceForm({
               <div className="flex flex-wrap gap-2">
                 {serviceImages.map((image, index) => (
                   <div key={`${image}-${index}`} className="relative h-20 w-20 overflow-hidden rounded-xl border border-white/10 bg-black/35">
-                    <img src={image} alt={`Imagem ${index + 1} do perfil`} className="h-full w-full object-cover" />
+                    <img src={image} alt={`Imagem ${index + 1} do perfil`} className="h-full w-full bg-black object-contain" />
                     <button type="button" onClick={() => removeServiceImage(index)} className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/70 text-white" aria-label="Remover imagem">
                       <X size={13} />
                     </button>
@@ -542,7 +542,7 @@ export function ServiceForm({
                   {logoUploading ? "Enviando..." : "Carregar Imagem"}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/avif,.heic,.heif"
                     multiple={serviceImageLimit > 1}
                     className="sr-only"
                     disabled={!isSupabaseStorageConfigured() || logoUploading || serviceImages.length >= serviceImageLimit}

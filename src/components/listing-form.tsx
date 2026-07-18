@@ -462,14 +462,14 @@ export function ListingForm({
                 <div key={index} className="relative aspect-square overflow-hidden rounded-2xl border border-dashed border-yellow-300/45 bg-black/40">
                   {photo ? (
                     <>
-                      <img src={photo.url} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" />
+                      <img src={photo.url} alt={`Foto ${index + 1}`} className="h-full w-full bg-black object-contain" />
                       <button type="button" onClick={() => removePhoto(index)} className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-black/75 text-white hover:bg-red-500" aria-label={`Remover foto ${index + 1}`}>
                         <X size={16} />
                       </button>
                     </>
                   ) : isFirstEmptySlot ? (
               <label className={`grid h-full cursor-pointer place-items-center text-emerald-300 transition hover:bg-emerald-300/10 ${!isSupabaseStorageConfigured() || uploading ? "pointer-events-none opacity-45" : ""}`}>
-                      <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={!isSupabaseStorageConfigured() || uploading} onChange={(event) => { uploadPhotos(event.currentTarget.files); event.currentTarget.value = ""; }} className="sr-only" />
+                      <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,.heic,.heif" multiple disabled={!isSupabaseStorageConfigured() || uploading} onChange={(event) => { uploadPhotos(event.currentTarget.files); event.currentTarget.value = ""; }} className="sr-only" />
                       <Plus size={34} strokeWidth={2.8} />
                     </label>
                   ) : (
@@ -737,7 +737,7 @@ export function ListingForm({
                 <div key={index} className="relative aspect-square overflow-hidden rounded-xl border border-dashed border-yellow-300/45 bg-black/30">
                   {photo ? (
                     <>
-                      <img src={photo.url} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" />
+                      <img src={photo.url} alt={`Foto ${index + 1}`} className="h-full w-full bg-black object-contain" />
                       <button
                         type="button"
                         onClick={() => removePhoto(index)}
@@ -751,7 +751,7 @@ export function ListingForm({
                     <label className={`grid h-full cursor-pointer place-items-center text-yellow-300 transition hover:bg-yellow-300/10 ${!isSupabaseStorageConfigured() || uploading ? "pointer-events-none opacity-45" : ""}`}>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp,image/avif,.heic,.heif"
                         multiple
                         disabled={!isSupabaseStorageConfigured() || uploading}
                         onChange={(event) => {

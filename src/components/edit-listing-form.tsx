@@ -261,7 +261,7 @@ export function EditListingForm({
             Adicionar
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/avif,.heic,.heif"
               multiple
               disabled={!canUpload || photos.length >= photoLimit}
               onChange={(event) => {
@@ -279,7 +279,7 @@ export function EditListingForm({
               <div key={photo?.url ?? index} className="relative aspect-square overflow-hidden rounded-lg border border-dashed border-yellow-300/35 bg-neutral-950">
                 {photo ? (
                   <>
-                    <img src={photo.url} alt={photo.alt ?? `Foto ${index + 1}`} className="h-full w-full object-cover" />
+                    <img src={photo.url} alt={photo.alt ?? `Foto ${index + 1}`} className="h-full w-full bg-black object-contain" />
                     {index === 0 ? (
                       <span className="absolute left-1 top-1 inline-flex h-7 items-center gap-1 rounded-md bg-yellow-300 px-2 text-[10px] font-black uppercase text-black">
                         <Star size={13} fill="currentColor" />
@@ -302,7 +302,7 @@ export function EditListingForm({
                         <RefreshCcw size={16} />
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp,image/avif,.heic,.heif"
                           disabled={!canUpload}
                           onChange={(event) => {
                             replacePhoto(index, event.currentTarget.files);
@@ -326,7 +326,7 @@ export function EditListingForm({
                   <label className={`grid h-full cursor-pointer place-items-center text-yellow-300 hover:bg-yellow-300/10 ${!canUpload ? "pointer-events-none opacity-45" : ""}`}>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp,image/avif,.heic,.heif"
                       multiple
                       disabled={!canUpload}
                       onChange={(event) => {

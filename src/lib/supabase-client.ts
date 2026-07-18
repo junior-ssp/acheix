@@ -67,7 +67,7 @@ async function prepareListingPhoto(file: File) {
       canvas.height = height;
       const context = canvas.getContext("2d", { alpha: false });
       if (!context) throw new Error("Não foi possível preparar a imagem.");
-      context.fillStyle = "#ffffff";
+      context.fillStyle = "#000000";
       context.fillRect(0, 0, width, height);
       context.drawImage(bitmap, 0, 0, width, height);
 

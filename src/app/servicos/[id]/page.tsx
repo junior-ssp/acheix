@@ -226,7 +226,7 @@ function compactText(value: string, maxLength: number) {
 
 function ServiceAvatar({ imageUrl, title, category }: { imageUrl: string | null; title: string; category: string }) {
   if (imageUrl) {
-    return <img src={imageUrl} alt={title} className="h-16 w-16 shrink-0 rounded-lg border border-white/10 object-cover" />;
+    return <img src={imageUrl} alt={title} className="h-16 w-16 shrink-0 rounded-lg border border-white/10 bg-black object-contain" />;
   }
   const Icon = serviceCategoryIconComponent(category);
   return (

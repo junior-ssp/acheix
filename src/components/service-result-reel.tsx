@@ -9,6 +9,7 @@ import { PublicShareButton } from "@/components/public-share-button";
 import { ServiceCategoryIcon, serviceCategoryIconComponent } from "@/components/service-category-icon";
 import { ServiceContactButton } from "@/components/service-contact-button";
 import { publicServiceAreaText } from "@/lib/service-public-location";
+import { ListingMedia } from "@/components/listing-media";
 
 type PublicService = {
   id: string;
@@ -111,7 +112,7 @@ export function ServiceResultReel({
         {services.map((service, index) => (
           <article key={service.id} className="relative grid min-h-[100svh] snap-start snap-always overflow-hidden bg-neutral-950">
             {service.imageUrl ? (
-              <img src={service.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <ListingMedia src={service.imageUrl} alt={service.title} sizes="100vw" priority={index === 0} />
             ) : (
               <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_top,#14532d_0%,#050505_58%)]">
                 <span className="grid h-32 w-32 place-items-center rounded-3xl bg-emerald-400 text-black shadow-[0_0_45px_rgba(52,211,153,0.35)]">

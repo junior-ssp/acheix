@@ -419,7 +419,7 @@ function serviceSharePath(service: PublicService) {
 
 function ServiceAvatar({ service }: { service: PublicService }) {
   if (service.imageUrl) {
-    return <img src={service.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-md border border-white/10 object-cover aspect-square" />;
+    return <img src={service.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-md border border-white/10 bg-black object-contain aspect-square" />;
   }
   const Icon = serviceCategoryIconComponent(service.category);
   return (

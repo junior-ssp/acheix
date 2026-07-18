@@ -326,7 +326,7 @@ function ProfessionalCard({ professional }: { professional: HomeProfessional }) 
       >
         <div className="relative aspect-[4/3] bg-neutral-900">
           {professional.imageUrl ? (
-            <img src={professional.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+            <img src={professional.imageUrl} alt="" loading="lazy" className="h-full w-full bg-black object-contain" />
           ) : (
             <div className="grid h-full place-items-center bg-[radial-gradient(circle_at_top,#14532d_0%,#050505_58%)]">
               <span className="grid h-20 w-20 place-items-center rounded-3xl bg-emerald-400 text-black shadow-[0_0_30px_rgba(52,211,153,0.25)]">
